@@ -19,9 +19,12 @@ extension working. Estimates are rough working-days for one focused implementer 
      active), narration and directed-media toggles (page or a small menu), session settings editor.
    - Metronome: hidden by default behind a menu; tempo, volume and start controls locked when the
      domme owns pacing (until Phase 2 wires her in, "locked" simply means hidden in guided modes).
+   - **End session is only offered in debug sessions.** Everywhere else the user gets Pause.
+     (Until Phase 3 adds the leave-early flow, a non-debug session ends through the domme's
+     ending, or through a recorded orgasm in permission mode.)
 4. **Delete dead persistence**: `Migrations/` (SQLite Designer files and snapshot), the
-   `Microsoft.EntityFrameworkCore.Sqlite` package, the `IsNpgsql()` dual paths. Keep the legacy
-   importer only until it has been confirmed to have run on the real install, then delete it too.
+   `Microsoft.EntityFrameworkCore.Sqlite` package, the `IsNpgsql()` dual paths, and the legacy
+   SQLite importer (confirmed: it has already run on the real install).
 5. **Fix packaging**: drop the unrestorable `Cove.Data` package fallback, add a
    `Directory.Build.targets` that strips host-provided assemblies (copy EmpPrep's), set
    `extension.json` description and `minCoveVersion` deliberately.
@@ -78,8 +81,9 @@ Goal: the four modes exist, as presets over independent authorities, on a rewrit
 4. **Modes as presets**:
    - Mode 1 full guided: all domme.
    - Mode 2 own content: content = user; rest domme. Directed media off; everything else as mode 1.
-   - Mode 3 own content and methods: user picks the current method (companion picker or a
-     configurable hotkey cycling the allowed set); domme sets edges, holds, stroking times, ending.
+   - Mode 3 own content and methods: the user strokes however they like; domme sets edges, holds,
+     stroking times, ending. Whether she needs to know the current method is open decision 4
+     below; the default is method-agnostic instructions.
    - Mode 4 free play: user controls everything; tracker records edges; permission and ending are
      domme's; begging can trigger an offer (Phase 3 supplies the templates).
    Retire `Simple` as a mode; "restricted method pool" becomes an allowed-methods filter any mode
@@ -90,10 +94,16 @@ Goal: the four modes exist, as presets over independent authorities, on a rewrit
    tool.
 6. **Games as a capability**: extract a `GameSession` state machine (start / on edge / on timer /
    on answer → outcome with applied consequences) owned by the games module and usable by any
-   mode where the domme owns the affected concern. Apply the announced stakes.
-7. **Page and companion follow the contract**: the setup screen becomes "pick a mode, adjust the
-   few fields the mode exposes, propose commitments, review the ledger, accept". The companion
-   shows only controls for concerns the user owns.
+   mode where the domme owns the affected concern. Apply the announced stakes. Cut games that
+   are pointless in practice (asking the user to count edges that are already on screen, and any
+   other game whose "answer" is visible or trivially known) and add more imaginative ones:
+   games with real risk, decisions under pressure, or stakes that carry into the ledger.
+7. **Redesign the AI Domme page.** Setup becomes "pick a mode, adjust the few fields the mode
+   exposes, propose commitments, review the ledger, accept". The running session becomes: media
+   window at the top, status (time left in the instruction, edges remaining, and so on), the chat
+   log as the main surface, and a few buttons, each with a hotkey. Edge and Orgasm reuse the
+   global tracker hotkeys. Pause instead of End outside debug sessions. The companion shows only
+   controls for concerns the user owns. Built with Cove's shared components and theme variables.
 8. Tests: deterministic engine unit tests per authority and per mode; a scripted end-to-end run
    per mode with a fake clock.
 
@@ -104,27 +114,40 @@ Goal: the four modes exist, as presets over independent authorities, on a rewrit
    torturous, mean, teasing…), combinable, optional note.
 2. **Domme response rules**: accept, counter (longer or harsher), attach stakes. Stakes reference
    ledger entry types. Response and acceptance are chat messages backed by persisted rows.
-3. **Offer templates** (code or data, not user-authored): trigger (beg, request after N edges,
-   failed game, failed hold), grant (permission now, ruined, later), cost (owed punishment,
-   punishment ending now, extra denial days, harder game). Rules instantiate an offer; the user
-   accepts or declines; acceptance can create a commitment. Wire into `IPermissionAuthority` and
-   `IEndingAuthority`.
+3. **Offer library**, configurable like methods and punishment endings (shared defaults plus
+   personal overrides, editable on the Tuning page): name, domme wording with parameter slots,
+   parameters with ranges (edge count, denial days, hold seconds, ending type, owed punishment
+   severity), a point value that scales with the chosen parameters, a flavor/style, and mood
+   affinities. When the user asks for something (permission, a rest, mercy after a lost game),
+   `IPermissionAuthority` / `IEndingAuthority` values what is asked for, picks an offer weighted by
+   mood and flavor, fills parameters to roughly match that value, and presents it. Acceptance
+   snapshots the concrete parameters into a commitment or ledger entry. Replaces the removed
+   user-authored "offer definitions".
 4. **Ledger table**: type, severity, origin (session, commitment, rule, offer), created, due,
    status (owed / being served / served), served-in session. Enforcement: denial windows block
    permission; owed punishment sessions and punishment endings are folded into the next
    contract; counts decrement when served. Nothing auto-deletes.
-5. **Breach detection from facts**: orgasm without permission (user reports accidental vs
-   intentional; different consequences), early end, failed hold, broken denial window. Replace
-   the three punishment implementations with the ledger; either make the confession flow real
-   (set the suspicion flag on a genuinely abandoned session) or remove it.
-6. **Surface**: outstanding ledger entries and commitments shown at session setup and, briefly, in
+5. **Breach detection from facts**: orgasm without permission, early end, failed hold, broken
+   denial window. The user self-reports whether an unauthorized orgasm was accidental or
+   intentional, in that session or the next time they open AI Domme; the answer changes the
+   consequence. Replace the three punishment implementations with the ledger.
+6. **Unclean endings are never lost.** A session with no clean end (Cove closed, machine powered
+   off, browser killed) is marked as interrupted at the next startup or visit. Before anything
+   else the domme asks what happened, and the answer is recorded next to what was observed.
+   Commitments in force at that moment are evaluated from the answer. This replaces the current
+   confession flow, which is unreachable.
+7. **Surface**: outstanding ledger entries and commitments shown at session setup and, briefly, in
    the companion log at session start.
 
 ## Phase 4 — Session logic and speech realism (8–12 days initial, then iterative)
 
-1. **Arc planner** replacing per-step category roulette: warm-up → build → plateau/tease →
-   escalation → decision → ending, with a per-session plan drawn up front (method sequence
-   skeleton, planned games, planned holds, reserved surprises) and adjusted by events.
+1. **Phase planner** replacing per-step category roulette. A session moves between phases such
+   as ramp-up, intensity, torture and teasing, in an order and proportion drawn from the
+   contract and her mood, with a rough plan made up front (phase sequence, planned games and
+   holds, reserved surprises) and adjusted by events. Not a fixed warm-up-to-climax arc.
+   Repetition is deliberate or absent: returning to a method or alternating between two things is
+   a valid choice the planner can make; repeating a line or an instruction pattern by accident is
+   a defect. Track recent history to tell the two apart.
 2. **All endings reachable live**: full, ruined, denial, punishment ender; chosen by
    `IEndingAuthority` from contract, ledger, behaviour and offers.
 3. **Single narration service** with persona (stable across sessions), per-session memory
@@ -133,8 +156,8 @@ Goal: the four modes exist, as presets over independent authorities, on a rewrit
    as raw material.
 4. **Fix the known bugs** listed in the assessment (edge-then-hold points, retaliation reason,
    never-ending request-only sessions, fabricated edge speed/hold, unguarded timer mutation).
-5. **Delete** `OfflineInstructionEngine` and `MethodSelector` duplicates; if homework is still
-   wanted, generate it from the planner with a non-interactive contract.
+5. **Homework stays.** Rebuild it on the planner with a non-interactive contract, then delete the
+   `OfflineInstructionEngine` and `MethodSelector` duplicates.
 6. Measure with scripted sessions: no contradictory consecutive instructions, no repeated line
    within a session, every announced stake applied, every ledger entry either served or still owed.
 
@@ -144,13 +167,23 @@ Prerequisites to keep in mind during Phases 1–4: sessions creatable by the ser
 companion can show with no session active, a scheduler inside the extension, very short
 contracts, and mode 4 as the resting state. Do not build until Phase 3 is done.
 
-## Decisions needed from you
+## Decisions
 
-1. Keep the offline "homework" generator at all? (Recommendation: drop it; revisit after Phase 4.)
-2. Keep a separate Tuning page, or fold method/ender editing into a tab on the AI Domme page?
-   (Recommendation: one page with tabs; Cove's guidelines discourage extra nav items.)
-3. Has the legacy SQLite import already run on your real Cove install? If yes, the importer and
-   the SQLite package can go in Phase 0.
-4. Mode 3 input for "current method": companion picker, hotkey cycle, or both?
-5. Accidental vs intentional unauthorized orgasm: does the user self-report, or is it always
-   treated the same with the domme deciding severity?
+Answered 2026-09-22:
+
+1. **Homework stays.** Rebuild it on the planner in Phase 4.
+2. **Tuning page**: useful, keep it as its own page, low priority.
+3. **Legacy SQLite import has run** on the real install. Importer and SQLite package removed in
+   Phase 0.
+5. **Unauthorized orgasms are self-reported** as accidental or intentional, in that session or the
+   next time the user opens AI Domme.
+
+Still open:
+
+4. **Mode 3 (user picks their own methods): does the domme need to know which method the user is
+   using?** She does not need it to run edges, holds and timing. Knowing it would let her react
+   ("switch to something gentler") and would make the recorded edges meaningful for tuning. Options:
+   (a) she never knows, and instructions stay method-agnostic ("edge twice, however you like");
+   (b) the user optionally tells her, with a picker in the companion or a hotkey that cycles the
+   allowed methods; (c) she asks at each phase change. Default if unanswered: (a), with (b) added
+   later if it turns out to be wanted.
