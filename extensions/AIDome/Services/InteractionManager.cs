@@ -1,5 +1,6 @@
 using System;
 using AIDome.Data;
+using AIDome.Persistence;
 using Microsoft.EntityFrameworkCore;
 
 namespace AIDome.Services;
@@ -21,10 +22,10 @@ public sealed class InteractionManager : IInteractionManager
     private static readonly TimeSpan SessionTimeout = TimeSpan.FromMinutes(15);
     private const int DefaultStimMethodId = 1;
 
-    private readonly IDbContextFactory<CommandCenterDbContext> _dbContextFactory;
+    private readonly GuidedDataFactory _dbContextFactory;
     private readonly Func<int?>? _activeSession;
 
-    public InteractionManager(IDbContextFactory<CommandCenterDbContext> dbContextFactory, Func<int?>? activeSession = null)
+    public InteractionManager(GuidedDataFactory dbContextFactory, Func<int?>? activeSession = null)
     {
         _dbContextFactory = dbContextFactory;
         _activeSession = activeSession;
@@ -32,7 +33,7 @@ public sealed class InteractionManager : IInteractionManager
 
     public async Task<EdgeEntry> RecordEdgeAsync(int speed, TimeSpan heldDuration, CancellationToken cancellationToken = default)
     {
-        await using var dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
+        await using var dbContext = await _dbContextFactory.OpenAsync(cancellationToken);
         var now = DateTime.UtcNow;
         var session = await GetBoundSessionAsync(dbContext, now, cancellationToken);
 
@@ -45,14 +46,14 @@ public sealed class InteractionManager : IInteractionManager
             HeldDuration = heldDuration
         };
 
-        dbContext.Edges.Add(entry);
+        dbContext.Add(entry);
         await dbContext.SaveChangesAsync(cancellationToken);
         return entry;
     }
 
     public async Task<int> GetCurrentSessionId(CancellationToken cancellationToken = default)
     {
-        await using var dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
+        await using var dbContext = await _dbContextFactory.OpenAsync(cancellationToken);
         var now = DateTime.UtcNow;
         var session = await GetBoundSessionAsync(dbContext, now, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -61,7 +62,7 @@ public sealed class InteractionManager : IInteractionManager
 
     public async Task<OrgasmEntry> RecordOrgasmAsync(bool allowed, CancellationToken cancellationToken = default)
     {
-        await using var dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
+        await using var dbContext = await _dbContextFactory.OpenAsync(cancellationToken);
         var now = DateTime.UtcNow;
         var session = await GetBoundSessionAsync(dbContext, now, cancellationToken);
 
@@ -72,14 +73,14 @@ public sealed class InteractionManager : IInteractionManager
             Session = session
         };
 
-        dbContext.Orgasms.Add(entry);
+        dbContext.Add(entry);
         await dbContext.SaveChangesAsync(cancellationToken);
         return entry;
     }
 
     public async Task<SessionRecord> TouchSessionAsync(CancellationToken cancellationToken = default)
     {
-        await using var dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
+        await using var dbContext = await _dbContextFactory.OpenAsync(cancellationToken);
         var now = DateTime.UtcNow;
         var session = await GetBoundSessionAsync(dbContext, now, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -88,7 +89,7 @@ public sealed class InteractionManager : IInteractionManager
 
     public async Task<SessionRecord?> GetLatestSessionAsync(CancellationToken cancellationToken = default)
     {
-        await using var dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
+        await using var dbContext = await _dbContextFactory.OpenAsync(cancellationToken);
         if (_activeSession?.Invoke() is int active)
             return await dbContext.Sessions.FirstOrDefaultAsync(x => x.Id == active, cancellationToken);
         var session = await dbContext.Sessions
@@ -100,7 +101,7 @@ public sealed class InteractionManager : IInteractionManager
 
     public async Task<SessionRecord> StartSessionAsync(SessionParameters p, CancellationToken cancellationToken = default)
     {
-        await using var dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
+        await using var dbContext = await _dbContextFactory.OpenAsync(cancellationToken);
         var now = DateTime.UtcNow;
 
         var session = new SessionRecord
@@ -126,14 +127,14 @@ public sealed class InteractionManager : IInteractionManager
             SuspectedUnauthorizedOrgasm = false,
         };
 
-        dbContext.Sessions.Add(session);
+        dbContext.Add(session);
         await dbContext.SaveChangesAsync(cancellationToken);
         return session;
     }
 
     public async Task<InfractionEntry> RecordInfractionAsync(InfractionType type, string? note, CancellationToken cancellationToken = default)
     {
-        await using var dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
+        await using var dbContext = await _dbContextFactory.OpenAsync(cancellationToken);
         var now = DateTime.UtcNow;
         var session = await GetBoundSessionAsync(dbContext, now, cancellationToken);
 
@@ -145,14 +146,14 @@ public sealed class InteractionManager : IInteractionManager
             Notes = note ?? string.Empty
         };
 
-        dbContext.Infractions.Add(entry);
+        dbContext.Add(entry);
         await dbContext.SaveChangesAsync(cancellationToken);
         return entry;
     }
 
     public async Task<CumRequest> RecordCumRequestAsync(bool decision, CancellationToken cancellationToken = default)
     {
-        await using var dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
+        await using var dbContext = await _dbContextFactory.OpenAsync(cancellationToken);
         var now = DateTime.UtcNow;
         var session = await GetBoundSessionAsync(dbContext, now, cancellationToken);
 
@@ -163,12 +164,12 @@ public sealed class InteractionManager : IInteractionManager
             Decision = decision
         };
 
-        dbContext.CumRequests.Add(entry);
+        dbContext.Add(entry);
         await dbContext.SaveChangesAsync(cancellationToken);
         return entry;
     }
 
-    private async Task<SessionRecord> GetBoundSessionAsync(CommandCenterDbContext db, DateTime now, CancellationToken ct)
+    private async Task<SessionRecord> GetBoundSessionAsync(GuidedData db, DateTime now, CancellationToken ct)
     {
         if (_activeSession?.Invoke() is not int active) return await GetOrCreateSessionAsync(db, now, ct);
         var session = await db.Sessions.FirstOrDefaultAsync(x => x.Id == active, ct)
@@ -177,7 +178,7 @@ public sealed class InteractionManager : IInteractionManager
         return session;
     }
 
-    public static async Task<SessionRecord> GetOrCreateSessionAsync(CommandCenterDbContext dbContext, DateTime utcNow, CancellationToken cancellationToken)
+    public static async Task<SessionRecord> GetOrCreateSessionAsync(GuidedData dbContext, DateTime utcNow, CancellationToken cancellationToken)
     {
         var session = await dbContext.Sessions
             .OrderByDescending(s => s.LastInteractionUtc)
@@ -191,7 +192,7 @@ public sealed class InteractionManager : IInteractionManager
                 LastInteractionUtc = utcNow
             };
 
-            dbContext.Sessions.Add(session);
+            dbContext.Add(session);
         }
         else
         {

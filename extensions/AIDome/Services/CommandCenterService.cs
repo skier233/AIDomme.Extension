@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using AIDome.Utils;
 using AIDome.Data;
+using AIDome.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -32,7 +33,7 @@ public sealed class CommandCenterService : ICommandCenterService, IHostedService
     private readonly List<CommandActionDefinition> _actions = new(StaticActions);
     private readonly ILogger<CommandCenterService> _logger;
     private readonly IInteractionManager _interactionManager;
-    private readonly IDbContextFactory<CommandCenterDbContext> _dbContextFactory;
+    private readonly GuidedDataFactory _dbContextFactory;
     private readonly IOnlineSessionEngine _onlineEngine;
     private readonly IInstructionEngine _instructionEngine;
     private readonly IGameEngine _gameEngine;
@@ -42,7 +43,7 @@ public sealed class CommandCenterService : ICommandCenterService, IHostedService
     public CommandCenterService(
         ILogger<CommandCenterService> logger,
         IInteractionManager interactionManager,
-        IDbContextFactory<CommandCenterDbContext> dbContextFactory,
+        GuidedDataFactory dbContextFactory,
         IOnlineSessionEngine onlineEngine,
         IInstructionEngine instructionEngine,
         IGameEngine gameEngine)
@@ -328,7 +329,7 @@ public sealed class CommandCenterService : ICommandCenterService, IHostedService
 
     public async Task<double> GetCumChance(CancellationToken cancellationToken, int sessionId)
     {
-        await using var db = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
+        await using var db = await _dbContextFactory.OpenAsync(cancellationToken);
 
         var now = DateTime.UtcNow;
 
@@ -357,9 +358,8 @@ public sealed class CommandCenterService : ICommandCenterService, IHostedService
             edgesSinceLastOrgasm = await db.Edges.CountAsync(e => e.TimestampUtc > lastOrgasm.TimestampUtc, cancellationToken);
         }
 
-        if (_dbContextFactory is AIDome.Persistence.BoundGuidedFactory owned)
         {
-            var metrics = await owned.ReadTrackerMetricsAsync(now, cancellationToken);
+            var metrics = await _dbContextFactory.ReadTrackerMetricsAsync(now, cancellationToken);
             // Passive browsing contributes too. An unknown last orgasm stays unknown rather
             // than fabricating the legacy 1.5-day interval; the formula uses its neutral floor.
             timeSinceLastOrgasm = metrics.LastOrgasmAtUtc is DateTime last ? now - last : TimeSpan.Zero;
@@ -454,7 +454,7 @@ public sealed class CommandCenterService : ICommandCenterService, IHostedService
 
     public async Task<ResolvedDefaults> GetResolvedDefaultsAsync(CancellationToken cancellationToken = default)
     {
-        await using var db = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
+        await using var db = await _dbContextFactory.OpenAsync(cancellationToken);
         var recent = await db.Sessions
             .OrderByDescending(s => s.StartedAtUtc)
             .Take(5)
@@ -507,7 +507,7 @@ public sealed class CommandCenterService : ICommandCenterService, IHostedService
 
     public async Task<IReadOnlyList<SessionRecord>> GetSessionHistoryAsync(int count = 10, CancellationToken cancellationToken = default)
     {
-        await using var db = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
+        await using var db = await _dbContextFactory.OpenAsync(cancellationToken);
         return await db.Sessions
             .OrderByDescending(s => s.StartedAtUtc)
             .Take(count)
@@ -597,7 +597,7 @@ public sealed class CommandCenterService : ICommandCenterService, IHostedService
 
     public async Task<PreviousSessionSuspicion?> CheckPreviousSessionAsync(CancellationToken cancellationToken = default)
     {
-        await using var db = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
+        await using var db = await _dbContextFactory.OpenAsync(cancellationToken);
         var prev = await db.Sessions
             .OrderByDescending(s => s.StartedAtUtc)
             .FirstOrDefaultAsync(cancellationToken);
@@ -626,7 +626,7 @@ public sealed class CommandCenterService : ICommandCenterService, IHostedService
 
     public async Task HandleConfessionAsync(bool confessed, CancellationToken cancellationToken = default)
     {
-        await using var db = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
+        await using var db = await _dbContextFactory.OpenAsync(cancellationToken);
         var prev = await db.Sessions
             .OrderByDescending(s => s.StartedAtUtc)
             .FirstOrDefaultAsync(cancellationToken);
@@ -643,7 +643,7 @@ public sealed class CommandCenterService : ICommandCenterService, IHostedService
                 Type = InfractionType.UnauthorizedOrgasm,
                 Notes = "Confessed during next session start."
             };
-            db.Infractions.Add(infraction);
+            db.Add(infraction);
 
             prev.Outcome = SessionOutcome.UnauthorizedOrgasm;
             prev.SuspectedUnauthorizedOrgasm = false;
@@ -675,7 +675,7 @@ public sealed class CommandCenterService : ICommandCenterService, IHostedService
                 RemainingCount = 0,
                 DenialEndsAtUtc = DateTime.UtcNow.AddDays(denialDays)
             };
-            db.Punishments.Add(punishment);
+            db.Add(punishment);
             infraction.PunishmentAssigned = true;
 
             await db.SaveChangesAsync(cancellationToken);
@@ -703,7 +703,7 @@ public sealed class CommandCenterService : ICommandCenterService, IHostedService
 
     public async Task<IReadOnlyList<PunishmentSummary>> GetActivePunishmentSummariesAsync(CancellationToken cancellationToken = default)
     {
-        await using var db = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
+        await using var db = await _dbContextFactory.OpenAsync(cancellationToken);
         var active = await db.Punishments
             .Where(p => !p.Completed)
             .Where(p => p.DenialEndsAtUtc == null || p.DenialEndsAtUtc > DateTime.UtcNow)
@@ -780,7 +780,7 @@ public sealed class CommandCenterService : ICommandCenterService, IHostedService
     /// </summary>
     private async Task FinalizeSessionOutcomeAsync(int sessionId, SessionOutcome outcome, CancellationToken ct = default)
     {
-        await using var db = await _dbContextFactory.CreateDbContextAsync(ct);
+        await using var db = await _dbContextFactory.OpenAsync(ct);
         var session = await db.Sessions.FirstOrDefaultAsync(s => s.Id == sessionId, ct);
         if (session is not null)
         {
@@ -829,7 +829,7 @@ public sealed class CommandCenterService : ICommandCenterService, IHostedService
 
     private SessionRecord? GetLatestSessionSync()
     {
-        using var dbContext = _dbContextFactory.CreateDbContext();
+        using var dbContext = _dbContextFactory.Open();
         if (_onlineEngine.HasActiveSession)
         {
             var active = _onlineEngine.GetCurrentState().SessionId;

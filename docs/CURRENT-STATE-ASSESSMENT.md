@@ -3,6 +3,10 @@
 Date: 2026-09-22. Reviewed against [NORTHSTAR.md](NORTHSTAR.md). The ordered work list derived from
 this review is in [NOW.md](NOW.md). Paths are relative to `extensions/AIDome/` unless noted.
 
+> **Later the same day:** Phases 0 and 1 of [NOW.md](NOW.md) addressed section A (persistence),
+> the "Define offers" and companion items under "What missed the mark", and the packaging and
+> naming issues. This document is kept as the review of the inherited code; NOW.md tracks status.
+
 ## Verification performed
 
 | Check | Result |

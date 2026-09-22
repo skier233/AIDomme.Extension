@@ -43,6 +43,20 @@ dotnet build AIDome.Extension.slnx -c Debug
 ./scripts/stage-local-extensions.ps1   # then restart Cove; "AI Domme" appears in the nav
 ```
 
+## Upgrading an existing install
+
+Version 0.7.0 adds migration `005_guided_v2`, which moves AI Domme's guided data onto plain
+per-user tables in Cove's database and drops the previous tables in the same transaction. It was
+verified against a copy of a real install, but it is a one-way move, so take a copy of the AI Domme
+tables first:
+
+```powershell
+& "$env:LOCALAPPDATA\cove_personal_live\pgsql\bin\pg_dump.exe" -h 127.0.0.1 -p 5430 -U postgres -d cove -t 'aidomme_*' -f aidomme-backup.sql
+```
+
+Then stage, and restart Cove so the migration runs. Staging also removes assemblies that earlier
+versions shipped but Cove provides itself.
+
 ## Verify
 
 ```powershell

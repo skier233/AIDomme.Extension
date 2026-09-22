@@ -1,17 +1,21 @@
-using AIDome.Tracking;
 using AIDome.Data;
 using AIDome.Services;
-using Cove.Data;
+using AIDome.Tracking;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace AIDome.Persistence;
 
+/// <summary>
+/// Connects the app-wide tracker to a running guided session. Guided records are written in the
+/// tracker's own context and transaction, so an event and its guided receipt commit together.
+/// The engine is told about the event after the commit, exactly once per event.
+/// </summary>
 public sealed class GuidedTrackerBridge(GuidedRuntimes runtimes, ILogger<GuidedTrackerBridge> logger)
 {
     public async Task DrainUnderGateAsync(GuidedRuntime runtime, CancellationToken ct)
     {
-        await using var db = await runtime.Factory.CreateDbContextAsync(ct);
+        await using var db = runtime.Factory.Open();
         if (runtime.Online.HasActiveSession && await db.TrackerReceipts.AnyAsync(x => x.SessionId == runtime.Online.GetCurrentState().SessionId && x.VoidedAtUtc != null, ct))
             runtime.Commands.StopAfterTrackingCorrection();
         var pending = await db.TrackerReceipts.Where(x => x.DeliveredAtUtc == null && x.VoidedAtUtc == null).OrderBy(x => x.Id).ToListAsync(ct);
@@ -32,7 +36,8 @@ public sealed class GuidedTrackerBridge(GuidedRuntimes runtimes, ILogger<GuidedT
         }
         await db.SaveChangesAsync(ct);
     }
-    public async Task RecordAsync(CoveContext tracker, TrackerEvent item, CancellationToken ct, RecordTrackerEvent? expected = null)
+
+    public async Task RecordAsync(DbContext tracker, TrackerEvent item, CancellationToken ct, RecordTrackerEvent? expected = null)
     {
         if (!runtimes.TryGet(item.UserId, out var runtime) || !runtime!.Online.HasActiveSession) return;
         await runtime.Gate.WaitAsync(ct);
@@ -42,41 +47,35 @@ public sealed class GuidedTrackerBridge(GuidedRuntimes runtimes, ILogger<GuidedT
             var state = runtime.Online.GetCurrentState();
             if (expected?.GuidedSessionId is int sessionId && sessionId != state.SessionId
                 || expected?.GuidedStepNumber is int stepNumber && stepNumber != state.StepNumber) return;
-            await using var db = await runtime.Factory.InTrackerTransactionAsync(tracker, ct);
+            var db = runtime.Factory.Join(tracker);
             var session = await db.Sessions.SingleOrDefaultAsync(x => x.Id == state.SessionId, ct)
                 ?? throw new TrackerValidationException("The guided session changed. Refresh Cove before recording.");
             session.LastInteractionUtc = item.ReceivedAtUtc;
-            var receipt = new GuidedEventReceipt { EventId = item.Id, Kind = item.Kind, SessionId = state.SessionId };
+            var receipt = new GuidedEventReceipt { EventId = item.Id, Kind = item.Kind, SessionId = state.SessionId, StepNumber = state.StepNumber };
             if (item.Kind == "edge")
             {
                 var parameters = runtime.Commands.GetTrackerEdgeParameters();
-                var edge = new EdgeEntry { TimestampUtc = item.OccurredAtUtc, SessionId = state.SessionId,
-                    StimMethodId = state.CurrentDirective?.Method?.Id ?? 1, Speed = parameters.Speed, HeldDuration = parameters.HoldDuration };
-                db.Edges.Add(edge);
+                var edge = db.Add(new EdgeEntry { TimestampUtc = item.OccurredAtUtc, SessionId = state.SessionId,
+                    StimMethodId = state.CurrentDirective?.Method?.Id ?? 1, Speed = parameters.Speed, HeldDuration = parameters.HoldDuration });
                 await db.SaveChangesAsync(ct);
                 receipt.ActivityId = edge.Id;
             }
             else
             {
                 var allowed = state.Phase == SessionPhase.Finishing;
-                var orgasm = new OrgasmEntry { TimestampUtc = item.OccurredAtUtc, SessionId = state.SessionId, Allowed = allowed };
-                db.Orgasms.Add(orgasm);
+                var orgasm = db.Add(new OrgasmEntry { TimestampUtc = item.OccurredAtUtc, SessionId = state.SessionId, Allowed = allowed });
                 if (!allowed)
                 {
-                    var infraction = new InfractionEntry { TimestampUtc = item.OccurredAtUtc, SessionId = state.SessionId,
-                        Type = InfractionType.UnauthorizedOrgasm, Notes = "Recorded by the Cove tracker." };
-                    db.Infractions.Add(infraction);
+                    var infraction = db.Add(new InfractionEntry { TimestampUtc = item.OccurredAtUtc, SessionId = state.SessionId,
+                        Type = InfractionType.UnauthorizedOrgasm, Notes = "Recorded by the Cove tracker." });
                     await db.SaveChangesAsync(ct);
                     receipt.InfractionId = infraction.Id;
                 }
                 else await db.SaveChangesAsync(ct);
                 receipt.ActivityId = orgasm.Id;
             }
-            db.TrackerReceipts.Add(receipt);
+            db.Add(receipt);
             await db.SaveChangesAsync(ct);
-            await db.Database.ExecuteSqlInterpolatedAsync($"""
-                INSERT INTO aidomme_guided_event_steps ("OwnerId", "EventId", "StepNumber") VALUES ({item.UserId}, {item.Id}, {state.StepNumber})
-                """, ct);
         }
         finally { runtime.Gate.Release(); }
     }
@@ -87,7 +86,7 @@ public sealed class GuidedTrackerBridge(GuidedRuntimes runtimes, ILogger<GuidedT
         await runtime!.Gate.WaitAsync(ct);
         try
         {
-            await using var db = await runtime.Factory.CreateDbContextAsync(ct);
+            await using var db = runtime.Factory.Open();
             var receipt = await db.TrackerReceipts.SingleOrDefaultAsync(x => x.EventId == item.Id, ct);
             if (receipt is null || receipt.DeliveredAtUtc is not null || receipt.VoidedAtUtc is not null) return;
             if (runtime.Online.HasActiveSession && !runtime.Online.GetCurrentState().IsPaused && runtime.Online.GetCurrentState().SessionId == receipt.SessionId)
@@ -109,14 +108,14 @@ public sealed class GuidedTrackerBridge(GuidedRuntimes runtimes, ILogger<GuidedT
         finally { runtime.Gate.Release(); }
     }
 
-    public async Task UndoAsync(CoveContext tracker, TrackerEvent item, CancellationToken ct)
+    public async Task UndoAsync(DbContext tracker, TrackerEvent item, CancellationToken ct)
     {
         // A stopped/restarted runtime still needs its persisted activity corrected.
-        var runtime = runtimes.ForUser(item.UserId);
+        var runtime = await runtimes.ForUserAsync(item.UserId, ct);
         await runtime.Gate.WaitAsync(ct);
         try
         {
-            await using var db = await runtime.Factory.InTrackerTransactionAsync(tracker, ct);
+            var db = runtime.Factory.Join(tracker);
             var receipt = await db.TrackerReceipts.SingleOrDefaultAsync(x => x.EventId == item.Id, ct);
             if (receipt is null || receipt.VoidedAtUtc is not null) return;
             if (receipt.Kind == "edge")
@@ -143,7 +142,7 @@ public sealed class GuidedTrackerBridge(GuidedRuntimes runtimes, ILogger<GuidedT
         await runtime!.Gate.WaitAsync(ct);
         try
         {
-            await using var db = await runtime.Factory.CreateDbContextAsync(ct);
+            await using var db = runtime.Factory.Open();
             var receipt = await db.TrackerReceipts.SingleOrDefaultAsync(x => x.EventId == item.Id, ct);
             if (receipt is not null && runtime.Online.HasActiveSession && runtime.Online.GetCurrentState().SessionId == receipt.SessionId)
                 runtime.Commands.StopAfterTrackingCorrection();
@@ -152,17 +151,15 @@ public sealed class GuidedTrackerBridge(GuidedRuntimes runtimes, ILogger<GuidedT
         finally { runtime.Gate.Release(); }
     }
 
-    private static async Task ClearSuspicionAsync(CommandCenterDbContext db, int sessionId, CancellationToken ct)
+    private static async Task ClearSuspicionAsync(GuidedData db, int sessionId, CancellationToken ct)
     {
         var session = await db.Sessions.SingleOrDefaultAsync(x => x.Id == sessionId, ct);
         if (session is not null) session.SuspectedUnauthorizedOrgasm = false;
     }
-    private static async Task ConsumeAsync(GuidedRuntime runtime, CommandCenterDbContext db, GuidedEventReceipt receipt, CancellationToken ct)
+
+    private static async Task ConsumeAsync(GuidedRuntime runtime, GuidedData db, GuidedEventReceipt receipt, CancellationToken ct)
     {
-        var originalStep = await db.Database.SqlQuery<int>($"""
-            SELECT "StepNumber" AS "Value" FROM aidomme_guided_event_steps WHERE "OwnerId" = {db.OwnerId} AND "EventId" = {receipt.EventId}
-            """).SingleOrDefaultAsync(ct);
-        if (receipt.Kind == "edge" && originalStep > 0 && originalStep != runtime.Online.GetCurrentState().StepNumber)
+        if (receipt.Kind == "edge" && receipt.StepNumber is int step && step > 0 && step != runtime.Online.GetCurrentState().StepNumber)
         {
             runtime.Commands.ObserveEarlierTrackerEdge(receipt.EventId);
             return;

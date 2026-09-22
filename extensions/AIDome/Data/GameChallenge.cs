@@ -39,9 +39,13 @@ public enum GameType
 /// A mini-game challenge issued during a session. Outcomes feed the punishment
 /// or reward pipeline.
 /// </summary>
-public sealed class GameChallenge
+public sealed class GameChallenge : IUserOwned
 {
     public int Id { get; set; }
+
+    /// <summary>The Cove account that owns this row.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public int UserId { get; set; }
 
     public DateTime IssuedAtUtc { get; set; }
 

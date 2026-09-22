@@ -1,4 +1,5 @@
 using AIDome.Data;
+using AIDome.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -10,11 +11,11 @@ namespace AIDome.Services;
 /// </summary>
 public sealed class GameEngine : IGameEngine
 {
-    private readonly IDbContextFactory<CommandCenterDbContext> _dbFactory;
+    private readonly GuidedDataFactory _dbFactory;
     private readonly ILogger<GameEngine> _logger;
 
     public GameEngine(
-        IDbContextFactory<CommandCenterDbContext> dbFactory,
+        GuidedDataFactory dbFactory,
         ILogger<GameEngine> logger)
     {
         _dbFactory = dbFactory;
@@ -23,7 +24,7 @@ public sealed class GameEngine : IGameEngine
 
     public async Task<GameChallenge> CreateChallengeAsync(int sessionId, GameType type, CancellationToken ct = default)
     {
-        await using var db = await _dbFactory.CreateDbContextAsync(ct);
+        await using var db = await _dbFactory.OpenAsync(ct);
         var session = await db.Sessions.FirstOrDefaultAsync(s => s.Id == sessionId, ct)
             ?? throw new InvalidOperationException($"Session {sessionId} not found");
 
@@ -49,7 +50,7 @@ public sealed class GameEngine : IGameEngine
             _ => BuildCoinFlip(sessionId, mean)
         };
 
-        db.GameChallenges.Add(challenge);
+        db.Add(challenge);
         await db.SaveChangesAsync(ct);
 
         _logger.LogInformation("Game created: {Type} for session {SessionId} (secret={Secret})",
@@ -59,7 +60,7 @@ public sealed class GameEngine : IGameEngine
 
     public async Task<GameChallenge> SubmitAnswerAsync(int challengeId, int userAnswer, CancellationToken ct = default)
     {
-        await using var db = await _dbFactory.CreateDbContextAsync(ct);
+        await using var db = await _dbFactory.OpenAsync(ct);
         var challenge = await db.GameChallenges.FirstOrDefaultAsync(c => c.Id == challengeId, ct)
             ?? throw new InvalidOperationException($"Challenge {challengeId} not found");
 
@@ -114,7 +115,7 @@ public sealed class GameEngine : IGameEngine
 
     public async Task<GameChallenge> CreateCumGuessChallengeAsync(int sessionId, CancellationToken ct = default)
     {
-        await using var db = await _dbFactory.CreateDbContextAsync(ct);
+        await using var db = await _dbFactory.OpenAsync(ct);
         var session = await db.Sessions.FirstOrDefaultAsync(s => s.Id == sessionId, ct)
             ?? throw new InvalidOperationException($"Session {sessionId} not found");
 
@@ -133,7 +134,7 @@ public sealed class GameEngine : IGameEngine
             SuccessReward = "Permission to cum."
         };
 
-        db.GameChallenges.Add(challenge);
+        db.Add(challenge);
         await db.SaveChangesAsync(ct);
         return challenge;
     }

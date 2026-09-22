@@ -60,47 +60,6 @@ public interface IInstructionEngine
 }
 
 /// <summary>
-/// Determines and records punishments based on infractions, session history,
-/// and the current Mean parameter.
-///
-/// Design notes
-/// ────────────
-/// Punishment severity tiers (1-8) are selected based on:
-///   • The infraction type (unauthorized orgasm is worse than game failure).
-///   • How many recent infractions the user has (escalation).
-///   • The session's Mean parameter (higher Mean → higher base tier).
-///   • Active streak data: consecutive denied sessions without infraction can
-///     *reduce* the tier slightly as a reward for good behavior.
-///
-/// Punishment categories from the reference data:
-///   <b>Denial</b>:        "No cumming for N days" (optionally with daily edge requirements).
-///   <b>CumMethod</b>:     "Next N times you cum, you must use [uncomfortable method]."
-///   <b>Overload</b>:      Forced intense stimulation for a duration (to be implemented).
-///   <b>TeaseOverload</b>: Extended tease sessions (to be implemented).
-///   <b>Other</b>:         Free-form (e.g. "write 2 punishments each day").
-///
-/// The engine also checks for pending punishments when a new session starts and
-/// adjusts the Finish step accordingly (via <see cref="IInstructionEngine"/>).
-/// </summary>
-public interface IPunishmentEngine
-{
-    /// <summary>
-    /// Evaluates all unprocessed infractions for the session and assigns punishments.
-    /// </summary>
-    Task<IReadOnlyList<PunishmentEntry>> ProcessInfractionsAsync(int sessionId, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Returns all punishments that are still active / not fully served.
-    /// </summary>
-    Task<IReadOnlyList<PunishmentEntry>> GetActivePunishmentsAsync(CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Marks one "count" of a CumMethod punishment as served (e.g. user came using the prescribed method).
-    /// </summary>
-    Task ServePunishmentCountAsync(int punishmentId, CancellationToken cancellationToken = default);
-}
-
-/// <summary>
 /// Creates and resolves mini-game challenges during a session.
 ///
 /// Design notes

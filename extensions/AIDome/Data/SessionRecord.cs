@@ -17,9 +17,13 @@ public enum SessionOutcome
     RuinedOrgasm = 4
 }
 
-public sealed class SessionRecord
+public sealed class SessionRecord : IUserOwned
 {
     public int Id { get; set; }
+
+    /// <summary>The Cove account that owns this row.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public int UserId { get; set; }
 
     public DateTime StartedAtUtc { get; set; }
 

@@ -41,7 +41,7 @@ public sealed class AiDomeExtension : FullExtensionBase
 
     public override string Id => "cove.community.aidome";
     public override string Name => "AI Domme";
-    public override string Version => "0.6.0";
+    public override string Version => "0.7.0";
     public override string Description => "A rule-driven domme for guided edging sessions on your Cove library, with an app-wide edge tracker, orgasm permission, games and persistent commitments.";
     public override string Author => "Cove Community";
     public override string Url => "https://github.com/yourcove/AIDome.Extension";
@@ -56,17 +56,8 @@ public sealed class AiDomeExtension : FullExtensionBase
 
     public override void ConfigureServices(IServiceCollection services, ExtensionContext context)
     {
-        var dbPath = Path.Combine(context.DataDirectory, "aidome.db");
-        services.AddSingleton(sp =>
-        {
-            using var scope = sp.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<CoveContext>();
-            var sourceFile = Path.Combine(context.DataDirectory, "aidomme-legacy-configuration.json");
-            var originalPath = Environment.GetEnvironmentVariable("AIDOMME_LEGACY_CONFIGURATION_PATH");
-            if (string.IsNullOrWhiteSpace(originalPath) && File.Exists(sourceFile))
-                originalPath = JsonSerializer.Deserialize<LegacyDefinitionSource>(File.ReadAllText(sourceFile), JsonOpts)?.Path;
-            return new GuidedStore(db.Database.GetConnectionString() ?? throw new InvalidOperationException("Cove PostgreSQL is unavailable."), dbPath, originalPath);
-        });
+        // Guided storage lives in Cove's own database and context. Each account gets one resident
+        // runtime; request-scoped services borrow the signed-in account's runtime.
         services.AddSingleton<GuidedRuntimes>();
         services.AddScoped<GuidedTrackerBridge>();
         services.AddScoped<GuidedConfiguration>();
@@ -75,13 +66,11 @@ public sealed class AiDomeExtension : FullExtensionBase
         services.AddSingleton<MetronomeLeases>();
         services.AddSingleton<NarrationLeases>();
         services.AddSingleton<MediaLeases>();
-        services.AddScoped<IDbContextFactory<CommandCenterDbContext>>(sp => sp.GetRequiredService<GuidedRuntimes>().Current.Factory);
-        services.AddScoped<IInteractionManager>(sp => sp.GetRequiredService<GuidedRuntimes>().Current.Interaction);
-        services.AddScoped<IOnlineSessionEngine>(sp => sp.GetRequiredService<GuidedRuntimes>().Current.Online);
-        services.AddScoped<IInstructionEngine>(sp => sp.GetRequiredService<GuidedRuntimes>().Current.Instructions);
-        services.AddScoped<IPunishmentEngine>(sp => sp.GetRequiredService<GuidedRuntimes>().Current.Punishments);
-        services.AddScoped<IGameEngine>(sp => sp.GetRequiredService<GuidedRuntimes>().Current.Games);
-        services.AddScoped<ICommandCenterService>(sp => new BorrowedCommandCenter(sp.GetRequiredService<GuidedRuntimes>().Current.Commands));
+        services.AddScoped<ICommandCenterService>(sp =>
+        {
+            var runtimes = sp.GetRequiredService<GuidedRuntimes>();
+            return new BorrowedCommandCenter(() => runtimes.Current.Commands);
+        });
 
         // TTS: editable settings (loaded from the store in InitializeAsync) + per-call HttpClient.
         services.TryAddSingleton<TtsOptions>();
@@ -92,22 +81,17 @@ public sealed class AiDomeExtension : FullExtensionBase
     public override async Task InitializeAsync(IServiceProvider services, CancellationToken ct = default)
     {
         _services = services;
-
-        // Host migrations create the Cove-backed tables. The legacy file is read-only input;
-        // only definitions and calibration are imported, and only once.
-        await services.GetRequiredService<GuidedStore>().ImportAsync(ct);
         _runtimes = services.GetRequiredService<GuidedRuntimes>();
 
         // Load persisted TTS settings into the shared singleton.
         _ttsOptions = services.GetRequiredService<TtsOptions>();
         var settings = await LoadSettingsAsync(ct);
         settings.ApplyTo(_ttsOptions);
-
     }
 
     public override async Task ShutdownAsync(CancellationToken ct = default)
     {
-        _runtimes?.Dispose();
+        if (_runtimes is not null) await _runtimes.DisposeAsync();
     }
 
     public override UIManifest GetUIManifest()
@@ -126,13 +110,19 @@ public sealed class AiDomeExtension : FullExtensionBase
             .AddKeyboardAction("session-pause", "Pause / resume guided session", ["Alt+P"], [new("global"), new("overlay")], group: "AI Domme")
             .Build();
 
-    public override void ConfigureModel(ModelBuilder modelBuilder) => TrackerSchema.Configure(modelBuilder);
+    public override void ConfigureModel(ModelBuilder modelBuilder)
+    {
+        TrackerSchema.Configure(modelBuilder);
+        GuidedSchema.Configure(modelBuilder);
+    }
+
     protected override void DefineMigrations()
     {
         Migration("001_tracker", TrackerSchema.Sql);
-        Migration("002_guided", GuidedSchema.CreateSql() + GuidedStore.ImportSql);
-        Migration("003_companion", GuidedRecovery.Sql);
-        Migration("004_commitments", CommitmentStore.Sql);
+        Migration("002_guided", GuidedMigrations.Superseded);
+        Migration("003_companion", GuidedMigrations.Superseded);
+        Migration("004_commitments", GuidedMigrations.Superseded);
+        Migration("005_guided_v2", GuidedMigrations.Load("005_guided_v2"));
     }
 
     public override void MapEndpoints(IEndpointRouteBuilder endpoints)
@@ -143,13 +133,14 @@ public sealed class AiDomeExtension : FullExtensionBase
             var path = invocation.HttpContext.Request.Path.Value ?? "";
             if (invocation.HttpContext.RequestServices.GetRequiredService<Cove.Core.Auth.ICurrentPrincipalAccessor>().Current?.UserId is null)
                 throw new Cove.Core.Auth.UnauthorizedException("Sign in to use AI Domme.");
+            // Load (or restore) the account's runtime before any handler borrows it.
+            var runtime = await invocation.HttpContext.RequestServices.GetRequiredService<GuidedRuntimes>().EnsureCurrentAsync(invocation.HttpContext.RequestAborted);
             // Tracker delivery owns the runtime gate. Other guided requests serialize by account.
             if (path.StartsWith("/api/ext/aidome/tracker/", StringComparison.OrdinalIgnoreCase)
                 || path.StartsWith("/api/ext/aidome/session/action/", StringComparison.OrdinalIgnoreCase)
                 || path.EndsWith("/tts", StringComparison.OrdinalIgnoreCase)
                 || path.EndsWith("/settings", StringComparison.OrdinalIgnoreCase))
                 return await next(invocation);
-            var runtime = invocation.HttpContext.RequestServices.GetRequiredService<GuidedRuntimes>().Current;
             await runtime.Gate.WaitAsync(invocation.HttpContext.RequestAborted);
             try
             {
@@ -198,8 +189,9 @@ public sealed class AiDomeExtension : FullExtensionBase
             JsonResult(await store.MutateAsync(request, ct)));
 
         // ── Live state ──
+        // Polls only refresh the saved countdown occasionally; state changes are saved when they happen.
         group.MapGet("/state", async (ICommandCenterService cc, CancellationToken ct) =>
-            JsonResult(await BuildSnapshotAsync(cc, ct)));
+            JsonResult(await BuildSnapshotAsync(cc, ct, persist: false)));
 
         group.MapGet("/setup", async (ICommandCenterService cc, CancellationToken ct) =>
         {
@@ -256,13 +248,13 @@ public sealed class AiDomeExtension : FullExtensionBase
         {
             var runtime = _runtimes!.Current;
             if (request.EventId == Guid.Empty) return Results.BadRequest(new { message = "A command event ID is required." });
-            await using var commandDb = await runtime.Factory.CreateDbContextAsync(ct);
+            await using var commandDb = runtime.Factory.Open();
             var receipt = await commandDb.Database.SqlQuery<GuidedRecovery.ControlRow>($"""
-                SELECT "Payload", "Status" FROM aidomme_guided_controls WHERE "OwnerId" = {commandDb.OwnerId} AND "EventId" = {request.EventId}
+                SELECT "Payload", "Status" FROM aidomme_session_controls WHERE "UserId" = {commandDb.UserId} AND "EventId" = {request.EventId}
                 """).SingleOrDefaultAsync(ct);
             if (receipt is not null)
             {
-                if (JsonSerializer.Deserialize<SessionControlRequest>(receipt.Payload, GuidedStore.Json) != request)
+                if (JsonSerializer.Deserialize<SessionControlRequest>(receipt.Payload, GuidedRecovery.Json) != request)
                     return Results.BadRequest(new { message = "The command ID belongs to different inputs." });
                 if (receipt.Status == "Applied" || runtime.Operations.Contains(request.EventId)) return JsonResult(await BuildSnapshotAsync(runtime.Commands, ct));
                 runtime.Online.EndSession();
@@ -282,9 +274,9 @@ public sealed class AiDomeExtension : FullExtensionBase
                 return Results.Conflict(new { message = "This step advances through its timer, edge target or challenge result." });
             if (request.Action == "game-answer" && request.Answer is null) return Results.BadRequest(new { message = "An answer is required." });
             await runtime.SaveAsync(ct);
-            var payload = JsonSerializer.Serialize(request, GuidedStore.Json);
+            var payload = JsonSerializer.Serialize(request, GuidedRecovery.Json);
             await commandDb.Database.ExecuteSqlInterpolatedAsync($"""
-                INSERT INTO aidomme_guided_controls ("OwnerId", "EventId", "Payload", "Status") VALUES ({commandDb.OwnerId}, {request.EventId}, {payload}, 'Pending')
+                INSERT INTO aidomme_session_controls ("UserId", "EventId", "Payload", "Status") VALUES ({commandDb.UserId}, {request.EventId}, {payload}, 'Pending')
                 """, ct);
             switch (request.Action)
             {
@@ -318,11 +310,11 @@ public sealed class AiDomeExtension : FullExtensionBase
             var state = runtime.Online.GetCurrentState();
             if (!runtime.Online.HasActiveSession || state.IsPaused || !runtime.Commands.GetLatestMessages().Any(x => x.Id == request.MessageId && x.Sender == "Domme")
                 || !leases.Acquire(runtime.Factory.UserId, request.ClientId)) return Results.Json(new { granted = false });
-            await using var db = await runtime.Factory.CreateDbContextAsync(ct);
+            await using var db = runtime.Factory.Open();
             var now = DateTime.UtcNow;
             var claimed = await db.Database.ExecuteSqlInterpolatedAsync($"""
-                INSERT INTO aidomme_narration_receipts ("OwnerId", "MessageId", "ClaimedAtUtc")
-                VALUES ({db.OwnerId}, {request.MessageId}, {now}) ON CONFLICT DO NOTHING
+                INSERT INTO aidomme_narration_claims ("UserId", "MessageId", "ClaimedAtUtc")
+                VALUES ({db.UserId}, {request.MessageId}, {now}) ON CONFLICT DO NOTHING
                 """, ct);
             return Results.Json(new { granted = claimed == 1 });
         });
@@ -414,10 +406,10 @@ public sealed class AiDomeExtension : FullExtensionBase
         });
     }
 
-    private async Task<AiDomeStateSnapshot> BuildSnapshotAsync(ICommandCenterService cc, CancellationToken ct)
+    private async Task<AiDomeStateSnapshot> BuildSnapshotAsync(ICommandCenterService cc, CancellationToken ct, bool persist = true)
     {
         var runtime = _runtimes!.Current;
-        await runtime.SaveAsync(ct);
+        await runtime.SaveAsync(ct, force: persist);
         var status = await cc.GetSessionStatusAsync(ct);
         var online = cc.GetOnlineState();
         var active = status.IsActive && online is not null;
@@ -471,4 +463,3 @@ public sealed class AiDomeExtension : FullExtensionBase
     }
 }
 
-public sealed record LegacyDefinitionSource(string Path);

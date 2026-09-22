@@ -14,6 +14,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Include="Fixtures\**\*.sql" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\extensions\AIDome\AIDome.csproj" />
     <ProjectReference Include="..\..\..\cove\src\Cove.Data\Cove.Data.csproj" />
   </ItemGroup>

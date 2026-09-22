@@ -19,9 +19,13 @@ public enum InfractionType
 /// Records a user-reported or system-detected infraction so the punishment engine
 /// and cum-chance formula can factor it in.
 /// </summary>
-public sealed class InfractionEntry
+public sealed class InfractionEntry : IUserOwned
 {
     public int Id { get; set; }
+
+    /// <summary>The Cove account that owns this row.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public int UserId { get; set; }
 
     public DateTime TimestampUtc { get; set; }
 

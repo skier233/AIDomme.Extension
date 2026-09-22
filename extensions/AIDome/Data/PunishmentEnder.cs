@@ -8,10 +8,14 @@ namespace AIDome.Data;
 /// Unlike StimMethods (which describe ongoing stimulation), PunishmentEnders describe
 /// a complete finish scenario — often multi-step.
 /// </summary>
-public sealed class PunishmentEnder
+public sealed class PunishmentEnder : IDefinition<PunishmentEnder>
 {
+    /// <summary>Null for a shared default; the owning account for a personal definition or override.</summary>
     [System.Text.Json.Serialization.JsonIgnore]
-    public int OwnerId { get; set; }
+    public int? UserId { get; set; }
+    /// <summary>For a personal override, the shared definition it replaces.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public int? BaseId { get; set; }
     public int Id { get; set; }
 
     [MaxLength(128)]
@@ -42,4 +46,14 @@ public sealed class PunishmentEnder
     /// <summary>Short domme announcement when this ender is selected (dread-building).</summary>
     [MaxLength(512)]
     public string AnnouncementText { get; set; } = string.Empty;
+
+    /// <summary>A detached copy presented under the definition's stable ID.</summary>
+    public PunishmentEnder AsDefinition(int id)
+    {
+        var copy = (PunishmentEnder)MemberwiseClone();
+        copy.Id = id;
+        copy.UserId = null;
+        copy.BaseId = null;
+        return copy;
+    }
 }

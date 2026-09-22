@@ -7,7 +7,10 @@
   <!-- Cove host contracts (Cove.Sdk, Cove.Core, Cove.Data) are wired compile-only by Directory.Build.targets. -->
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
-    <!-- Read-only input for the one-time legacy definition import. Removed with the importer. -->
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.11" />
+  </ItemGroup>
+
+  <!-- Literal SQL migrations, loaded by GuidedMigrations.Load. -->
+  <ItemGroup>
+    <EmbeddedResource Include="Persistence\Sql\*.sql" LogicalName="AIDome.Sql.%(Filename).sql" />
   </ItemGroup>
 </Project>

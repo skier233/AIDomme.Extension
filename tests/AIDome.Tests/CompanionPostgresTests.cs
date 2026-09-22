@@ -25,9 +25,8 @@ public sealed partial class TrackerPostgresTests
 {
     private async Task InstallCompanionAsync()
     {
+        await InstallGuidedAsync();
         await using var db = Context();
-        var ddl = GuidedSchema.CreateSql() + GuidedStore.ImportSql + GuidedRecovery.Sql + CommitmentStore.Sql;
-        await db.Database.ExecuteSqlRawAsync(ddl);
         await db.Database.ExecuteSqlRawAsync("INSERT INTO users (\"Id\") VALUES (2)");
     }
 
@@ -36,14 +35,15 @@ public sealed partial class TrackerPostgresTests
         var builder = WebApplication.CreateBuilder();
         builder.Logging.ClearProviders();
         builder.Services.AddSingleton<ICurrentPrincipalAccessor, CurrentPrincipalAccessor>();
-        builder.Services.AddSingleton(new GuidedStore(connection, ""));
+        builder.Services.AddSingleton<Cove.Plugins.IExtensionServiceScopeFactory>(sp => new TestScopes(sp.GetRequiredService<IServiceScopeFactory>()));
         builder.Services.AddSingleton<GuidedRuntimes>();
         builder.Services.AddScoped<CoveContext>(_ => Context());
+        builder.Services.AddScoped<DbContext>(sp => sp.GetRequiredService<CoveContext>());
         builder.Services.AddScoped<TrackerService>();
         builder.Services.AddScoped<GuidedTrackerBridge>();
         builder.Services.AddScoped<GuidedConfiguration>();
         builder.Services.AddScoped<CommitmentStore>();
-        builder.Services.AddScoped<ICommandCenterService>(sp => new BorrowedCommandCenter(sp.GetRequiredService<GuidedRuntimes>().Current.Commands));
+        builder.Services.AddScoped<ICommandCenterService>(sp => { var runtimes = sp.GetRequiredService<GuidedRuntimes>(); return new BorrowedCommandCenter(() => runtimes.Current.Commands); });
         builder.Services.AddSingleton<IAuthorizationService, TrackerTests.TestAuthorization>();
         builder.Services.AddScoped<IUserEngagementService, UserEngagementService>();
         builder.Services.AddSingleton<MetronomeLeases>();
@@ -81,20 +81,66 @@ public sealed partial class TrackerPostgresTests
         Assert.True(response.IsSuccessStatusCode, $"{(int)response.StatusCode} {response.ReasonPhrase}: {await response.Content.ReadAsStringAsync()}");
         return (await response.Content.ReadFromJsonAsync<JsonElement>()).Clone();
     }
-    private static object StartBody(SessionPolicy policy) => new { intensity = 3, length = 3, denial = 3, kink = 3, mean = 3, policy };
+    private static object StartBody(SessionPolicy policy, bool debug = false) => new { intensity = 3, length = 3, denial = 3, kink = 3, mean = 3, isDebugSession = debug, policy };
 
     [PostgresTrackerFact]
-    public async Task Commitments_UsersCannotAuthorOrProposeOffersThemselves()
+    public async Task Commitments_OnlyExplicitAcceptanceCommits_RetriesAreIdempotent_AndAccountsStayIsolated()
     {
         await InstallCompanionAsync(); await using var app = await CompanionAppAsync();
-        using var first = Client(app);
-        // Offers come from the domme's offer library, never from definitions the user writes.
+        using var first = Client(app); using var second = Client(app, 2);
+        object Mutate(Guid eventId, string action, Guid? targetId = null, decimal? amount = null, string? outcome = null, int? degree = null)
+            => new { eventId, action, targetId, amount, outcome, degree };
+        // Offers come from the domme, never from definitions the user writes.
         foreach (var action in new[] { "save-definition", "delete-definition", "propose" })
-            Assert.Equal(HttpStatusCode.BadRequest, (await first.PostAsJsonAsync("/api/ext/aidome/commitments/mutate",
-                new { eventId = Guid.NewGuid(), expectedRevision = 0, action, targetId = Guid.NewGuid() })).StatusCode);
+            Assert.Equal(HttpStatusCode.BadRequest, (await first.PostAsJsonAsync("/api/ext/aidome/commitments/mutate", Mutate(Guid.NewGuid(), action, Guid.NewGuid()))).StatusCode);
+        await JsonAsync(await first.GetAsync("/api/ext/aidome/state"));
+        var runtime = await app.Services.GetRequiredService<GuidedRuntimes>().ForUserAsync(1);
+        var offer = await CommitmentStore.ProposeAsync(runtime.Factory, "Hold longer", "Hold every edge for 30 seconds.", "holds", 3, 2, null, default);
+        var proposed = await JsonAsync(await first.GetAsync("/api/ext/aidome/commitments"));
+        Assert.Equal("Proposed", proposed.GetProperty("offers")[0].GetProperty("status").GetString());
+        Assert.Empty(proposed.GetProperty("commitments").EnumerateArray());
+        Assert.Empty((await JsonAsync(await second.GetAsync("/api/ext/aidome/commitments"))).GetProperty("offers").EnumerateArray());
+        Assert.Equal(HttpStatusCode.Conflict, (await second.PostAsJsonAsync("/api/ext/aidome/commitments/mutate", Mutate(Guid.NewGuid(), "accept", offer.Id))).StatusCode);
+
+        var acceptEvent = Guid.NewGuid();
+        var accepted = await Task.WhenAll(Enumerable.Range(0, 4).Select(_ => first.PostAsJsonAsync("/api/ext/aidome/commitments/mutate", Mutate(acceptEvent, "accept", offer.Id))));
+        foreach (var response in accepted) await JsonAsync(response);
+        Assert.Equal(HttpStatusCode.BadRequest, (await first.PostAsJsonAsync("/api/ext/aidome/commitments/mutate", Mutate(acceptEvent, "decline", offer.Id))).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, (await first.PostAsJsonAsync("/api/ext/aidome/commitments/mutate", Mutate(Guid.NewGuid(), "accept", offer.Id))).StatusCode);
         var state = await JsonAsync(await first.GetAsync("/api/ext/aidome/commitments"));
-        Assert.Empty(state.GetProperty("offers").EnumerateArray());
-        Assert.Equal(0, state.GetProperty("revision").GetInt64());
+        var commitment = Assert.Single(state.GetProperty("commitments").EnumerateArray());
+        Assert.NotNull(commitment.GetProperty("dueAtUtc").Deserialize<DateTime?>());
+        var commitmentId = commitment.GetProperty("id").GetGuid();
+        var progressed = await JsonAsync(await first.PostAsJsonAsync("/api/ext/aidome/commitments/mutate", Mutate(Guid.NewGuid(), "progress", commitmentId, amount: 2)));
+        Assert.Equal(2, progressed.GetProperty("commitments")[0].GetProperty("progress").GetDecimal());
+        var reported = await JsonAsync(await first.PostAsJsonAsync("/api/ext/aidome/commitments/mutate", Mutate(Guid.NewGuid(), "report", commitmentId, outcome: "Partial", degree: 60)));
+        Assert.Equal("Partial", reported.GetProperty("commitments")[0].GetProperty("status").GetString());
+        Assert.Equal(60, reported.GetProperty("reports")[0].GetProperty("degree").GetInt32());
+        Assert.Equal(HttpStatusCode.Conflict, (await first.PostAsJsonAsync("/api/ext/aidome/commitments/mutate", Mutate(Guid.NewGuid(), "report", commitmentId, outcome: "Completed", degree: 100))).StatusCode);
+    }
+
+    [PostgresTrackerFact]
+    public async Task CompanionHttp_NonDebugSessionsCanBePausedButNotEnded()
+    {
+        await InstallCompanionAsync(); await using var app = await CompanionAppAsync(); using var client = Client(app);
+        var started = await JsonAsync(await client.PostAsJsonAsync("/api/ext/aidome/session/start", StartBody(new SessionPolicy())));
+        var online = started.GetProperty("online");
+        Assert.False(online.GetProperty("isDebugSession").GetBoolean());
+        var (session, step) = (online.GetProperty("sessionId").GetInt32(), online.GetProperty("stepNumber").GetInt32());
+        Assert.Equal(HttpStatusCode.Conflict, (await client.PostAsJsonAsync("/api/ext/aidome/session/control", new SessionControlRequest(Guid.NewGuid(), session, step, "end"))).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, (await client.PostAsync("/api/ext/aidome/session/end", null)).StatusCode);
+        var paused = await JsonAsync(await client.PostAsJsonAsync("/api/ext/aidome/session/control", new SessionControlRequest(Guid.NewGuid(), session, step, "pause")));
+        Assert.True(paused.GetProperty("sessionActive").GetBoolean());
+        Assert.True(paused.GetProperty("online").GetProperty("isPaused").GetBoolean());
+
+        var runtime = await app.Services.GetRequiredService<GuidedRuntimes>().ForUserAsync(1);
+        runtime.Online.EndSession();
+        var debug = await JsonAsync(await client.PostAsJsonAsync("/api/ext/aidome/session/start", StartBody(new SessionPolicy(), debug: true)));
+        online = debug.GetProperty("online");
+        Assert.True(online.GetProperty("isDebugSession").GetBoolean());
+        var ended = await JsonAsync(await client.PostAsJsonAsync("/api/ext/aidome/session/control",
+            new SessionControlRequest(Guid.NewGuid(), online.GetProperty("sessionId").GetInt32(), online.GetProperty("stepNumber").GetInt32(), "end")));
+        Assert.False(ended.GetProperty("sessionActive").GetBoolean());
     }
 
     [PostgresTrackerFact]
@@ -120,15 +166,15 @@ public sealed partial class TrackerPostgresTests
         Assert.Equal(count, repeated.GetProperty("messages").GetArrayLength());
         Assert.Equal(HttpStatusCode.Conflict, (await first.PostAsJsonAsync("/api/ext/aidome/session/control", new SessionControlRequest(Guid.NewGuid(), session, step, "beg-to-cum"))).StatusCode);
         await JsonAsync(await first.PostAsJsonAsync("/api/ext/aidome/session/control", new SessionControlRequest(Guid.NewGuid(), session, step, "resume")));
-        var runtime = app.Services.GetRequiredService<GuidedRuntimes>().ForUser(1);
+        var runtime = await app.Services.GetRequiredService<GuidedRuntimes>().ForUserAsync(1);
         runtime.Online.GrantPermission(); await runtime.SaveAsync(default);
-        await using (var db = await runtime.Factory.CreateDbContextAsync()) Assert.Empty(await db.Orgasms.ToListAsync());
+        await using (var db = runtime.Factory.Open()) Assert.Empty(await db.Orgasms.ToListAsync());
         var tracker = await JsonAsync(await first.PostAsJsonAsync("/api/ext/aidome/tracker/initialize", new { }));
         var setting = tracker.GetProperty("settingId").GetGuid();
         var orgasm = new RecordTrackerEvent(Guid.NewGuid(), setting, "orgasm", DateTime.UtcNow, "button");
         await JsonAsync(await first.PostAsJsonAsync("/api/ext/aidome/tracker/events", orgasm));
         Assert.False(runtime.Online.HasActiveSession);
-        await using (var db = await runtime.Factory.CreateDbContextAsync()) Assert.True((await db.Orgasms.SingleAsync()).Allowed);
+        await using (var db = runtime.Factory.Open()) Assert.True((await db.Orgasms.SingleAsync()).Allowed);
     }
 
     [PostgresTrackerFact]
@@ -154,7 +200,7 @@ public sealed partial class TrackerPostgresTests
             directive = paused.GetProperty("online").GetProperty("currentDirective").GetProperty("text").GetString()!;
             remaining = paused.GetProperty("online").GetProperty("remainingSeconds").GetInt32();
             await using var db = Context();
-            Assert.Equal(2, await db.Database.SqlQuery<int>($"SELECT COUNT(*)::integer AS \"Value\" FROM aidomme_guided_policies WHERE \"OwnerId\" = {1}").SingleAsync());
+            Assert.Equal(2, await db.Database.SqlQuery<int>($"SELECT COUNT(*)::integer AS \"Value\" FROM aidomme_session_policies WHERE \"UserId\" = {1}").SingleAsync());
         }
         await using (var restored = await CompanionAppAsync())
         {
@@ -168,7 +214,7 @@ public sealed partial class TrackerPostgresTests
             Assert.Equal(remaining, online.GetProperty("remainingSeconds").GetInt32());
             var repeated = await JsonAsync(await client.PostAsJsonAsync("/api/ext/aidome/session/control", new SessionControlRequest(operation, session, step, "pause")));
             Assert.Equal(state.GetProperty("messages").GetArrayLength(), repeated.GetProperty("messages").GetArrayLength());
-            var runtime = restored.Services.GetRequiredService<GuidedRuntimes>().ForUser(1);
+            var runtime = await restored.Services.GetRequiredService<GuidedRuntimes>().ForUserAsync(1);
             typeof(OnlineSessionEngine).GetMethod("OnStepTimerElapsed", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(runtime.Online, [0L]);
             Assert.Equal(step, runtime.Online.GetCurrentState().StepNumber);
         }
@@ -194,7 +240,7 @@ public sealed partial class TrackerPostgresTests
         await using (var app = await CompanionAppAsync())
         {
             using var client = Client(app);
-            var runtime = app.Services.GetRequiredService<GuidedRuntimes>().ForUser(1); runtime.Online.Resume();
+            var runtime = await app.Services.GetRequiredService<GuidedRuntimes>().ForUserAsync(1); runtime.Online.Resume();
             Assert.True((await JsonAsync(await client.PostAsJsonAsync("/api/ext/aidome/companion/audio/lease", new { clientId = competitor }))).GetProperty("granted").GetBoolean());
             Assert.False((await JsonAsync(await client.PostAsJsonAsync("/api/ext/aidome/companion/audio/claim", new { clientId = competitor, messageId = message }))).GetProperty("granted").GetBoolean());
         }
@@ -209,7 +255,7 @@ public sealed partial class TrackerPostgresTests
         {
             using var client = Client(app);
             await JsonAsync(await client.PostAsJsonAsync("/api/ext/aidome/session/start", new { intensity = 3, length = 3, denial = 3, kink = 3, mean = 3, onlyGamesMode = true, policy = new SessionPolicy { CanChangeDuringSession = true } }));
-            var runtime = app.Services.GetRequiredService<GuidedRuntimes>().ForUser(1);
+            var runtime = await app.Services.GetRequiredService<GuidedRuntimes>().ForUserAsync(1);
             runtime.Online.Pause(); await runtime.SaveAsync(default);
             before = runtime.Online.GetCurrentState();
             Assert.NotNull(before.ActiveGameChallengeId);
@@ -218,7 +264,7 @@ public sealed partial class TrackerPostgresTests
         {
             using var client = Client(app);
             await JsonAsync(await client.GetAsync("/api/ext/aidome/state"));
-            var runtime = app.Services.GetRequiredService<GuidedRuntimes>().ForUser(1);
+            var runtime = await app.Services.GetRequiredService<GuidedRuntimes>().ForUserAsync(1);
             var after = runtime.Online.GetCurrentState();
             Assert.True(after.IsPaused);
             Assert.Equal(before.ActiveGameChallengeId, after.ActiveGameChallengeId);
@@ -230,7 +276,7 @@ public sealed partial class TrackerPostgresTests
             await JsonAsync(await client.PutAsJsonAsync("/api/ext/aidome/session/policy", new { sessionId = after.SessionId, revision = 1, policy }));
             Assert.Null(runtime.Online.GetCurrentState().ActiveGameChallengeId);
             Assert.True(runtime.Online.GetCurrentState().IsPaused);
-            await using var db = await runtime.Factory.CreateDbContextAsync();
+            await using var db = runtime.Factory.Open();
             Assert.Null((await db.GameChallenges.SingleAsync(x => x.Id == before.ActiveGameChallengeId)).Won);
             Assert.Empty(await db.Infractions.ToListAsync());
         }
@@ -246,11 +292,11 @@ public sealed partial class TrackerPostgresTests
             using var client = Client(app);
             var state = await JsonAsync(await client.PostAsJsonAsync("/api/ext/aidome/session/start", StartBody(new SessionPolicy())));
             operation = new(Guid.NewGuid(), state.GetProperty("online").GetProperty("sessionId").GetInt32(), state.GetProperty("online").GetProperty("stepNumber").GetInt32(), "beg-to-cum");
-            var runtime = app.Services.GetRequiredService<GuidedRuntimes>().ForUser(1);
+            var runtime = await app.Services.GetRequiredService<GuidedRuntimes>().ForUserAsync(1);
             await runtime.Interaction.RecordCumRequestAsync(true);
-            await using var db = await runtime.Factory.CreateDbContextAsync();
+            await using var db = runtime.Factory.Open();
             var payload = JsonSerializer.Serialize(operation, new JsonSerializerOptions(JsonSerializerDefaults.Web));
-            await db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO aidomme_guided_controls (\"OwnerId\", \"EventId\", \"Payload\", \"Status\") VALUES ({1}, {operation.EventId}, {payload}, 'Pending')");
+            await db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO aidomme_session_controls (\"UserId\", \"EventId\", \"Payload\", \"Status\") VALUES ({1}, {operation.EventId}, {payload}, 'Pending')");
         }
         await using (var app = await CompanionAppAsync())
         {
@@ -258,8 +304,8 @@ public sealed partial class TrackerPostgresTests
             var state = await JsonAsync(await client.GetAsync("/api/ext/aidome/state"));
             Assert.False(state.GetProperty("sessionActive").GetBoolean());
             Assert.Equal(HttpStatusCode.Conflict, (await client.PostAsJsonAsync("/api/ext/aidome/session/control", operation)).StatusCode);
-            var runtime = app.Services.GetRequiredService<GuidedRuntimes>().ForUser(1);
-            await using var db = await runtime.Factory.CreateDbContextAsync();
+            var runtime = await app.Services.GetRequiredService<GuidedRuntimes>().ForUserAsync(1);
+            await using var db = runtime.Factory.Open();
             Assert.Single(await db.CumRequests.ToListAsync());
             Assert.Empty(await db.Infractions.ToListAsync());
             Assert.False((await db.Sessions.SingleAsync()).SuspectedUnauthorizedOrgasm);
@@ -273,7 +319,7 @@ public sealed partial class TrackerPostgresTests
         await using var app = await CompanionAppAsync(); using var client = Client(app);
         var policy = new SessionPolicy { Guidance = "Simple", CanChangeDuringSession = true, GamesEnabled = false, AllowedMethodIds = [7] };
         await JsonAsync(await client.PostAsJsonAsync("/api/ext/aidome/session/start", StartBody(policy)));
-        var runtime = app.Services.GetRequiredService<GuidedRuntimes>().ForUser(1);
+        var runtime = await app.Services.GetRequiredService<GuidedRuntimes>().ForUserAsync(1);
         var bridge = new GuidedTrackerBridge(app.Services.GetRequiredService<GuidedRuntimes>(), NullLogger<GuidedTrackerBridge>.Instance);
         async Task PersistUndeliveredAsync(TrackerEvent item)
         {
@@ -298,7 +344,7 @@ public sealed partial class TrackerPostgresTests
         Assert.NotEqual(SessionPhase.Finishing, runtime.Online.GetCurrentState().Phase);
         await bridge.DeliverAsync(orgasm, default);
         Assert.False(runtime.Online.HasActiveSession);
-        await using var verify = await runtime.Factory.CreateDbContextAsync();
+        await using var verify = runtime.Factory.Open();
         Assert.True((await verify.Orgasms.SingleAsync()).Allowed);
         Assert.Empty(await verify.Infractions.ToListAsync());
     }

@@ -14,7 +14,7 @@ vi.mock("@cove/runtime/api", () => ({ extensionFetch: api.fetch }));
 describe("commitment panel", () => {
   beforeEach(() => api.fetch.mockReset());
   afterEach(cleanup);
-  it("requires the explicit accept action and sends a revisioned idempotency event", async () => {
+  it("requires the explicit accept action and sends an idempotency event", async () => {
     const offer = {
       id: crypto.randomUUID(),
       name: "Example",
@@ -24,24 +24,16 @@ describe("commitment panel", () => {
       progress: 0,
       status: "Proposed",
     };
-    let state: any = {
-      revision: 4,
-      definitions: [],
-      offers: [offer],
-      commitments: [],
-      reports: [],
-      operations: {},
-    };
+    let state: any = { offers: [offer], commitments: [], reports: [] };
     api.fetch.mockImplementation(async (_path: string, init?: RequestInit) => {
       if (!init) return Response.json(state);
       const body = JSON.parse(String(init.body));
       expect(body.action).toBe("accept");
       expect(body.targetId).toBe(offer.id);
-      expect(body.expectedRevision).toBe(4);
+      expect(body.expectedRevision).toBeUndefined();
       expect(body.eventId).toMatch(/^[0-9a-f-]{36}$/i);
       state = {
         ...state,
-        revision: 5,
         offers: [{ ...offer, status: "Accepted" }],
         commitments: [
           {

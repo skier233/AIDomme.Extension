@@ -1,4 +1,5 @@
 using AIDome.Data;
+using AIDome.Persistence;
 using AIDome.Utils;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -10,7 +11,7 @@ public sealed partial class OnlineSessionEngine : IOnlineSessionEngine
     // Length parameter (1-10) → stimulation point budget for the session
     private static readonly int[] LengthToStimBudget = [15, 25, 40, 55, 75, 100, 130, 165, 210, 270];
 
-    private readonly IDbContextFactory<CommandCenterDbContext> _dbFactory;
+    private readonly GuidedDataFactory _dbFactory;
     private readonly ILogger<OnlineSessionEngine> _logger;
     private readonly IGameEngine _gameEngine;
     private readonly object _lock = new();
@@ -88,7 +89,7 @@ public sealed partial class OnlineSessionEngine : IOnlineSessionEngine
     private SessionOutcome _sessionOutcome;        // how the session ended
 
     public OnlineSessionEngine(
-        IDbContextFactory<CommandCenterDbContext> dbFactory,
+        GuidedDataFactory dbFactory,
         ILogger<OnlineSessionEngine> logger,
         IGameEngine gameEngine)
     {
@@ -153,11 +154,11 @@ public sealed partial class OnlineSessionEngine : IOnlineSessionEngine
 
     private async Task<SessionDirective> BeginSessionCoreAsync(int sessionId, bool punishment, bool onlyGamesMode, CancellationToken ct)
     {
-        await using var db = await _dbFactory.CreateDbContextAsync(ct);
+        await using var db = await _dbFactory.OpenAsync(ct);
         var session = await db.Sessions.FirstOrDefaultAsync(s => s.Id == sessionId, ct)
             ?? throw new InvalidOperationException($"Session {sessionId} not found");
 
-        var allMethods = await db.StimMethods.ToListAsync(ct);
+        var allMethods = await db.MethodsAsync(ct);
         var eligible = PolicyMethods(FilterMethodsForSession(allMethods, session));
         if (Policy.Guidance != "Permission" && eligible.Count == 0) throw new ArgumentException("No available methods match the accepted settings.");
 
@@ -570,7 +571,7 @@ public sealed partial class OnlineSessionEngine : IOnlineSessionEngine
             {
                 try
                 {
-                    using var db = _dbFactory.CreateDbContext();
+                    using var db = _dbFactory.Open();
                     var challenge = db.GameChallenges.FirstOrDefault(c => c.Id == challengeId);
                     if (challenge is not null)
                     {

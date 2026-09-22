@@ -5,8 +5,9 @@ namespace AIDome.Data;
 
 public sealed class TuningRatingEntry
 {
+    /// <summary>Null for shared calibration; otherwise the owning account.</summary>
     [System.Text.Json.Serialization.JsonIgnore]
-    public int OwnerId { get; set; }
+    public int? UserId { get; set; }
     public int Id { get; set; }
 
     [MaxLength(256)]

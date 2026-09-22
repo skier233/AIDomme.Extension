@@ -12,10 +12,14 @@ public enum ToyCategory
     ProstateMassager = 4
 }
 
-public sealed class StimMethod
+public sealed class StimMethod : IDefinition<StimMethod>
 {
+    /// <summary>Null for a shared default; the owning account for a personal definition or override.</summary>
     [System.Text.Json.Serialization.JsonIgnore]
-    public int OwnerId { get; set; }
+    public int? UserId { get; set; }
+    /// <summary>For a personal override, the shared definition it replaces.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public int? BaseId { get; set; }
     public int Id { get; set; }
 
     [MaxLength(128)]
@@ -50,4 +54,15 @@ public sealed class StimMethod
     public double EdgePointMultiplier { get; set; }
 
     public ICollection<EdgeEntry> Edges { get; set; } = new List<EdgeEntry>();
+
+    /// <summary>A detached copy presented under the definition's stable ID.</summary>
+    public StimMethod AsDefinition(int id)
+    {
+        var copy = (StimMethod)MemberwiseClone();
+        copy.Id = id;
+        copy.UserId = null;
+        copy.BaseId = null;
+        copy.Edges = new List<EdgeEntry>();
+        return copy;
+    }
 }

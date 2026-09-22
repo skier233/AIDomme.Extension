@@ -35,7 +35,6 @@ export function CommitmentPanel({ compact = false }: { compact?: boolean }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           eventId: crypto.randomUUID(),
-          expectedRevision: state.revision,
           action,
           targetId,
           ...extra,

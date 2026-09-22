@@ -1,82 +1,165 @@
-using System.Linq.Expressions;
 using AIDome.Data;
+using AIDome.Tracking;
+using Cove.Core.Entities.Auth;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace AIDome.Persistence;
 
-/// <summary>One set of Cove-database tables; composite keys and foreign keys enforce account ownership.</summary>
+/// <summary>
+/// Maps AI Domme's guided-session entities onto Cove's own context (via
+/// <c>IDataExtension.ConfigureModel</c>). The tables themselves are created by the literal SQL
+/// migrations in <see cref="GuidedMigrations"/>; this mapping must stay in step with them.
+/// Account ownership is an explicit <c>UserId</c> column: every read goes through
+/// <see cref="GuidedData"/>, which filters by the signed-in account.
+/// </summary>
 public static class GuidedSchema
 {
-    public static readonly Type[] DefinitionTypes = [typeof(StimMethod), typeof(PunishmentEnder), typeof(TuningRatingEntry), typeof(TuningComparisonEntry)];
-    public static bool IsDefinition(Type type) => DefinitionTypes.Contains(type);
-
-    public static void ConfigureOwned(ModelBuilder model, CommandCenterDbContext context)
+    public static void Configure(ModelBuilder model)
     {
-        model.Entity<GuidedEventReceipt>().HasOne(x => x.Session).WithMany().HasForeignKey(x => x.SessionId);
-        model.Entity<GuidedEventReceipt>().HasIndex(x => x.EventId).IsUnique();
-        var types = model.Model.GetEntityTypes().ToArray();
-        var relations = types.SelectMany(x => x.GetForeignKeys()).Select(x => new
+        Definition<StimMethod>(model, "aidomme_methods", e =>
         {
-            Dependent = x.DeclaringEntityType.ClrType, Principal = x.PrincipalEntityType.ClrType,
-            Columns = x.Properties.Select(p => p.Name).ToArray(),
-            Navigation = x.DependentToPrincipal?.Name, Inverse = x.PrincipalToDependent?.Name, x.DeleteBehavior,
-            Metadata = x,
-        }).ToArray();
-        foreach (var relation in relations) relation.Metadata.DeclaringEntityType.RemoveForeignKey(relation.Metadata);
-        foreach (var type in types)
+            e.Property(x => x.Name).HasMaxLength(128);
+            e.Property(x => x.Description).HasMaxLength(512);
+        });
+        Definition<PunishmentEnder>(model, "aidomme_enders", e =>
         {
-            var builder = model.Entity(type.ClrType);
-            var table = "aidomme_guided_" + type.ClrType.Name.ToLowerInvariant();
-            builder.ToTable(table, t => t.HasCheckConstraint("CK_" + table + "_owner", IsDefinition(type.ClrType) ? "\"OwnerId\" >= 0" : "\"OwnerId\" > 0"));
-            builder.Property<int>("OwnerId").HasDefaultValue(0).ValueGeneratedNever();
-            builder.HasKey("OwnerId", "Id");
-            builder.Property<int>("Id").ValueGeneratedOnAdd();
-            if (IsDefinition(type.ClrType)) builder.Property<bool>("IsOverride").HasDefaultValue(false);
-            foreach (var index in type.GetIndexes().ToArray())
-            {
-                var columns = index.Properties.Select(x => x.Name).ToArray();
-                var unique = index.IsUnique;
-                type.RemoveIndex(index);
-                builder.HasIndex(new[] { "OwnerId" }.Concat(columns).ToArray()).IsUnique(unique);
-            }
-            var parameter = Expression.Parameter(type.ClrType, "row");
-            var owner = Expression.Call(typeof(EF), nameof(EF.Property), [typeof(int)], parameter, Expression.Constant("OwnerId"));
-            builder.HasQueryFilter(Expression.Lambda(Expression.Equal(owner, Expression.Property(Expression.Constant(context), nameof(context.OwnerId))), parameter));
-        }
-        foreach (var relation in relations)
+            e.Property(x => x.Name).HasMaxLength(128);
+            e.Property(x => x.InstructionText).HasMaxLength(2048);
+            e.Property(x => x.AnnouncementText).HasMaxLength(512);
+        });
+        model.Entity<TuningRatingEntry>(e =>
         {
-            model.Entity(relation.Dependent).HasOne(relation.Principal, relation.Navigation).WithMany(relation.Inverse)
-                .HasForeignKey(new[] { "OwnerId" }.Concat(relation.Columns).ToArray())
-                .HasPrincipalKey("OwnerId", "Id")
-                // SET NULL would null the nonnullable ownership component; definitions are never deleted.
-                .OnDelete(relation.DeleteBehavior is DeleteBehavior.SetNull or DeleteBehavior.Restrict ? DeleteBehavior.NoAction : relation.DeleteBehavior);
-        }
+            e.ToTable("aidomme_tuning_ratings");
+            e.HasKey(x => x.Id);
+            e.HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            e.Property(x => x.CandidateKey).HasMaxLength(256);
+            e.Property(x => x.Mode).HasMaxLength(32);
+            e.Property(x => x.Group).HasMaxLength(64);
+            e.Property(x => x.Title).HasMaxLength(128);
+            e.Property(x => x.Description).HasMaxLength(1024);
+        });
+        model.Entity<TuningComparisonEntry>(e =>
+        {
+            e.ToTable("aidomme_tuning_comparisons");
+            e.HasKey(x => x.Id);
+            e.HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            e.Property(x => x.Mode).HasMaxLength(32);
+            e.Property(x => x.WinnerKey).HasMaxLength(256);
+            e.Property(x => x.LoserKey).HasMaxLength(256);
+        });
+
+        Owned<SessionRecord>(model, "aidomme_sessions", e =>
+        {
+            e.HasMany(x => x.Edges).WithOne(x => x.Session).HasForeignKey(x => x.SessionId).OnDelete(DeleteBehavior.Cascade);
+            e.HasMany(x => x.Orgasms).WithOne(x => x.Session).HasForeignKey(x => x.SessionId).OnDelete(DeleteBehavior.Cascade);
+            e.HasMany(x => x.Instructions).WithOne(x => x.Session).HasForeignKey(x => x.SessionId).OnDelete(DeleteBehavior.Cascade);
+            e.HasMany(x => x.Punishments).WithOne(x => x.Session).HasForeignKey(x => x.SessionId).OnDelete(DeleteBehavior.Cascade);
+            e.HasMany(x => x.Games).WithOne(x => x.Session).HasForeignKey(x => x.SessionId).OnDelete(DeleteBehavior.Cascade);
+        });
+        Owned<EdgeEntry>(model, "aidomme_edges", e =>
+        {
+            e.HasOne(x => x.StimMethod).WithMany(x => x.Edges).HasForeignKey(x => x.StimMethodId).OnDelete(DeleteBehavior.NoAction);
+            e.Property(x => x.HeldDuration).HasConversion(v => v.TotalSeconds, v => TimeSpan.FromSeconds(v));
+        });
+        Owned<OrgasmEntry>(model, "aidomme_orgasms");
+        Owned<CumRequest>(model, "aidomme_permission_requests", e =>
+            e.HasOne(x => x.Session).WithMany().HasForeignKey(x => x.SessionId).OnDelete(DeleteBehavior.Cascade));
+        Owned<InstructionStep>(model, "aidomme_steps", e =>
+        {
+            e.HasOne(x => x.StimMethod).WithMany().HasForeignKey(x => x.StimMethodId).OnDelete(DeleteBehavior.SetNull);
+            e.Property(x => x.Text).HasMaxLength(1024);
+        });
+        Owned<PunishmentEntry>(model, "aidomme_punishments", e => e.Property(x => x.Description).HasMaxLength(1024));
+        Owned<InfractionEntry>(model, "aidomme_infractions", e =>
+        {
+            e.HasOne(x => x.Session).WithMany().HasForeignKey(x => x.SessionId).OnDelete(DeleteBehavior.Cascade);
+            e.Property(x => x.Notes).HasMaxLength(512);
+        });
+        Owned<GameChallenge>(model, "aidomme_games", e =>
+        {
+            e.Property(x => x.Prompt).HasMaxLength(1024);
+            e.Property(x => x.FailureConsequence).HasMaxLength(512);
+            e.Property(x => x.SuccessReward).HasMaxLength(512);
+        });
+        Owned<GuidedEventReceipt>(model, "aidomme_tracker_receipts", e =>
+        {
+            e.HasOne(x => x.Session).WithMany().HasForeignKey(x => x.SessionId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<TrackerEvent>().WithMany().HasForeignKey(x => x.EventId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => x.EventId).IsUnique();
+            e.Property(x => x.Kind).HasMaxLength(16);
+        });
+
+        Owned<OfferRecord>(model, "aidomme_offers", e =>
+        {
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.HasOne<SessionRecord>().WithMany().HasForeignKey(x => x.OriginSessionId).OnDelete(DeleteBehavior.SetNull);
+            e.Property(x => x.Name).HasMaxLength(100);
+            e.Property(x => x.Terms).HasMaxLength(2000);
+            e.Property(x => x.Unit).HasMaxLength(40);
+            e.Property(x => x.Status).HasMaxLength(16);
+        });
+        Owned<CommitmentRecord>(model, "aidomme_commitments", e =>
+        {
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.HasOne<OfferRecord>().WithMany().HasForeignKey(x => x.OfferId).OnDelete(DeleteBehavior.SetNull);
+            e.Property(x => x.Name).HasMaxLength(100);
+            e.Property(x => x.Terms).HasMaxLength(2000);
+            e.Property(x => x.Unit).HasMaxLength(40);
+            e.Property(x => x.Status).HasMaxLength(16);
+        });
+        Owned<CommitmentReportRecord>(model, "aidomme_commitment_reports", e =>
+        {
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.HasOne<CommitmentRecord>().WithMany().HasForeignKey(x => x.CommitmentId).OnDelete(DeleteBehavior.Cascade);
+            e.Property(x => x.Outcome).HasMaxLength(16);
+            e.Property(x => x.Note).HasMaxLength(1000);
+        });
     }
 
-    public static string CreateSql()
+    /// <summary>The entity types this extension adds to Cove's model.</summary>
+    public static readonly Type[] EntityTypes =
+    [
+        typeof(StimMethod), typeof(PunishmentEnder), typeof(TuningRatingEntry), typeof(TuningComparisonEntry),
+        typeof(SessionRecord), typeof(EdgeEntry), typeof(OrgasmEntry), typeof(CumRequest), typeof(InstructionStep),
+        typeof(PunishmentEntry), typeof(InfractionEntry), typeof(GameChallenge), typeof(GuidedEventReceipt),
+        typeof(OfferRecord), typeof(CommitmentRecord), typeof(CommitmentReportRecord),
+    ];
+
+    private static void Owned<T>(ModelBuilder model, string table, Action<EntityTypeBuilder<T>>? configure = null)
+        where T : class, IUserOwned
     {
-        using var db = new CommandCenterDbContext(new DbContextOptionsBuilder<CommandCenterDbContext>()
-            .UseNpgsql("Host=localhost;Database=unused")
-            .ReplaceService<IModelCacheKeyFactory, GuidedModelCacheKeyFactory>().Options);
-        var sql = db.Database.GenerateCreateScript();
-        sql += """
-            CREATE TABLE aidomme_guided_accounts (
-              "OwnerId" integer PRIMARY KEY, "UserId" integer UNIQUE REFERENCES users("Id") ON DELETE CASCADE,
-              CHECK (("OwnerId" = 0 AND "UserId" IS NULL) OR ("OwnerId" > 0 AND "OwnerId" = "UserId")));
-            INSERT INTO aidomme_guided_accounts ("OwnerId", "UserId") VALUES (0, NULL);
-            """;
-        foreach (var type in db.Model.GetEntityTypes())
-        {
-            var table = type.GetTableName()!;
-            sql += $"\nALTER TABLE {table} ADD CONSTRAINT \"FK_{table}_account\" FOREIGN KEY (\"OwnerId\") REFERENCES aidomme_guided_accounts(\"OwnerId\") ON DELETE CASCADE;\n";
-        }
-        return sql;
+        var e = model.Entity<T>();
+        e.ToTable(table);
+        e.HasKey("Id");
+        e.HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        configure?.Invoke(e);
+    }
+
+    private static void Definition<T>(ModelBuilder model, string table, Action<EntityTypeBuilder<T>> configure)
+        where T : class, IDefinition<T>
+    {
+        var e = model.Entity<T>();
+        e.ToTable(table);
+        e.HasKey(x => x.Id);
+        e.HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        e.HasOne<T>().WithMany().HasForeignKey(x => x.BaseId).OnDelete(DeleteBehavior.Cascade);
+        configure(e);
     }
 }
 
-public sealed class GuidedModelCacheKeyFactory : IModelCacheKeyFactory
+/// <summary>Literal, forward-only SQL migrations, applied by Cove and recorded by name.</summary>
+public static class GuidedMigrations
 {
-    public object Create(DbContext context, bool designTime)
-        => (context.GetType(), context.Database.ProviderName, designTime);
+    /// <summary>002-004 created an earlier account-composite-key schema. 005 moves any such data and
+    /// replaces it, so fresh installs skip straight to 005. The names stay so receipts line up.</summary>
+    public const string Superseded = "SELECT 1; -- superseded by 005_guided_v2";
+
+    public static string Load(string name)
+    {
+        using var stream = typeof(GuidedMigrations).Assembly.GetManifestResourceStream($"AIDome.Sql.{name}.sql")
+            ?? throw new InvalidOperationException($"Migration {name} is not embedded in the extension.");
+        using var reader = new StreamReader(stream);
+        return reader.ReadToEnd();
+    }
 }

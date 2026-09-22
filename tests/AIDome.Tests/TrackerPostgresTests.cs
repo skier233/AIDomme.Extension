@@ -9,7 +9,7 @@ using AIDome.Persistence;
 using AIDome.Data;
 using AIDome.Services;
 using Microsoft.Extensions.Logging.Abstractions;
-using System.Security.Cryptography;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace AIDome.Tests;
 
@@ -22,14 +22,11 @@ public sealed class PostgresTrackerFactAttribute : FactAttribute
     }
 }
 
-public sealed class LegacyDefinitionFactAttribute : FactAttribute
+/// <summary>Extension-owned scopes for tests, standing in for the host's tracked scope factory.</summary>
+public sealed class TestScopes(IServiceScopeFactory scopes) : Cove.Plugins.IExtensionServiceScopeFactory
 {
-    public LegacyDefinitionFactAttribute()
-    {
-        if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("AIDOMME_TEST_POSTGRES"))
-            || string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("AIDOMME_TEST_LEGACY_CONFIG")))
-            Skip = "Set PostgreSQL and legacy definition source variables to verify a real configuration import read-only.";
-    }
+    public IServiceScope CreateScope() => scopes.CreateScope();
+    public AsyncServiceScope CreateAsyncScope() => scopes.CreateAsyncScope();
 }
 
 // Creates and drops only an explicitly named, random test database. Never installs tables into
@@ -52,9 +49,13 @@ public sealed partial class TrackerPostgresTests : IAsyncLifetime
         connection = new NpgsqlConnectionStringBuilder(maintenance.ConnectionString) { Database = database }.ConnectionString;
         await using var db = Context();
         await db.Database.EnsureCreatedAsync();
+        // Cove's own tables come from the trimmed model; AI Domme's come from its real migrations.
         await db.Database.ExecuteSqlRawAsync("""
-            DROP TABLE aidomme_tracker_events;
-            DROP TABLE aidomme_tracker_preferences;
+            DO $$ DECLARE name text; BEGIN
+              FOR name IN SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename LIKE 'aidomme\_%' LOOP
+                EXECUTE format('DROP TABLE %I CASCADE', name);
+              END LOOP;
+            END $$;
             CREATE TABLE users ("Id" integer PRIMARY KEY);
             INSERT INTO users ("Id") VALUES (1);
             INSERT INTO "Videos" ("Id") VALUES (1);
@@ -68,6 +69,35 @@ public sealed partial class TrackerPostgresTests : IAsyncLifetime
     private TrackerTests.TestContext Context() => new(new DbContextOptionsBuilder<TrackerTests.TestContext>()
         .UseNpgsql(connection, x => x.EnableRetryOnFailure()).Options);
 
+    private static string Fixture(string name) => File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", name));
+
+    /// <summary>Applies 002-005 exactly as Cove would on a fresh install.</summary>
+    private async Task InstallGuidedAsync()
+    {
+        await using var db = Context();
+        foreach (var sql in new[] { GuidedMigrations.Superseded, GuidedMigrations.Superseded, GuidedMigrations.Superseded, GuidedMigrations.Load("005_guided_v2") })
+            await db.Database.ExecuteSqlRawAsync(sql);
+    }
+
+    /// <summary>The schema an install had before 005: the frozen 002-004 scripts.</summary>
+    private async Task InstallLegacyGuidedAsync()
+    {
+        await using var db = Context();
+        foreach (var name in new[] { "legacy-002_guided.sql", "legacy-003_companion.sql", "legacy-004_commitments.sql" })
+            await db.Database.ExecuteSqlRawAsync(Fixture(name));
+    }
+
+    private ServiceProvider GuidedServices() => new ServiceCollection()
+        .AddScoped<DbContext>(_ => Context())
+        .BuildServiceProvider();
+
+    private static CurrentPrincipalAccessor Principal(int user)
+    {
+        var principal = new CurrentPrincipalAccessor();
+        principal.Set(new CovePrincipal { UserId = user, Username = "isolated", Kind = PrincipalKind.User, Permissions = new HashSet<string> { "*" }, Roles = new HashSet<string>() });
+        return principal;
+    }
+
     private static TrackerService Service(TrackerTests.TestContext db)
     {
         var principal = new CurrentPrincipalAccessor();
@@ -77,181 +107,198 @@ public sealed partial class TrackerPostgresTests : IAsyncLifetime
     }
 
     [PostgresTrackerFact]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "EF1003", Justification = "DDL comes exclusively from the fixed guided model.")]
-    public async Task GuidedMigration_PreservesConfiguration_IsolatesAccounts_AndConsumesTrackerOnce()
+    public async Task Migration005_UpgradesLegacyRows_KeepsIdentities_AndDropsLegacyTables()
     {
-        await using (var schema = Context())
+        await InstallLegacyGuidedAsync();
+        var eventId = Guid.NewGuid(); var offerId = Guid.NewGuid(); var commitmentId = Guid.NewGuid();
+        var payload = System.Text.Json.JsonSerializer.Serialize(new
         {
-            var migration = GuidedSchema.CreateSql() + GuidedStore.ImportSql + GuidedRecovery.Sql;
-            await schema.Database.ExecuteSqlRawAsync(migration);
-            await schema.Database.ExecuteSqlRawAsync("INSERT INTO users (\"Id\") VALUES (2)");
+            format = 1, revision = 3,
+            definitions = new[] { new { id = Guid.NewGuid(), name = "Authored", terms = "User-written", unit = "items", target = 1 } },
+            offers = new[] { new { id = offerId, definitionId = Guid.NewGuid(), name = "Hold", terms = "Hold 30s", unit = "holds", target = 2, dueAfterDays = (int?)null, dueAtUtc = (DateTime?)null, status = "Accepted", originSessionId = 5, createdAtUtc = DateTime.UtcNow, acceptedAtUtc = DateTime.UtcNow } },
+            commitments = new[] { new { id = commitmentId, offerId, name = "Hold", terms = "Hold 30s", unit = "holds", target = 2, progress = 1, dueAtUtc = (DateTime?)null, status = "Active", acceptedAtUtc = DateTime.UtcNow, resolvedAtUtc = (DateTime?)null } },
+            reports = Array.Empty<object>(), operations = new Dictionary<Guid, string>(),
+        });
+        const string checkpoint = "{\"format\":1}", empty = "{}";
+        await using (var db = Context())
+        {
+            await db.Database.ExecuteSqlRawAsync("INSERT INTO users (\"Id\") VALUES (2)");
+            await db.Database.ExecuteSqlInterpolatedAsync($"""
+                INSERT INTO aidomme_guided_accounts ("OwnerId", "UserId") VALUES (1, 1), (2, 2);
+                UPDATE aidomme_guided_stimmethod SET "TimePointMultiplier" = 0.123 WHERE "OwnerId" = 0 AND "Id" = 1;
+                INSERT INTO aidomme_guided_stimmethod SELECT 1, "Id", "Name", "Intensity", "Tease", "TortLevel", "Closeness", "RequiresLube", "ToyCategory", "Description", "TimePointMultiplier", "EdgePointMultiplier", FALSE FROM aidomme_guided_stimmethod WHERE "OwnerId" = 0;
+                INSERT INTO aidomme_guided_stimmethod SELECT 2, "Id", "Name", "Intensity", "Tease", "TortLevel", "Closeness", "RequiresLube", "ToyCategory", "Description", "TimePointMultiplier", "EdgePointMultiplier", FALSE FROM aidomme_guided_stimmethod WHERE "OwnerId" = 0;
+                UPDATE aidomme_guided_stimmethod SET "Description" = 'My own wording', "IsOverride" = TRUE WHERE "OwnerId" = 1 AND "Id" = 2;
+                UPDATE aidomme_guided_stimmethod SET "EdgePointMultiplier" = 4.5 WHERE "OwnerId" = 2 AND "Id" = 3;
+                INSERT INTO aidomme_guided_tuningcomparisonentry ("OwnerId", "Id", "Mode", "WinnerKey", "LoserKey", "Strength", "TimestampUtc") VALUES (0, 1, 'Stim', 'method:1', 'method:2', 3, now());
+                INSERT INTO aidomme_guided_sessionrecord ("OwnerId", "Id", "StartedAtUtc", "LastInteractionUtc", "AllowSelfOral", "Intensity") VALUES (1, 5, now(), now(), FALSE, 7);
+                INSERT INTO aidomme_guided_edgeentry ("OwnerId", "Id", "TimestampUtc", "StimMethodId", "HeldDuration", "SessionId") VALUES (1, 9, now(), 2, 12.5, 5);
+                INSERT INTO aidomme_tracker_events ("Id", "UserId", "SettingId", "Kind", "OccurredAtUtc", "ReceivedAtUtc", "Source", "LikeWeight", "LikeIdsJson") VALUES ({eventId}, 1, gen_random_uuid(), 'edge', now(), now(), 'hotkey', 0, '[]');
+                INSERT INTO aidomme_guided_guidedeventreceipt ("OwnerId", "Id", "EventId", "SessionId", "Kind", "ActivityId", "DeliveredAtUtc") VALUES (1, 4, {eventId}, 5, 'edge', 9, now());
+                INSERT INTO aidomme_guided_event_steps ("OwnerId", "EventId", "StepNumber") VALUES (1, {eventId}, 6);
+                INSERT INTO aidomme_guided_recovery ("OwnerId", "Revision", "Payload", "UpdatedAtUtc") VALUES (1, 77, {checkpoint}, now());
+                INSERT INTO aidomme_guided_policies ("OwnerId", "SessionId", "Revision", "Policy", "AcceptedAtUtc") VALUES (1, 5, 1, {empty}, now());
+                INSERT INTO aidomme_guided_controls ("OwnerId", "EventId", "Payload", "Status") VALUES (1, gen_random_uuid(), {empty}, 'Applied');
+                INSERT INTO aidomme_commitment_state ("OwnerId", "Revision", "Payload", "UpdatedAtUtc") VALUES (1, 3, {payload}, now());
+                """);
+            await db.Database.ExecuteSqlRawAsync(GuidedMigrations.Load("005_guided_v2"));
         }
-        var legacy = Path.Combine(Path.GetTempPath(), $"aidomme-definitions-{Guid.NewGuid():N}.db");
-        var extensionLegacy = Path.Combine(Path.GetTempPath(), $"aidomme-extension-definitions-{Guid.NewGuid():N}.db");
-        try
+        await using (var db = Context())
         {
-            await using (var source = new CommandCenterDbContext(new DbContextOptionsBuilder<CommandCenterDbContext>().UseSqlite($"Data Source={legacy};Pooling=False").Options))
+            async Task<int> Count(string sql) => await db.Database.SqlQueryRaw<int>(sql).SingleAsync();
+            Assert.Equal(0, await Count("SELECT COUNT(*)::int AS \"Value\" FROM pg_tables WHERE tablename LIKE 'aidomme\\_guided%' OR tablename IN ('aidomme_commitment_state', 'aidomme_narration_receipts')"));
+            Assert.Equal(40, await Count("SELECT COUNT(*)::int AS \"Value\" FROM aidomme_methods WHERE \"UserId\" IS NULL"));
+            // Identical personal copies are not overrides; edited or saved-as-override copies are.
+            Assert.Equal(2, await Count("SELECT COUNT(*)::int AS \"Value\" FROM aidomme_methods WHERE \"UserId\" IS NOT NULL"));
+            var services = GuidedServices();
+            var first = new GuidedDataFactory(new TestScopes(services.GetRequiredService<IServiceScopeFactory>()), 1);
+            var second = new GuidedDataFactory(new TestScopes(services.GetRequiredService<IServiceScopeFactory>()), 2);
+            await using (var a = first.Open())
             {
-                await source.Database.EnsureCreatedAsync();
-                (await source.StimMethods.SingleAsync(x => x.Id == 1)).TimePointMultiplier = 0.123;
-                (await source.PunishmentEnders.SingleAsync(x => x.Id == 1)).Severity = 7;
-                source.TuningRatings.Add(new() { CandidateKey = "method:1", Mode = "Stim", Rating = 1234, SeedRating = 1000, UpdatedAtUtc = DateTime.UtcNow });
-                source.TuningComparisonHistory.Add(new() { Mode = "Stim", WinnerKey = "method:1", LoserKey = "method:2", Strength = 3, TimestampUtc = DateTime.UtcNow });
-                source.Sessions.Add(new() { StartedAtUtc = DateTime.UtcNow, LastInteractionUtc = DateTime.UtcNow });
-                await source.SaveChangesAsync();
+                var methods = await a.MethodsAsync();
+                Assert.Equal(40, methods.Count);
+                Assert.Equal(0.123, methods.Single(x => x.Id == 1).TimePointMultiplier);
+                Assert.Equal("My own wording", methods.Single(x => x.Id == 2).Description);
+                var session = await a.Sessions.SingleAsync();
+                Assert.Equal((5, 7), (session.Id, session.Intensity));
+                var edge = await a.Edges.SingleAsync();
+                Assert.Equal((9, 2, 12.5), (edge.Id, edge.StimMethodId, edge.HeldDuration.TotalSeconds));
+                var receipt = await a.TrackerReceipts.SingleAsync();
+                Assert.Equal((eventId, 6), (receipt.EventId, receipt.StepNumber));
+                Assert.Equal(1, await a.TuningComparisons.CountAsync());
+                var offer = await a.Offers.SingleAsync();
+                Assert.Equal((offerId, "Accepted", (int?)5), (offer.Id, offer.Status, offer.OriginSessionId));
+                var commitment = await a.Commitments.SingleAsync();
+                Assert.Equal((commitmentId, offerId, 1m), (commitment.Id, commitment.OfferId!.Value, commitment.Progress));
             }
-            await using (var extensionSource = new CommandCenterDbContext(new DbContextOptionsBuilder<CommandCenterDbContext>().UseSqlite($"Data Source={extensionLegacy};Pooling=False").Options))
+            await using (var b = second.Open())
             {
-                await extensionSource.Database.EnsureCreatedAsync();
-                (await extensionSource.StimMethods.SingleAsync(x => x.Id == 1)).Description = "Edited extension instructions";
-                await extensionSource.SaveChangesAsync();
-            }
-            var original = SHA256.HashData(await File.ReadAllBytesAsync(legacy));
-            var extensionOriginal = SHA256.HashData(await File.ReadAllBytesAsync(extensionLegacy));
-            var store = new GuidedStore(connection, extensionLegacy, legacy);
-            await store.ImportAsync(default);
-            await store.ImportAsync(default);
-            Assert.Equal(original, SHA256.HashData(await File.ReadAllBytesAsync(legacy)));
-            Assert.Equal(extensionOriginal, SHA256.HashData(await File.ReadAllBytesAsync(extensionLegacy)));
-            var principal = new CurrentPrincipalAccessor();
-            principal.Set(new CovePrincipal { UserId = 1, Username = "isolated", Kind = PrincipalKind.User, Permissions = new HashSet<string> { "*" }, Roles = new HashSet<string>() });
-            using var runtimes = new GuidedRuntimes(store, principal, NullLoggerFactory.Instance);
-            var first = runtimes.ForUser(1);
-            var second = runtimes.ForUser(2);
-            await using (var a = await first.Factory.CreateDbContextAsync())
-            {
-                Assert.Empty(await a.Sessions.ToListAsync());
-                Assert.Equal(0.123, (await a.StimMethods.SingleAsync(x => x.Id == 1)).TimePointMultiplier);
-                Assert.Equal("Edited extension instructions", (await a.StimMethods.SingleAsync(x => x.Id == 1)).Description);
-                Assert.Equal(7, (await a.PunishmentEnders.SingleAsync(x => x.Id == 1)).Severity);
-                Assert.Equal(1234, (await a.TuningRatings.SingleAsync()).Rating);
-                Assert.Equal(3, (await a.TuningComparisonHistory.SingleAsync()).Strength);
-                var method = await a.StimMethods.SingleAsync(x => x.Id == 1);
-                method.TimePointMultiplier = 0.456;
-                await a.SaveChangesAsync();
-            }
-            await using (var b = await second.Factory.CreateDbContextAsync())
-                Assert.Equal(0.123, (await b.StimMethods.SingleAsync(x => x.Id == 1)).TimePointMultiplier);
-            await using (var a = await first.Factory.CreateDbContextAsync())
-                Assert.Equal(0.456, (await a.StimMethods.SingleAsync(x => x.Id == 1)).TimePointMultiplier);
-            var configuration = new GuidedConfiguration(runtimes);
-            await configuration.ResetAsync<StimMethod>(1, default);
-            await using (var a = await first.Factory.CreateDbContextAsync())
-                Assert.Equal(0.123, (await a.StimMethods.SingleAsync(x => x.Id == 1)).TimePointMultiplier);
-
-            await first.Commands.StartSessionAsync(new SessionParameters(3, 3, 3, 3, 3));
-            Assert.True(first.Online.HasActiveSession);
-            Assert.False(second.Online.HasActiveSession);
-            var sessionId = first.Online.GetCurrentState().SessionId;
-            await using (var a = await first.Factory.CreateDbContextAsync())
-            {
-                (await a.Sessions.SingleAsync(x => x.Id == sessionId)).LastInteractionUtc = DateTime.UtcNow.AddHours(-1);
-                await a.SaveChangesAsync();
-            }
-            await first.Commands.GenerateDebugHomeworkAsync(new SessionParameters(8, 3, 3, 3, 3) { IsDebugSession = true });
-            Assert.True((await first.Commands.GetSessionStatusAsync()).IsActive);
-            Assert.Equal(sessionId, await first.Interaction.GetCurrentSessionId());
-            await using (var b = await second.Factory.CreateDbContextAsync())
-            {
+                var methods = await b.MethodsAsync();
+                Assert.Equal(4.5, methods.Single(x => x.Id == 3).EdgePointMultiplier);
+                Assert.NotEqual("My own wording", methods.Single(x => x.Id == 2).Description);
                 Assert.Empty(await b.Sessions.ToListAsync());
-                b.Edges.Add(new() { SessionId = sessionId, StimMethodId = 1, TimestampUtc = DateTime.UtcNow });
-                await Assert.ThrowsAsync<DbUpdateException>(() => b.SaveChangesAsync());
+                Assert.Empty(await b.Offers.ToListAsync());
             }
-            var bridge = new GuidedTrackerBridge(runtimes, NullLogger<GuidedTrackerBridge>.Instance);
-            await using var trackerDb = Context();
-            var tracking = new AIDome.Tracking.TrackerService(trackerDb, principal, new TrackerTests.TestAuthorization(), new UserEngagementService(trackerDb, principal), bridge);
-            var prefs = await tracking.SettingsAsync(new(false, 0, 1), false, default);
-            var request = new AIDome.Tracking.RecordTrackerEvent(Guid.NewGuid(), prefs.SettingId, "edge", DateTime.UtcNow, "hotkey");
-            await tracking.RecordAsync(request, default);
-            await tracking.RecordAsync(request, default);
-            var metrics = await first.Factory.ReadTrackerMetricsAsync(DateTime.UtcNow, default);
-            Assert.Equal(1, metrics.EdgesSinceLastOrgasm);
-            Assert.Null(metrics.LastOrgasmAtUtc);
-            Assert.Equal(1, first.Online.GetCurrentState().EdgesThisSession);
-            await using (var a = await first.Factory.CreateDbContextAsync())
+            Assert.Equal(77, await Count("SELECT \"Revision\"::int AS \"Value\" FROM aidomme_runtime_checkpoints WHERE \"UserId\" = 1"));
+            Assert.Equal(1, await Count("SELECT COUNT(*)::int AS \"Value\" FROM aidomme_session_policies"));
+            Assert.Equal(1, await Count("SELECT COUNT(*)::int AS \"Value\" FROM aidomme_session_controls"));
+            // New rows continue after the copied identities.
+            await using (var a = first.Open())
             {
-                Assert.Single(await a.Edges.ToListAsync());
-                Assert.Single(await a.TrackerReceipts.ToListAsync());
+                var added = a.Add(new SessionRecord { StartedAtUtc = DateTime.UtcNow, LastInteractionUtc = DateTime.UtcNow });
+                await a.SaveChangesAsync();
+                Assert.True(added.Id > 5);
             }
-            await tracking.UndoAsync(request.Id, default);
-            Assert.False(first.Online.HasActiveSession);
-            await using (var a = await first.Factory.CreateDbContextAsync())
-            {
-                Assert.Empty(await a.Edges.ToListAsync());
-                Assert.False((await a.Sessions.SingleAsync(x => x.Id == sessionId)).SuspectedUnauthorizedOrgasm);
-            }
-            await using (var b = await second.Factory.CreateDbContextAsync()) Assert.Empty(await b.Edges.ToListAsync());
-            var passive = new AIDome.Tracking.RecordTrackerEvent(Guid.NewGuid(), prefs.SettingId, "orgasm", DateTime.UtcNow, "button");
-            await tracking.RecordAsync(passive, default);
-            metrics = await first.Factory.ReadTrackerMetricsAsync(DateTime.UtcNow, default);
-            Assert.NotNull(metrics.LastOrgasmAtUtc);
-            Assert.Equal(0, metrics.EdgesSinceLastOrgasm);
-            await using (var a = await first.Factory.CreateDbContextAsync()) Assert.Empty(await a.Orgasms.ToListAsync());
-            await first.Commands.StartSessionAsync(new SessionParameters(3, 3, 3, 3, 3) { IsDebugSession = true });
-            var staleSession = first.Online.GetCurrentState().SessionId;
-            await using (var a = await first.Factory.CreateDbContextAsync())
-                await a.Sessions.Where(x => x.Id == staleSession).ExecuteDeleteAsync();
-            await tracking.SettingsAsync(new(true, 1, 3), false, default);
-            var failed = new AIDome.Tracking.RecordTrackerEvent(Guid.NewGuid(), prefs.SettingId, "edge", DateTime.UtcNow, "button", "video", 1);
-            await Assert.ThrowsAsync<AIDome.Tracking.TrackerValidationException>(() => tracking.RecordAsync(failed, default));
-            trackerDb.ChangeTracker.Clear();
-            Assert.False(await trackerDb.Set<AIDome.Tracking.TrackerEvent>().AnyAsync(x => x.Id == failed.Id));
-            Assert.Empty(await trackerDb.Interactions.ToListAsync());
-            Assert.Empty(await trackerDb.UserEntityAffinities.ToListAsync());
-            Assert.Equal(0, first.Online.GetCurrentState().EdgesThisSession);
-            first.Online.EndSession();
-            await trackerDb.Database.ExecuteSqlRawAsync("DELETE FROM users WHERE \"Id\" = 1");
-            Assert.Equal(0, await trackerDb.Database.SqlQueryRaw<int>("SELECT COUNT(*)::int AS \"Value\" FROM aidomme_guided_sessionrecord WHERE \"OwnerId\" = 1").SingleAsync());
-        }
-        finally
-        {
-            if (File.Exists(legacy)) File.Delete(legacy);
-            if (File.Exists(extensionLegacy)) File.Delete(extensionLegacy);
         }
     }
 
-    [LegacyDefinitionFact]
-    public async Task OriginalConfiguration_ImportsEveryDefinitionAndCalibrationValue_WithoutUsageOrSourceChanges()
+    [PostgresTrackerFact]
+    public async Task EveryMappedEntity_MatchesTheMigratedTables()
     {
-        await using var tracker = Context();
-        var migration = GuidedSchema.CreateSql() + GuidedStore.ImportSql + GuidedRecovery.Sql;
-        await tracker.Database.ExecuteSqlRawAsync(migration);
-        var path = Environment.GetEnvironmentVariable("AIDOMME_TEST_LEGACY_CONFIG")!;
-        var hash = SHA256.HashData(await File.ReadAllBytesAsync(path));
-        var store = new GuidedStore(connection, Path.Combine(Path.GetTempPath(), $"absent-{Guid.NewGuid():N}.db"), path);
-        await store.ImportAsync(default);
-        await store.ImportAsync(default);
-        await using var source = new CommandCenterDbContext(new DbContextOptionsBuilder<CommandCenterDbContext>()
-            .UseSqlite(new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder { DataSource = path, Mode = Microsoft.Data.Sqlite.SqliteOpenMode.ReadOnly, Pooling = false }.ToString()).Options);
-        await using var effective = await store.ForUser(1).CreateDbContextAsync();
-        await AssertDefinitionParityAsync<StimMethod>(source, effective);
-        await AssertDefinitionParityAsync<PunishmentEnder>(source, effective);
-        await AssertDefinitionParityAsync<TuningRatingEntry>(source, effective);
-        await AssertDefinitionParityAsync<TuningComparisonEntry>(source, effective);
-        Assert.Equal(await source.TuningRatings.CountAsync(), await effective.TuningRatings.CountAsync());
-        Assert.Equal(await source.TuningComparisonHistory.CountAsync(), await effective.TuningComparisonHistory.CountAsync());
-        Assert.Empty(await effective.Sessions.ToListAsync());
-        Assert.Empty(await effective.Edges.ToListAsync());
-        Assert.Empty(await effective.Orgasms.ToListAsync());
-        Assert.Empty(await effective.Punishments.ToListAsync());
-        Assert.Equal(hash, SHA256.HashData(await File.ReadAllBytesAsync(path)));
+        await InstallGuidedAsync();
+        await using var db = Context();
+        foreach (var type in GuidedSchema.EntityTypes)
+        {
+            // Selecting every mapped column fails if the model and the literal migration disagree.
+            var query = (IQueryable<object>)typeof(DbContext).GetMethod(nameof(DbContext.Set), Type.EmptyTypes)!.MakeGenericMethod(type).Invoke(db, null)!;
+            await query.Take(1).ToListAsync();
+        }
+        Assert.Equal(40, await db.Set<StimMethod>().CountAsync());
+        Assert.Equal(14, await db.Set<PunishmentEnder>().CountAsync());
     }
 
-    private static async Task AssertDefinitionParityAsync<T>(CommandCenterDbContext source, CommandCenterDbContext target) where T : class
+    [PostgresTrackerFact]
+    public async Task GuidedRuntime_IsolatesAccounts_OverridesDefinitions_AndConsumesTrackerOnce()
     {
-        var rows = await target.Set<T>().ToListAsync();
-        foreach (var original in await source.Set<T>().AsNoTracking().ToListAsync())
+        await InstallGuidedAsync();
+        await using (var setup = Context()) await setup.Database.ExecuteSqlRawAsync("INSERT INTO users (\"Id\") VALUES (2)");
+        await using var services = GuidedServices();
+        var principal = Principal(1);
+        await using var runtimes = new GuidedRuntimes(new TestScopes(services.GetRequiredService<IServiceScopeFactory>()), principal, NullLoggerFactory.Instance);
+        var first = await runtimes.ForUserAsync(1);
+        var second = await runtimes.ForUserAsync(2);
+        Assert.Same(first, await runtimes.ForUserAsync(1));
+
+        // A saved definition is a personal override; the other account keeps the shared default.
+        var configuration = new GuidedConfiguration(runtimes);
+        await runtimes.EnsureCurrentAsync(default);
+        var shared = (await first.Factory.Open().MethodsAsync()).Single(x => x.Id == 1);
+        var edited = shared.AsDefinition(1);
+        edited.TimePointMultiplier = 0.456;
+        await configuration.SaveAsync(1, edited, default);
+        await using (var a = first.Factory.Open()) Assert.Equal(0.456, (await a.MethodsAsync()).Single(x => x.Id == 1).TimePointMultiplier);
+        await using (var b = second.Factory.Open()) Assert.Equal(shared.TimePointMultiplier, (await b.MethodsAsync()).Single(x => x.Id == 1).TimePointMultiplier);
+        await configuration.SaveAsync(1, edited, default);
+        await using (var a = first.Factory.Open()) Assert.Equal(1, await a.Db.Set<StimMethod>().CountAsync(x => x.UserId == 1));
+        await configuration.ResetAsync<StimMethod>(1, default);
+        await using (var a = first.Factory.Open())
         {
-            var id = typeof(T).GetProperty("Id")!.GetValue(original);
-            var copy = Assert.Single(rows, x => Equals(typeof(T).GetProperty("Id")!.GetValue(x), id));
-            foreach (var property in source.Model.FindEntityType(typeof(T))!.GetProperties())
-            {
-                var expected = property.PropertyInfo!.GetValue(original);
-                var actual = property.PropertyInfo.GetValue(copy);
-                if (expected is DateTime time) expected = new DateTime(time.Ticks / 10 * 10, DateTimeKind.Utc);
-                Assert.Equal(expected, actual);
-            }
+            Assert.Equal(shared.TimePointMultiplier, (await a.MethodsAsync()).Single(x => x.Id == 1).TimePointMultiplier);
+            Assert.Equal(0, await a.Db.Set<StimMethod>().CountAsync(x => x.UserId == 1));
         }
+
+        await first.Commands.StartSessionAsync(new SessionParameters(3, 3, 3, 3, 3));
+        Assert.True(first.Online.HasActiveSession);
+        Assert.False(second.Online.HasActiveSession);
+        var sessionId = first.Online.GetCurrentState().SessionId;
+        await first.Commands.GenerateDebugHomeworkAsync(new SessionParameters(8, 3, 3, 3, 3) { IsDebugSession = true });
+        Assert.True((await first.Commands.GetSessionStatusAsync()).IsActive);
+        Assert.Equal(sessionId, await first.Interaction.GetCurrentSessionId());
+        await using (var b = second.Factory.Open())
+        {
+            Assert.Empty(await b.Sessions.ToListAsync());
+            Assert.Empty(await b.InstructionSteps.ToListAsync());
+        }
+
+        var bridge = new GuidedTrackerBridge(runtimes, NullLogger<GuidedTrackerBridge>.Instance);
+        await using var trackerDb = Context();
+        var tracking = new AIDome.Tracking.TrackerService(trackerDb, principal, new TrackerTests.TestAuthorization(), new UserEngagementService(trackerDb, principal), bridge);
+        var prefs = await tracking.SettingsAsync(new(false, 0, 1), false, default);
+        var request = new AIDome.Tracking.RecordTrackerEvent(Guid.NewGuid(), prefs.SettingId, "edge", DateTime.UtcNow, "hotkey");
+        await tracking.RecordAsync(request, default);
+        await tracking.RecordAsync(request, default);
+        var metrics = await first.Factory.ReadTrackerMetricsAsync(DateTime.UtcNow, default);
+        Assert.Equal(1, metrics.EdgesSinceLastOrgasm);
+        Assert.Null(metrics.LastOrgasmAtUtc);
+        Assert.Equal(1, first.Online.GetCurrentState().EdgesThisSession);
+        await using (var a = first.Factory.Open())
+        {
+            Assert.Single(await a.Edges.ToListAsync());
+            var receipt = await a.TrackerReceipts.SingleAsync();
+            Assert.Equal(first.Online.GetCurrentState().StepNumber, receipt.StepNumber);
+        }
+        await tracking.UndoAsync(request.Id, default);
+        Assert.False(first.Online.HasActiveSession);
+        await using (var a = first.Factory.Open())
+        {
+            Assert.Empty(await a.Edges.ToListAsync());
+            Assert.False((await a.Sessions.SingleAsync(x => x.Id == sessionId)).SuspectedUnauthorizedOrgasm);
+        }
+        var passive = new AIDome.Tracking.RecordTrackerEvent(Guid.NewGuid(), prefs.SettingId, "orgasm", DateTime.UtcNow, "button");
+        await tracking.RecordAsync(passive, default);
+        metrics = await first.Factory.ReadTrackerMetricsAsync(DateTime.UtcNow, default);
+        Assert.NotNull(metrics.LastOrgasmAtUtc);
+        Assert.Equal(0, metrics.EdgesSinceLastOrgasm);
+        await using (var a = first.Factory.Open()) Assert.Empty(await a.Orgasms.ToListAsync());
+
+        // A guided write failure rolls back the tracker event and its likes.
+        await first.Commands.StartSessionAsync(new SessionParameters(3, 3, 3, 3, 3) { IsDebugSession = true });
+        var staleSession = first.Online.GetCurrentState().SessionId;
+        await using (var a = first.Factory.Open())
+            await a.Sessions.Where(x => x.Id == staleSession).ExecuteDeleteAsync();
+        await tracking.SettingsAsync(new(true, 1, 3), false, default);
+        var failed = new AIDome.Tracking.RecordTrackerEvent(Guid.NewGuid(), prefs.SettingId, "edge", DateTime.UtcNow, "button", "video", 1);
+        await Assert.ThrowsAsync<AIDome.Tracking.TrackerValidationException>(() => tracking.RecordAsync(failed, default));
+        trackerDb.ChangeTracker.Clear();
+        Assert.False(await trackerDb.Set<AIDome.Tracking.TrackerEvent>().AnyAsync(x => x.Id == failed.Id));
+        Assert.Empty(await trackerDb.Interactions.ToListAsync());
+        Assert.Empty(await trackerDb.UserEntityAffinities.ToListAsync());
+        Assert.Equal(0, first.Online.GetCurrentState().EdgesThisSession);
+        first.Online.EndSession();
+
+        // Deleting the Cove account removes its AI Domme rows.
+        await trackerDb.Database.ExecuteSqlRawAsync("DELETE FROM users WHERE \"Id\" = 1");
+        Assert.Equal(0, await trackerDb.Database.SqlQueryRaw<int>("SELECT COUNT(*)::int AS \"Value\" FROM aidomme_sessions WHERE \"UserId\" = 1").SingleAsync());
     }
 
     [PostgresTrackerFact]

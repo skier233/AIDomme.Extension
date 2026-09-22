@@ -1,4 +1,5 @@
 using AIDome.Data;
+using AIDome.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -15,11 +16,11 @@ public sealed class OfflineInstructionEngine : IInstructionEngine
     private const double PeakRatio = 0.30;
     private const double FinishRatio = 0.10;
 
-    private readonly IDbContextFactory<CommandCenterDbContext> _dbFactory;
+    private readonly GuidedDataFactory _dbFactory;
     private readonly ILogger<OfflineInstructionEngine> _logger;
 
     public OfflineInstructionEngine(
-        IDbContextFactory<CommandCenterDbContext> dbFactory,
+        GuidedDataFactory dbFactory,
         ILogger<OfflineInstructionEngine> logger)
     {
         _dbFactory = dbFactory;
@@ -34,11 +35,11 @@ public sealed class OfflineInstructionEngine : IInstructionEngine
 
     public async Task<IReadOnlyList<StimMethod>> GetEligibleMethodsAsync(int sessionId, int? intensityCeiling = null, CancellationToken cancellationToken = default)
     {
-        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
+        await using var db = await _dbFactory.OpenAsync(cancellationToken);
         var session = await db.Sessions.FirstOrDefaultAsync(s => s.Id == sessionId, cancellationToken)
             ?? throw new InvalidOperationException($"Session {sessionId} not found");
 
-        var all = await db.StimMethods.ToListAsync(cancellationToken);
+        var all = await db.MethodsAsync(cancellationToken);
         var eligible = FilterMethodsForSession(all, session);
         if (intensityCeiling.HasValue)
             eligible = eligible.Where(m => m.Intensity <= intensityCeiling.Value).ToList();
@@ -47,11 +48,11 @@ public sealed class OfflineInstructionEngine : IInstructionEngine
 
     private async Task<IReadOnlyList<InstructionStep>> GeneratePlanCoreAsync(int sessionId, bool punishment, CancellationToken cancellationToken)
     {
-        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
+        await using var db = await _dbFactory.OpenAsync(cancellationToken);
         var session = await db.Sessions.FirstOrDefaultAsync(s => s.Id == sessionId, cancellationToken)
             ?? throw new InvalidOperationException($"Session {sessionId} not found");
 
-        var allMethods = await db.StimMethods.ToListAsync(cancellationToken);
+        var allMethods = await db.MethodsAsync(cancellationToken);
         var eligible = FilterMethodsForSession(allMethods, session);
 
         int intensity = Math.Clamp(session.Intensity > 0 ? session.Intensity : 5, 1, 10);
@@ -193,7 +194,7 @@ public sealed class OfflineInstructionEngine : IInstructionEngine
         }
 
         // ── Finish/Deny ──
-        var enders = await db.PunishmentEnders.ToListAsync(cancellationToken);
+        var enders = await db.EndersAsync(cancellationToken);
         if (punishment)
         {
             steps.AddRange(BuildPunishmentFinish(eligible, recentMethodIds, ref lubeActive, sessionId, ref ordinal, intensity, mean, enders, session));
@@ -206,7 +207,7 @@ public sealed class OfflineInstructionEngine : IInstructionEngine
         }
 
         // Persist all steps
-        db.InstructionSteps.AddRange(steps);
+        db.AddRange(steps);
         await db.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation(

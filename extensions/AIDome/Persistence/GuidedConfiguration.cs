@@ -1,76 +1,78 @@
 using System.ComponentModel.DataAnnotations;
-using AIDome.Tracking;
 using AIDome.Data;
 using AIDome.Services;
+using AIDome.Tracking;
 using Microsoft.EntityFrameworkCore;
 
 namespace AIDome.Persistence;
 
 public sealed record DefinitionView<T>(T Value, bool IsOverride, T? SharedDefault);
 
+/// <summary>
+/// The account's method and punishment-ending library: shared defaults, personal overrides of them,
+/// and the calibration used to tune method multipliers.
+/// </summary>
 public sealed class GuidedConfiguration(GuidedRuntimes runtimes)
 {
     public async Task<object> SnapshotAsync(CancellationToken ct)
     {
-        await using var db = await runtimes.Current.Factory.CreateDbContextAsync(ct);
+        await using var db = runtimes.Current.Factory.Open();
         return new
         {
-            Methods = await ViewsAsync<StimMethod>(db, ct),
-            Enders = await ViewsAsync<PunishmentEnder>(db, ct),
-            Ratings = await ViewsAsync<TuningRatingEntry>(db, ct),
-            Comparisons = await ViewsAsync<TuningComparisonEntry>(db, ct),
+            Methods = await ViewsAsync(db.Db.Set<StimMethod>(), db.UserId, ct),
+            Enders = await ViewsAsync(db.Db.Set<PunishmentEnder>(), db.UserId, ct),
+            Ratings = (await db.TuningRatings.AsNoTracking().OrderBy(x => x.Id).ToListAsync(ct))
+                .Select(x => new DefinitionView<TuningRatingEntry>(x, x.UserId is not null, null)),
+            Comparisons = (await db.TuningComparisons.AsNoTracking().OrderBy(x => x.Id).ToListAsync(ct))
+                .Select(x => new DefinitionView<TuningComparisonEntry>(x, x.UserId is not null, null)),
         };
     }
 
-    private static async Task<List<DefinitionView<T>>> ViewsAsync<T>(CommandCenterDbContext db, CancellationToken ct) where T : class
+    private static async Task<List<DefinitionView<T>>> ViewsAsync<T>(IQueryable<T> set, int userId, CancellationToken ct)
+        where T : class, IDefinition<T>
     {
-        var shared = await db.Set<T>().IgnoreQueryFilters().AsNoTracking().Where(x => EF.Property<int>(x, "OwnerId") == 0).ToListAsync(ct);
-        var own = await db.Set<T>().ToListAsync(ct);
-        return own.OrderBy(x => (int)typeof(T).GetProperty("Id")!.GetValue(x)!).Select(x => new DefinitionView<T>(x,
-            (bool)db.Entry(x).Property("IsOverride").CurrentValue!,
-            shared.FirstOrDefault(s => Equals(typeof(T).GetProperty("Id")!.GetValue(s), typeof(T).GetProperty("Id")!.GetValue(x))))).ToList();
+        var rows = await set.AsNoTracking().Where(x => x.UserId == null || x.UserId == userId).ToListAsync(ct);
+        var shared = rows.Where(x => x.UserId is null).ToDictionary(x => x.Id);
+        var overridden = rows.Where(x => x.BaseId is int).Select(x => x.BaseId!.Value).ToHashSet();
+        var effective = await Definitions.EffectiveAsync(set, userId, ct);
+        return effective.Select(x => new DefinitionView<T>(x, overridden.Contains(x.Id), shared.GetValueOrDefault(x.Id))).ToList();
     }
 
-    public async Task<T> SaveAsync<T>(int id, T value, CancellationToken ct) where T : class
+    public async Task<T> SaveAsync<T>(int id, T value, CancellationToken ct) where T : class, IDefinition<T>
     {
         Validate(value);
-        if (id != (int)typeof(T).GetProperty("Id")!.GetValue(value)!) throw new TrackerValidationException("Definition ID cannot change.");
-        await using var db = await runtimes.Current.Factory.CreateDbContextAsync(ct);
-        var own = await db.Set<T>().SingleOrDefaultAsync(x => EF.Property<int>(x, "Id") == id, ct)
-            ?? throw new TrackerValidationException("Definition not found.");
-        GuidedStore.CopyScalars(db, own, value);
+        if (id != value.Id) throw new TrackerValidationException("Definition ID cannot change.");
+        await using var db = runtimes.Current.Factory.Open();
         // Saving even an identical value is an explicit personal override.
-        db.Entry(own).Property("IsOverride").CurrentValue = true;
+        var own = await OverrideAsync<T>(db, id, ct);
+        CopyScalars(db, own, value);
         await db.SaveChangesAsync(ct);
-        return own;
+        return own.AsDefinition(id);
     }
 
-    public async Task<T> ResetAsync<T>(int id, CancellationToken ct) where T : class
+    public async Task<T> ResetAsync<T>(int id, CancellationToken ct) where T : class, IDefinition<T>
     {
-        await using var db = await runtimes.Current.Factory.CreateDbContextAsync(ct);
-        var shared = await db.Set<T>().IgnoreQueryFilters().AsNoTracking().SingleOrDefaultAsync(x => EF.Property<int>(x, "OwnerId") == 0 && EF.Property<int>(x, "Id") == id, ct)
+        await using var db = runtimes.Current.Factory.Open();
+        var shared = await db.Db.Set<T>().AsNoTracking().SingleOrDefaultAsync(x => x.Id == id && x.UserId == null, ct)
             ?? throw new TrackerValidationException("No shared default exists for this definition.");
-        var own = await db.Set<T>().SingleOrDefaultAsync(x => EF.Property<int>(x, "Id") == id, ct)
-            ?? throw new TrackerValidationException("Definition not found.");
-        db.ApplyingDefaults = true;
-        GuidedStore.CopyScalars(db, own, shared);
-        db.Entry(own).Property("IsOverride").CurrentValue = false;
-        await db.SaveChangesAsync(ct);
-        return own;
+        await db.Db.Set<T>().Where(x => x.UserId == db.UserId && x.BaseId == id).ExecuteDeleteAsync(ct);
+        return shared;
     }
 
     public async Task<object> OptimizeAsync(CancellationToken ct)
     {
-        await using var db = await runtimes.Current.Factory.CreateDbContextAsync(ct);
-        var methods = await db.StimMethods.ToListAsync(ct);
+        await using var db = runtimes.Current.Factory.Open();
+        var methods = await db.MethodsAsync(ct);
         StimMultiplierOptimizer.OptimizationResult result;
-        try { result = StimMultiplierOptimizer.Optimize(methods, await db.TuningComparisonHistory.ToListAsync(ct)); }
+        try { result = StimMultiplierOptimizer.Optimize(methods, await db.TuningComparisons.AsNoTracking().ToListAsync(ct)); }
         catch (InvalidOperationException ex) { throw new TrackerValidationException(ex.Message); }
         foreach (var method in methods)
         {
             var multiplier = result.Multipliers[method.Id];
-            method.TimePointMultiplier = multiplier.TimePointsPerSecond;
-            method.EdgePointMultiplier = multiplier.EdgePointsPerEdge;
+            // Tuned multipliers are personal: they become (or update) this account's override.
+            var own = await OverrideAsync<StimMethod>(db, method.Id, ct);
+            own.TimePointMultiplier = multiplier.TimePointsPerSecond;
+            own.EdgePointMultiplier = multiplier.EdgePointsPerEdge;
         }
         await db.SaveChangesAsync(ct);
         return new
@@ -78,6 +80,31 @@ public sealed class GuidedConfiguration(GuidedRuntimes runtimes)
             result.WinningAlgorithm, result.ValidationLogLoss, result.ValidationAccuracy, result.Trials,
             Multipliers = result.Multipliers.ToDictionary(x => x.Key, x => new { TimePointsPerSecond = x.Value.TimePointsPerSecond, EdgePointsPerEdge = x.Value.EdgePointsPerEdge }),
         };
+    }
+
+    /// <summary>
+    /// The tracked row this account edits for definition <paramref name="id"/>: its existing override,
+    /// its own personal definition, or a new override initialized from the shared default.
+    /// </summary>
+    private static async Task<T> OverrideAsync<T>(GuidedData db, int id, CancellationToken ct) where T : class, IDefinition<T>
+    {
+        var set = db.Db.Set<T>();
+        var own = await set.SingleOrDefaultAsync(x => x.UserId == db.UserId && (x.BaseId == id || (x.BaseId == null && x.Id == id)), ct);
+        if (own is not null) return own;
+        var shared = await set.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id && x.UserId == null, ct)
+            ?? throw new TrackerValidationException("Definition not found.");
+        own = shared.AsDefinition(0);
+        own.UserId = db.UserId;
+        own.BaseId = id;
+        set.Add(own);
+        return own;
+    }
+
+    private static void CopyScalars<T>(GuidedData db, T target, T source) where T : class
+    {
+        var entry = db.Db.Entry(target);
+        foreach (var property in entry.Metadata.GetProperties().Where(x => x.PropertyInfo is not null && x.Name is not ("Id" or "UserId" or "BaseId")))
+            entry.Property(property.Name).CurrentValue = property.PropertyInfo!.GetValue(source);
     }
 
     private static void Validate<T>(T value) where T : class

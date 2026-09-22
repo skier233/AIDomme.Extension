@@ -1,5 +1,6 @@
 using System.Text.Json;
 using AIDome.Data;
+using AIDome.Persistence;
 using Microsoft.EntityFrameworkCore;
 
 namespace AIDome.Services;
@@ -117,16 +118,16 @@ public sealed partial class OnlineSessionEngine
                 MoodIntensity = _moodIntensity,
                 SessionOutcome = _sessionOutcome,
             };
-            return JsonSerializer.Serialize(saved, AIDome.Persistence.GuidedStore.Json);
+            return JsonSerializer.Serialize(saved, AIDome.Persistence.GuidedRecovery.Json);
         }
     }
     public async Task RestoreRecoveryAsync(string json, CancellationToken ct)
     {
-        var saved = JsonSerializer.Deserialize<EngineCheckpoint>(json, AIDome.Persistence.GuidedStore.Json)
+        var saved = JsonSerializer.Deserialize<EngineCheckpoint>(json, AIDome.Persistence.GuidedRecovery.Json)
             ?? throw new InvalidOperationException("Invalid saved session.");
         if (saved.Format != 1) throw new InvalidOperationException("Unsupported saved engine version.");
         saved.Policy.Validate();
-        await using var db = await _dbFactory.CreateDbContextAsync(ct);
+        await using var db = await _dbFactory.OpenAsync(ct);
         var session = saved.SessionId > 0 ? await db.Sessions.SingleOrDefaultAsync(x => x.Id == saved.SessionId, ct) : null;
         if (!saved.Ended && saved.SessionId > 0 && session is null) throw new InvalidOperationException("The saved session no longer exists.");
         lock (_lock)

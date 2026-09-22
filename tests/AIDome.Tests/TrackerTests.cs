@@ -172,6 +172,7 @@ public sealed class TrackerTests : IDisposable
         protected override void OnModelCreating(ModelBuilder model)
         {
             TrackerSchema.Configure(model);
+            AIDome.Persistence.GuidedSchema.Configure(model);
             var video = model.Entity<Video>();
             foreach (var property in typeof(Video).GetProperties().Where(x => x.Name != "Id")) video.Ignore(property.Name);
             video.HasKey(x => x.Id);
@@ -181,7 +182,7 @@ public sealed class TrackerTests : IDisposable
             model.Entity<Interaction>().Ignore(x => x.Meta).HasKey(x => x.Id);
             model.ApplyConfiguration(new UserEntityAffinityConfiguration());
             model.Entity<Rating>().HasKey(x => x.Id);
-            var allowed = new HashSet<Type> { typeof(TrackerEvent), typeof(TrackerPreferences), typeof(Video), typeof(Image), typeof(Interaction), typeof(UserEntityAffinity), typeof(Rating) };
+            var allowed = new HashSet<Type>(AIDome.Persistence.GuidedSchema.EntityTypes) { typeof(TrackerEvent), typeof(TrackerPreferences), typeof(Video), typeof(Image), typeof(Interaction), typeof(UserEntityAffinity), typeof(Rating) };
             foreach (var type in model.Model.GetEntityTypes().Select(x => x.ClrType).Where(x => !allowed.Contains(x)).ToArray())
                 model.Ignore(type);
         }

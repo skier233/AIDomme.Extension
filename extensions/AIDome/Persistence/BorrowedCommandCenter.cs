@@ -6,10 +6,16 @@ namespace AIDome.Persistence;
 /// <summary>
 /// Request-scoped facade over the account's persistent command center. It deliberately does
 /// not implement IDisposable: disposing an HTTP scope must not unsubscribe the account's
-/// timer/chat callbacks. GuidedRuntime alone owns the command center's lifetime.
+/// timer/chat callbacks. GuidedRuntime alone owns the command center's lifetime. The account's
+/// runtime is looked up on each call because it is loaded after request services are bound.
 /// </summary>
-public sealed class BorrowedCommandCenter(CommandCenterService owner) : ICommandCenterService
+public sealed class BorrowedCommandCenter(Func<CommandCenterService> resolve) : ICommandCenterService
 {
+    public BorrowedCommandCenter(CommandCenterService owner) : this(() => owner) { }
+
+    // Resolved per call: request services are bound before the endpoint filter loads the account.
+    private CommandCenterService owner => resolve();
+
     public event EventHandler? StateChanged { add => owner.StateChanged += value; remove => owner.StateChanged -= value; }
     public IReadOnlyList<ChatMessage> GetLatestMessages() => owner.GetLatestMessages();
     public IReadOnlyList<CommandActionDefinition> GetCurrentActions() => owner.GetCurrentActions();

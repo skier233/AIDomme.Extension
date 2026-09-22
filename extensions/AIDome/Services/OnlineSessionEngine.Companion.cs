@@ -1,5 +1,6 @@
 using System.Text.Json;
 using AIDome.Data;
+using AIDome.Persistence;
 using Microsoft.EntityFrameworkCore;
 
 namespace AIDome.Services;
@@ -17,8 +18,8 @@ public sealed partial class OnlineSessionEngine
         parameters.Policy.Validate();
         if (parameters.OnlyGamesMode && (!parameters.Policy.GamesEnabled || parameters.Policy.Guidance == "Permission"))
             throw new ArgumentException("Games-only mode requires scheduled games.");
-        await using var db = await _dbFactory.CreateDbContextAsync(ct);
-        var methods = await db.StimMethods.ToListAsync(ct);
+        await using var db = await _dbFactory.OpenAsync(ct);
+        var methods = await db.MethodsAsync(ct);
         if (parameters.Policy.AllowedMethodIds.Any(id => methods.All(x => x.Id != id))) throw new ArgumentException("An allowed method does not exist.");
         var session = new SessionRecord { AllowToys = parameters.AllowToys, AllowVibrator = parameters.AllowVibrator,
             AllowFleshlight = parameters.AllowFleshlight, AllowAutoblow = parameters.AllowAutoblow, AllowProstate = parameters.AllowProstate };
@@ -39,10 +40,22 @@ public sealed partial class OnlineSessionEngine
             DurationOrCount = directive.DurationOrCount, HoldSeconds = directive.HoldSeconds, Text = text, Phase = directive.Phase };
     }
 
+    /// <summary>
+    /// Set by the account runtime so timer transitions run under the same per-account gate as
+    /// requests and tracker delivery. Without it, the timer advances the engine directly.
+    /// </summary>
+    public Func<Action, Task>? TimerDispatcher { get; init; }
+
+    private void FireStepTimer(object? state)
+    {
+        if (TimerDispatcher is { } dispatch) _ = dispatch(() => OnStepTimerElapsed(state));
+        else OnStepTimerElapsed(state);
+    }
+
     private void ArmTimer(int seconds)
     {
         var generation = ++_timerGeneration;
-        _stepTimer = new Timer(OnStepTimerElapsed, generation, TimeSpan.FromSeconds(seconds), Timeout.InfiniteTimeSpan);
+        _stepTimer = new Timer(FireStepTimer, generation, TimeSpan.FromSeconds(seconds), Timeout.InfiniteTimeSpan);
     }
 
     private List<StimMethod> PolicyMethods(List<StimMethod> methods)
@@ -60,8 +73,8 @@ public sealed partial class OnlineSessionEngine
         List<StimMethod>? methods = null;
         if (changing)
         {
-            await using var db = await _dbFactory.CreateDbContextAsync(ct);
-            methods = FilterMethodsForSession(await db.StimMethods.ToListAsync(ct), _session!);
+            await using var db = await _dbFactory.OpenAsync(ct);
+            methods = FilterMethodsForSession(await db.MethodsAsync(ct), _session!);
             // Validate the requested method set without mutating the active policy.
             var candidates = methods.Where(x => policy.AllowedMethodIds.Length == 0 || policy.AllowedMethodIds.Contains(x.Id));
             if (policy.Guidance == "Simple") candidates = candidates.Where(x => x.ToyCategory == ToyCategory.None && x.TortLevel <= 2 && x.Closeness >= 3);

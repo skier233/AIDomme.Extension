@@ -2,9 +2,13 @@ using System;
 
 namespace AIDome.Data;
 
-public sealed class CumRequest
+public sealed class CumRequest : IUserOwned
 {
     public int Id { get; set; }
+
+    /// <summary>The Cove account that owns this row.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public int UserId { get; set; }
 
     public DateTime TimestampUtc { get; set; }
 

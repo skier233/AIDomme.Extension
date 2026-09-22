@@ -1,8 +1,7 @@
 param(
     [ValidateSet("Debug", "Release")]
     [string]$Configuration = "Debug",
-    [string]$DestinationRoot = (Join-Path $env:LOCALAPPDATA "cove_personal_live\extensions"),
-    [string]$LegacyConfigurationPath
+    [string]$DestinationRoot = (Join-Path $env:LOCALAPPDATA "cove_personal_live\extensions")
 )
 
 $ErrorActionPreference = "Stop"
@@ -33,16 +32,6 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 New-Item -ItemType Directory -Path $DestinationRoot -Force | Out-Null
-if ([string]::IsNullOrWhiteSpace($LegacyConfigurationPath) -and -not (Test-Path -LiteralPath (Join-Path $DestinationRoot "aidomme-legacy-configuration.json"))) {
-    $originalDefinitionCandidate = Join-Path (Split-Path -Parent $repoRoot) "AIDome2025\AIDome2025\AIDome2025\App_Data\commandcenter.dev.db"
-    if (Test-Path -LiteralPath $originalDefinitionCandidate) { $LegacyConfigurationPath = $originalDefinitionCandidate }
-}
-if (-not [string]::IsNullOrWhiteSpace($LegacyConfigurationPath)) {
-    $originalDefinitionSource = (Resolve-Path -LiteralPath $LegacyConfigurationPath).Path
-    @{ path = $originalDefinitionSource } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $DestinationRoot "aidomme-legacy-configuration.json")
-    Write-Host "Preserving original definitions/calibration from $originalDefinitionSource (read-only; usage excluded)."
-}
-
 foreach ($extension in $extensions) {
     $outputDir = Join-Path $repoRoot "extensions\$extension\bin\$Configuration\net10.0"
     $manifestPath = Join-Path $outputDir "extension.json"
@@ -61,6 +50,26 @@ foreach ($extension in $extensions) {
     # local development data/configuration may live alongside its binaries.
     New-Item -ItemType Directory -Path $targetDir -Force | Out-Null
     Copy-Item -Path (Join-Path $outputDir "*") -Destination $targetDir -Recurse -Force
+
+    # Earlier builds shipped copies of host assemblies and the SQLite importer's dependencies.
+    # Cove provides the host assemblies itself; remove stale copies so only the host's load.
+    $obsolete = @(
+        "Cove.Core.dll", "Cove.Data.dll", "Cove.Plugins.dll", "Cove.Sdk.dll",
+        "Cove.Core.pdb", "Cove.Data.pdb", "Cove.Plugins.pdb", "Cove.Sdk.pdb",
+        "Microsoft.EntityFrameworkCore.dll", "Microsoft.EntityFrameworkCore.Abstractions.dll",
+        "Microsoft.EntityFrameworkCore.Relational.dll", "Microsoft.EntityFrameworkCore.Sqlite.dll",
+        "Microsoft.Data.Sqlite.dll", "SQLitePCLRaw.batteries_v2.dll", "SQLitePCLRaw.core.dll",
+        "SQLitePCLRaw.provider.e_sqlite3.dll", "Microsoft.Extensions.DependencyModel.dll", "Npgsql.dll", "Npgsql.EntityFrameworkCore.PostgreSQL.dll",
+        "aidomme-legacy-configuration.json"
+    )
+    foreach ($name in $obsolete) {
+        $stale = Join-Path $targetDir $name
+        if ((Test-Path -LiteralPath $stale) -and -not (Test-Path -LiteralPath (Join-Path $outputDir $name))) {
+            Remove-Item -LiteralPath $stale -Force
+        }
+    }
+    Get-ChildItem -Path (Join-Path $targetDir "runtimes") -Recurse -Filter "e_sqlite3*" -ErrorAction SilentlyContinue |
+        Remove-Item -Force
 
     Write-Host ("Staged {0} -> {1}" -f $manifest.id, $targetDir)
 }

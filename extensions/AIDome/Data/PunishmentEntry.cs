@@ -20,9 +20,13 @@ public enum PunishmentCategory
 /// <summary>
 /// A punishment assigned during or after a session.
 /// </summary>
-public sealed class PunishmentEntry
+public sealed class PunishmentEntry : IUserOwned
 {
     public int Id { get; set; }
+
+    /// <summary>The Cove account that owns this row.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public int UserId { get; set; }
 
     public DateTime IssuedAtUtc { get; set; }
 

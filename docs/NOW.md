@@ -6,6 +6,10 @@ extension working. Estimates are rough working-days for one focused implementer 
 
 ## Phase 0 — Housekeeping and removing what missed the mark (2–3 days)
 
+**Status: done 2026-09-22.** As planned, with two notes. The SQLite importer and package were
+removed in Phase 1 rather than here, because they shared code with the persistence rewrite. The
+page itself was left for the Phase 2 redesign; only the companion was reshaped.
+
 1. **Put the repo under git** and commit the current state before anything else is touched.
 2. **Remove the "Define offers" feature.** Delete the definition editor and manual "Create offer"
    from `ui/Commitments.tsx`; remove `save-definition`, `delete-definition` and user-initiated
@@ -34,6 +38,35 @@ extension working. Estimates are rough working-days for one focused implementer 
    `INTEGRATION_PLAN.md` or mark it historical.
 
 ## Phase 1 — Finish Cove-native persistence (5–8 days)
+
+**Status: done 2026-09-22 (version 0.7.0).** What landed:
+
+- All guided entities are mapped onto Cove's own context through `ConfigureModel`; services use
+  `GuidedData`, an account-filtered view over the host `DbContext` opened through Cove's extension
+  scope factory. `CommandCenterDbContext`, `GuidedStore`, the account table, the composite keys and
+  the reflection-built query filters are gone, and so are SQLite and the importer.
+- Migration `005_guided_v2` is literal SQL. On upgraded installs it copies every legacy row with its
+  identity and drops the old tables; on fresh installs it seeds the shared library. Migrations
+  002–004 are now no-ops so fresh installs skip the old schema. Verified against a copy of the real
+  install: every definition, calibration row and the checkpoint came across byte-identical.
+- Definitions are shared rows plus personal override rows (`BaseId`); the effective set is a query.
+  The optimizer now writes overrides (it previously wrote values that were silently reset).
+- Commitments, offers, reports and applied client events are rows. Offers are created by the domme
+  through `CommitmentStore.ProposeAsync`; the HTTP API only accepts, declines, reports progress and
+  resolves.
+- Runtimes load asynchronously. Engine timer transitions run under the per-account gate and are
+  checkpointed there. Status polls no longer rewrite the checkpoint every second.
+- Tests: the PostgreSQL suite installs the schema through the real migrations, covers the upgrade
+  path from the frozen 002–004 scripts, and checks that Cove's full model accepts the extension.
+
+Deliberately left for Phase 2, where the engine is rewritten anyway:
+
+- The engine still makes a few synchronous database calls while holding its internal lock (game
+  creation and answers). They are serialized by the account gate and cannot deadlock, but they block
+  a thread for the round trip.
+- The session contract column (`ContractJson`) is added with the contract itself.
+- The runtime checkpoint stays a JSON document on purpose: it is a snapshot of in-memory engine
+  state, not data anything queries. Commitments and the ledger are rows.
 
 Goal: no extension-owned DbContext, literal migrations, plain user scoping, queryable rows.
 
