@@ -2,7 +2,7 @@
   "id": "cove.community.aidome",
   "name": "AI Domme",
   "version": "0.6.0",
-  "description": "Session-based interactive command center: live edge/orgasm sessions, mini-games, punishment tracking, and a tuning lab.",
+  "description": "A rule-driven domme for guided edging sessions on your Cove library, with an app-wide edge tracker, orgasm permission, games and persistent commitments.",
   "author": "Cove Community",
   "url": "https://github.com/yourcove/AIDome.Extension",
   "categories": [

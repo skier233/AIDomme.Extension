@@ -1,8 +1,8 @@
 using System;
-using AIDome2025.Data;
+using AIDome.Data;
 using Microsoft.EntityFrameworkCore;
 
-namespace AIDome2025.Services;
+namespace AIDome.Services;
 
 public interface IInteractionManager
 {

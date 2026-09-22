@@ -2,14 +2,14 @@
    Uses --color-* variables from the host theme so the page matches Cove
    (light/dark, accent color) instead of looking like a separate app. */
 
-.aidome-shell {
+.aidomme-shell {
     display: flex;
     flex-direction: column;
     gap: 1rem;
     color: var(--color-foreground, #e8eaf0);
 }
 
-.aidome-error {
+.aidomme-error {
     padding: 0.6rem 0.9rem;
     border-radius: 0.5rem;
     background: color-mix(in srgb, #e5484d 18%, transparent);
@@ -19,7 +19,7 @@
 }
 
 /* ── Page header ── */
-.aidome-header {
+.aidomme-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -349,9 +349,9 @@
     font-variant-numeric: tabular-nums;
 }
 .countdown.flash {
-    animation: aidome-pulse 0.6s infinite alternate;
+    animation: aidomme-pulse 0.6s infinite alternate;
 }
-@keyframes aidome-pulse {
+@keyframes aidomme-pulse {
     from { opacity: 1; }
     to { opacity: 0.3; }
 }
@@ -447,24 +447,24 @@
 }
 
 /* ── Settings panel ── */
-.aidome-settings-panel {
+.aidomme-settings-panel {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
     max-width: 480px;
 }
-.aidome-settings-panel .panel-intro {
+.aidomme-settings-panel .panel-intro {
     font-size: 0.82rem;
     color: var(--color-secondary, #9ea3b0);
     line-height: 1.5;
     margin: 0 0 0.5rem;
 }
-.aidome-settings-panel .panel-status {
+.aidomme-settings-panel .panel-status {
     font-size: 0.82rem;
     color: var(--color-secondary, #9ea3b0);
     margin: 0.25rem 0 0;
 }
-.aidome-settings-panel .panel-actions {
+.aidomme-settings-panel .panel-actions {
     display: flex;
     align-items: center;
     gap: 0.6rem;
@@ -472,7 +472,7 @@
 }
 
 /* ── Media player (domme-driven) ── */
-.aidome-media {
+.aidomme-media {
     width: 100%;
     display: flex;
     flex-direction: column;
@@ -482,14 +482,14 @@
     border-radius: 0.75rem;
     overflow: hidden;
 }
-.aidome-media-el {
+.aidomme-media-el {
     width: 100%;
     max-height: 46vh;
     object-fit: contain;
     display: block;
     background: #000;
 }
-.aidome-media-empty {
+.aidomme-media-empty {
     min-height: 120px;
     align-items: center;
     justify-content: center;
@@ -499,7 +499,7 @@
     padding: 1.5rem;
     text-align: center;
 }
-.aidome-media-title {
+.aidomme-media-title {
     width: 100%;
     padding: 0.4rem 0.7rem;
     font-size: 0.78rem;
@@ -509,14 +509,14 @@
     overflow: hidden;
     text-overflow: ellipsis;
 }
-.aidome-media-audio {
+.aidomme-media-audio {
     flex-direction: row;
     align-items: stretch;
     background: var(--color-card, #1e2028);
     padding: 0.75rem;
     gap: 0.75rem;
 }
-.aidome-audio-cover {
+.aidomme-audio-cover {
     width: 96px;
     height: 96px;
     object-fit: cover;
@@ -524,7 +524,7 @@
     background: var(--color-surface, #1a1c23);
     flex-shrink: 0;
 }
-.aidome-audio-body {
+.aidomme-audio-body {
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -532,7 +532,7 @@
     flex: 1;
     min-width: 0;
 }
-.aidome-audio-el {
+.aidomme-audio-el {
     width: 100%;
 }
 
@@ -595,10 +595,10 @@
     .chat-window.tall { max-height: 38vh; }
     .brand-title { font-size: 1.25rem; }
     .instruction-text { font-size: 1rem; }
-    .aidome-media-el { max-height: 38vh; }
+    .aidomme-media-el { max-height: 38vh; }
 }
 
-.aidomme-tracker { box-sizing: border-box; position: fixed; z-index: 1000; width: 320px; max-width: calc(100vw - 16px); max-height: calc(100dvh - 16px); overflow: auto; padding: 12px; border: 1px solid var(--color-border, #2a2d38); border-radius: 12px; background: var(--color-surface, #1a1c23); color: var(--color-foreground, #e8eaf0); box-shadow: 0 8px 30px #0006; font: 14px/1.5 system-ui, sans-serif; pointer-events: auto; }
+.aidomme-tracker { box-sizing: border-box; position: fixed; z-index: 1000; width: 288px; max-width: calc(100vw - 16px); max-height: calc(100dvh - 16px); overflow: auto; padding: 10px; border: 1px solid var(--color-border, #2a2d38); border-radius: 12px; background: var(--color-surface, #1a1c23); color: var(--color-foreground, #e8eaf0); box-shadow: 0 8px 30px #0006; font: 13px/1.45 system-ui, sans-serif; pointer-events: auto; }
 .aidomme-tracker.is-hidden { width: auto; padding: 6px; }
 .aidomme-tracker * { box-sizing: border-box; }
 .aidomme-tracker header { display: flex; align-items: center; gap: 8px; cursor: move; touch-action: none; user-select: none; }
@@ -607,7 +607,7 @@
 .aidomme-tracker button:hover:not(:disabled) { background: var(--color-card-hover, #252830); }
 .aidomme-tracker button:disabled { opacity: .5; cursor: default; }
 .aidomme-tracker button:focus-visible, .aidomme-tracker select:focus-visible { outline: 2px solid var(--color-accent, #4f8ff7); outline-offset: 2px; }
-.aidomme-tracker-counts, .aidomme-tracker-actions { display: flex; gap: 12px; margin: 10px 0; }
+.aidomme-tracker-actions { display: flex; gap: 6px; margin: 8px 0; }
 .aidomme-tracker-actions button { flex: 1; }
 .aidomme-tracker small { display: block; opacity: .85; }
 .aidomme-tracker section { margin-top: 12px; border-top: 1px solid var(--color-border, #555); padding-top: 8px; }
@@ -653,3 +653,19 @@
 .commitment-item p { margin: 5px 0; white-space: pre-wrap; }
 .commitment-item progress { width: 100%; }
 .commitment-item button, .aidomme-commitments details button { margin: 6px 6px 0 0; }
+
+/* Companion: chat-first, only the controls the user holds. */
+.aidomme-tracker header strong { font-size: 13px; }
+.aidomme-tracker header button { padding: 2px 8px; }
+.aidomme-tracker .aidomme-tracker-undo { flex: 0 0 auto; }
+.aidomme-tracker .aidomme-tracker-counts { opacity: .7; }
+.aidomme-tracker-menu { display: flex; flex-direction: column; gap: 6px; }
+.aidomme-tracker-menu > button { align-self: flex-start; }
+.aidomme-guided-panel.is-compact { border-top: 0; padding-top: 6px; }
+.aidomme-guided-panel.is-compact .aidomme-current-command { font-size: 14px; margin: 6px 0; font-weight: 600; }
+.aidomme-guided-panel.is-compact .aidomme-companion-chat { max-height: 150px; margin: 6px 0; }
+.aidomme-session-status { display: flex; align-items: baseline; gap: 10px; font-size: 12px; opacity: .85; }
+.aidomme-session-status output { margin-left: auto; font-variant-numeric: tabular-nums; font-size: 15px; font-weight: 600; opacity: 1; }
+.aidomme-companion-chat li.from-manager, .aidomme-companion-chat li.from-system { opacity: .65; font-size: 12px; }
+.aidomme-guided-menu { display: flex; flex-direction: column; gap: 4px; }
+.aidomme-guided-menu details summary { cursor: pointer; }

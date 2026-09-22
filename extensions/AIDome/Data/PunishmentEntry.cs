@@ -1,6 +1,6 @@
 using System;
 
-namespace AIDome2025.Data;
+namespace AIDome.Data;
 
 /// <summary>Category of punishment.</summary>
 public enum PunishmentCategory

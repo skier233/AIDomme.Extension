@@ -1,4 +1,4 @@
-namespace AIDome2025.Services;
+namespace AIDome.Services;
 
 public interface ITtsService
 {

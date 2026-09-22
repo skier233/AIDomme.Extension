@@ -38,7 +38,7 @@ const outFile = path.join(distDir, "bundle.js");
 const cssOutFile = path.join(distDir, "bundle.css");
 const sharedThemeFile = path.join(rootDir, "shared", "theme.css");
 const tailwindCliEntry = path.join(rootDir, "node_modules", "@tailwindcss", "cli", "dist", "index.mjs");
-const themeScopeSelector = ":where(.aidome-shell,.aidome-settings-panel,.aidome-modal-backdrop,.aidomme-tracker)";
+const themeScopeSelector = ":where(.aidomme-shell,.aidomme-settings-panel,.aidomme-modal-backdrop,.aidomme-tracker)";
 
 function findMatchingBrace(css, openIndex) {
   let depth = 1;

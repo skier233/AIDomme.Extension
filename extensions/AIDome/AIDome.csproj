@@ -4,38 +4,10 @@
     <RootNamespace>AIDome</RootNamespace>
   </PropertyGroup>
 
+  <!-- Cove host contracts (Cove.Sdk, Cove.Core, Cove.Data) are wired compile-only by Directory.Build.targets. -->
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
-    <!-- Self-contained relational store for the extension's domain data. -->
+    <!-- Read-only input for the one-time legacy definition import. Removed with the importer. -->
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.11" />
-  </ItemGroup>
-
-  <ItemGroup Condition="'$(UseLocalCoveSource)' == 'true'">
-    <ProjectReference Include="..\..\..\cove\src\Cove.Data\Cove.Data.csproj" Private="false" ExcludeAssets="runtime" />
-  </ItemGroup>
-  <ItemGroup Condition="'$(UseLocalCoveSource)' != 'true'">
-    <PackageReference Include="Cove.Data" Version="$(CoveSdkVersion)" />
-  </ItemGroup>
-
-  <ItemGroup Condition="'$(UseLocalCoveSource)' == 'true' and Exists('$(MSBuildThisFileDirectory)..\..\..\cove\src\Cove.Sdk\Cove.Sdk.csproj')">
-    <ProjectReference Include="..\..\..\cove\src\Cove.Sdk\Cove.Sdk.csproj">
-      <Private>false</Private>
-      <ExcludeAssets>runtime</ExcludeAssets>
-    </ProjectReference>
-  </ItemGroup>
-
-  <ItemGroup Condition="'$(UseLocalCoveSource)' != 'true'">
-    <PackageReference Include="Cove.Sdk" Version="$(CoveSdkVersion)" />
-  </ItemGroup>
-
-  <ItemGroup Condition="'$(UseLocalCoveCore)' == 'true' and Exists('$(MSBuildThisFileDirectory)..\..\..\cove\src\Cove.Core\Cove.Core.csproj')">
-    <ProjectReference Include="..\..\..\cove\src\Cove.Core\Cove.Core.csproj">
-      <Private>false</Private>
-      <ExcludeAssets>runtime</ExcludeAssets>
-    </ProjectReference>
-  </ItemGroup>
-
-  <ItemGroup Condition="'$(UseLocalCoveCore)' != 'true'">
-    <PackageReference Include="Cove.Core" Version="$(CoveCoreVersion)" />
   </ItemGroup>
 </Project>

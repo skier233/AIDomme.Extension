@@ -1,4 +1,4 @@
-namespace AIDome2025.Services;
+namespace AIDome.Services;
 
 /// <summary>Accepted, independent controls. Presets are a UI convenience only.</summary>
 public sealed record SessionPolicy

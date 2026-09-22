@@ -1,4 +1,4 @@
-namespace AIDome2025.Data;
+namespace AIDome.Data;
 
 /// <summary>
 /// Legacy placeholder retained to preserve file history. The real schema now lives in

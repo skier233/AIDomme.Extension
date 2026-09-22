@@ -143,8 +143,8 @@ export function CommandCenterPage() {
 
   // ─────────────── render ───────────────
   return (
-    <div className="aidome-shell">
-      <div className="aidome-header">
+    <div className="aidomme-shell">
+      <div className="aidomme-header">
         <div>
           <h1 className="brand-title">AI Domme</h1>
           <button type="button" onClick={openTracker}>
@@ -157,7 +157,7 @@ export function CommandCenterPage() {
           </p>
         </div>
       </div>
-      {error && <div className="aidome-error">{error}</div>}
+      {error && <div className="aidomme-error">{error}</div>}
       {sessionActive ? renderSession() : renderSetup()}
       <CommitmentPanel />
       {!sessionActive && (
@@ -520,14 +520,14 @@ export function AiDomeSettingsPanel() {
 
   if (!settings) {
     return (
-      <div className="aidome-settings-panel">
+      <div className="aidomme-settings-panel">
         <p className="panel-status">{status || "Loading…"}</p>
       </div>
     );
   }
 
   return (
-    <div className="aidome-settings-panel">
+    <div className="aidomme-settings-panel">
       <p className="panel-intro">
         Optional Orpheus-FastAPI text-to-speech for spoken directives. Leave the
         URL blank to disable voice.
@@ -573,8 +573,8 @@ export function AiDomeSettingsPanel() {
 // ═══════════════════════════ TUNING LAB PAGE ═══════════════════════════
 export function TuningLabPage() {
   return (
-    <div className="aidome-shell">
-      <div className="aidome-header">
+    <div className="aidomme-shell">
+      <div className="aidomme-header">
         <div>
           <h1 className="brand-title">Tuning Lab</h1>
           <p className="brand-sub">Personal methods and calibration</p>

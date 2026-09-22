@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace AIDome2025.Data;
+namespace AIDome.Data;
 
 /// <summary>
 /// A specific way to end a punishment session. These are more intense and humiliating

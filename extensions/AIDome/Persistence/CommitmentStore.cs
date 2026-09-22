@@ -78,21 +78,6 @@ public sealed class CommitmentStore(GuidedRuntimes runtimes)
         var now = DateTime.UtcNow;
         switch (request.Action.Trim().ToLowerInvariant())
         {
-            case "save-definition":
-                var definition = request.Definition ?? throw new ArgumentException("A definition is required.");
-                Validate(definition);
-                var id = definition.Id == Guid.Empty ? Guid.NewGuid() : definition.Id;
-                var normalized = definition with { Id = id, Name = definition.Name.Trim(), Terms = definition.Terms.Trim(), Unit = definition.Unit.Trim() };
-                state.Definitions.RemoveAll(x => x.Id == id); state.Definitions.Add(normalized); break;
-            case "delete-definition":
-                var definitionId = Required(request.TargetId);
-                if (state.Offers.Any(x => x.DefinitionId == definitionId)) throw new InvalidOperationException("Definitions used by an offer are retained for its audit trail. Disable it instead.");
-                if (state.Definitions.RemoveAll(x => x.Id == definitionId) == 0) throw new ArgumentException("Definition was not found."); break;
-            case "propose":
-                var source = state.Definitions.SingleOrDefault(x => x.Id == Required(request.TargetId)) ?? throw new ArgumentException("Definition was not found.");
-                if (!source.Enabled) throw new InvalidOperationException("That definition is disabled.");
-                state.Offers.Add(new(Guid.NewGuid(), source.Id, source.Name, source.Terms, source.Unit, source.Target,
-                    source.DueAfterDays, null, "Proposed", request.OriginSessionId, now)); break;
             case "accept":
                 var offer = Proposed(state, request.TargetId);
                 DateTime? dueAt = offer.DueAfterDays is int days ? now.AddDays(days) : null;

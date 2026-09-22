@@ -6,8 +6,8 @@ using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using Xunit;
 using AIDome.Persistence;
-using AIDome2025.Data;
-using AIDome2025.Services;
+using AIDome.Data;
+using AIDome.Services;
 using Microsoft.Extensions.Logging.Abstractions;
 using System.Security.Cryptography;
 
@@ -92,7 +92,7 @@ public sealed partial class TrackerPostgresTests : IAsyncLifetime
         {
             await using (var source = new CommandCenterDbContext(new DbContextOptionsBuilder<CommandCenterDbContext>().UseSqlite($"Data Source={legacy};Pooling=False").Options))
             {
-                await source.Database.MigrateAsync();
+                await source.Database.EnsureCreatedAsync();
                 (await source.StimMethods.SingleAsync(x => x.Id == 1)).TimePointMultiplier = 0.123;
                 (await source.PunishmentEnders.SingleAsync(x => x.Id == 1)).Severity = 7;
                 source.TuningRatings.Add(new() { CandidateKey = "method:1", Mode = "Stim", Rating = 1234, SeedRating = 1000, UpdatedAtUtc = DateTime.UtcNow });
@@ -102,7 +102,7 @@ public sealed partial class TrackerPostgresTests : IAsyncLifetime
             }
             await using (var extensionSource = new CommandCenterDbContext(new DbContextOptionsBuilder<CommandCenterDbContext>().UseSqlite($"Data Source={extensionLegacy};Pooling=False").Options))
             {
-                await extensionSource.Database.MigrateAsync();
+                await extensionSource.Database.EnsureCreatedAsync();
                 (await extensionSource.StimMethods.SingleAsync(x => x.Id == 1)).Description = "Edited extension instructions";
                 await extensionSource.SaveChangesAsync();
             }

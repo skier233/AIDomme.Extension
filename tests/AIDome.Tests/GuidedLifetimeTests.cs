@@ -1,6 +1,6 @@
 using System.Reflection;
 using AIDome.Persistence;
-using AIDome2025.Services;
+using AIDome.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;

@@ -1,5 +1,5 @@
 using System.Collections.Concurrent;
-using AIDome2025.Services;
+using AIDome.Services;
 using Cove.Core.Auth;
 using Microsoft.Extensions.Logging;
 

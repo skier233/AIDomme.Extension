@@ -1,5 +1,5 @@
-using AIDome2025.Data;
-using AIDome2025.Services;
+using AIDome.Data;
+using AIDome.Services;
 
 namespace AIDome.Persistence;
 

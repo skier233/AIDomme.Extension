@@ -1,4 +1,4 @@
-namespace AIDome2025.Services;
+namespace AIDome.Services;
 
 /// <summary>
 /// Centralized domme text pools — commanding, varied, mean-when-appropriate.

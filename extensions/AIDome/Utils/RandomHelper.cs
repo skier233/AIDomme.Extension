@@ -1,6 +1,6 @@
 using System;
 
-namespace AIDome2025.Utils;
+namespace AIDome.Utils;
 
 public static class RandomHelper
 {

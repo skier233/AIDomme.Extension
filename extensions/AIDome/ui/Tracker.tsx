@@ -10,8 +10,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { extensionFetch } from "@cove/runtime/api";
 import { useMetronome } from "./Metronome";
 import { guidedClient } from "./GuidedClient";
-import { GuidedPanel } from "./SessionControls";
-import { CommitmentPanel } from "./Commitments";
+import { GuidedMenu, GuidedPanel } from "./SessionControls";
 import {
   getActiveMedia,
   useActiveMedia,
@@ -476,18 +475,20 @@ export function TrackerCompanion() {
             onPointerUp={endDrag}
             onPointerCancel={endDrag}
           >
-            <strong>AI Domme · Tracker</strong>
+            <strong>AI Domme</strong>
             <button
               onClick={() => {
                 setExpanded(!expanded);
                 saveUi({ expanded: !expanded });
               }}
               aria-expanded={expanded}
+              aria-label="More options"
+              title="More options"
             >
-              {expanded ? "Collapse" : "Details"}
+              ⋯
             </button>
-            <button onClick={toggle} aria-label="Hide tracker">
-              Hide
+            <button onClick={toggle} aria-label="Hide tracker" title="Hide">
+              –
             </button>
             <button
               onClick={() => {
@@ -504,14 +505,7 @@ export function TrackerCompanion() {
             <p>{error || connectionError || "Connecting…"}</p>
           ) : (
             <>
-              <div className="aidomme-tracker-counts">
-                <span>
-                  Edges <b>{snapshot.edges}</b>
-                </span>
-                <span>
-                  Orgasms <b>{snapshot.orgasms}</b>
-                </span>
-              </div>
+              <GuidedPanel compact />
               <div className="aidomme-tracker-actions">
                 <button
                   disabled={busy || !!retry}
@@ -528,7 +522,9 @@ export function TrackerCompanion() {
                   Orgasm
                 </button>
                 <button
+                  className="aidomme-tracker-undo"
                   disabled={busy || !snapshot.recent.length || !!retry}
+                  title="Undo the latest recorded event"
                   onClick={async () => {
                     if (await mutate(`/events/${snapshot.recent[0].id}/undo`))
                       setNotice("Latest event undone.");
@@ -537,20 +533,15 @@ export function TrackerCompanion() {
                   Undo
                 </button>
               </div>
-              <small>
-                {media
-                  ? `${media.kind === "video" ? "Video" : "Image"} #${media.id}`
-                  : "No active media"}
+              <small className="aidomme-tracker-counts">
+                {snapshot.edges} edges · {snapshot.orgasms} orgasms tracked
               </small>
-              {metronome.controls}
-              <GuidedPanel compact />
-              <CommitmentPanel compact />
               {notice && <small role="status">{notice}</small>}
               {(error || connectionError) && (
                 <p role="alert">{error || connectionError}</p>
               )}
               {retry && (
-                <div>
+                <div className="aidomme-tracker-actions">
                   <button
                     disabled={busy}
                     onClick={() =>
@@ -578,17 +569,21 @@ export function TrackerCompanion() {
                 </div>
               )}
               {expanded && (
-                <section>
+                <section className="aidomme-tracker-menu">
+                  <GuidedMenu metronome={metronome.controls} />
                   <p>
-                    <b>{snapshot.edgesSinceLastOrgasm}</b> edges since last
-                    recorded orgasm.
-                  </p>
-                  <p>
-                    Last recorded orgasm:{" "}
+                    <b>{snapshot.edgesSinceLastOrgasm}</b> edges since the last
+                    recorded orgasm (
                     {snapshot.lastOrgasmAtUtc
                       ? new Date(snapshot.lastOrgasmAtUtc).toLocaleString()
-                      : "Unknown"}
+                      : "unknown"}
+                    ).
                   </p>
+                  <small>
+                    {media
+                      ? `Recording on ${media.kind === "video" ? "video" : "image"} #${media.id}`
+                      : "No active media: events are recorded without a like."}
+                  </small>
                   <button
                     onClick={() => setSettingsOpen(!settingsOpen)}
                     aria-expanded={settingsOpen}
@@ -646,34 +641,22 @@ export function TrackerCompanion() {
                           ))}
                         </select>
                       </label>
-                      <p>
-                        Shortcuts are configured in Cove’s keyboard settings.
-                        Defaults: Alt+E, Alt+O, Alt+D.
-                      </p>
+                      <button
+                        disabled={busy || !!retry}
+                        onClick={async () => {
+                          if (await mutate("/setting")) {
+                            await refresh();
+                            setNotice(
+                              "Started a new tracking session. History retained.",
+                            );
+                          }
+                        }}
+                      >
+                        New tracking session
+                      </button>
+                      <p>Shortcuts are configured in Cove's keyboard settings.</p>
                     </div>
                   )}
-                  <button
-                    disabled={busy || !!retry}
-                    onClick={async () => {
-                      if (await mutate("/setting")) {
-                        await refresh();
-                        setNotice(
-                          "Started a new tracking session. History retained.",
-                        );
-                      }
-                    }}
-                  >
-                    New tracking session
-                  </button>
-                  <ol>
-                    {snapshot.recent.slice(0, 5).map((item) => (
-                      <li key={item.id}>
-                        {item.kind} ·{" "}
-                        {new Date(item.receivedAtUtc).toLocaleTimeString()}{" "}
-                        {item.likeWeight > 0 && `· +${item.likeWeight} likes`}
-                      </li>
-                    ))}
-                  </ol>
                 </section>
               )}
             </>

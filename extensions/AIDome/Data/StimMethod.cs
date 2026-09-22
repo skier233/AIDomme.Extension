@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace AIDome2025.Data;
+namespace AIDome.Data;
 
 /// <summary>Category of toy required (if any). Stored as int in the DB.</summary>
 public enum ToyCategory

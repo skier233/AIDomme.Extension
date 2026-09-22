@@ -1,5 +1,5 @@
 using System.Text.Json;
-using AIDome2025.Services;
+using AIDome.Services;
 using Microsoft.EntityFrameworkCore;
 
 namespace AIDome.Persistence;

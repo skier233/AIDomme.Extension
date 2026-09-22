@@ -1,7 +1,7 @@
 using System.Net.Http.Json;
 using Microsoft.Extensions.Logging;
 
-namespace AIDome2025.Services;
+namespace AIDome.Services;
 
 /// <summary>
 /// Mutable TTS settings. Registered as a singleton in the extension container and

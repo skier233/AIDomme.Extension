@@ -2,22 +2,12 @@ import React, { useCallback, useEffect, useState } from "react";
 import { extensionFetch } from "@cove/runtime/api";
 
 const base = "/api/ext/aidome/commitments";
-const emptyDefinition = {
-  id: "00000000-0000-0000-0000-000000000000",
-  name: "",
-  terms: "",
-  unit: "items",
-  target: 1,
-  dueAfterDays: null as number | null,
-  enabled: true,
-};
 
 export function CommitmentPanel({ compact = false }: { compact?: boolean }) {
   const [state, setState] = useState<any>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState(!compact);
-  const [definition, setDefinition] = useState({ ...emptyDefinition });
   const load = useCallback(async () => {
     try {
       const response = await extensionFetch(base);
@@ -70,6 +60,8 @@ export function CommitmentPanel({ compact = false }: { compact?: boolean }) {
   const active =
     state?.commitments?.filter((x: any) => x.status === "Active") || [];
   const unresolved = pending.length + active.length;
+  // Offers are proposed by the domme during play; with nothing pending there is nothing to show.
+  if (!unresolved && !error) return null;
   return (
     <section
       className="aidomme-commitments"
@@ -179,104 +171,6 @@ export function CommitmentPanel({ compact = false }: { compact?: boolean }) {
               </div>
             </article>
           ))}
-          {!compact && (
-            <details>
-              <summary>Define offers</summary>
-              <label>
-                Name{" "}
-                <input
-                  value={definition.name}
-                  maxLength={100}
-                  onChange={(e) =>
-                    setDefinition({ ...definition, name: e.target.value })
-                  }
-                />
-              </label>
-              <label>
-                Terms{" "}
-                <textarea
-                  value={definition.terms}
-                  maxLength={2000}
-                  onChange={(e) =>
-                    setDefinition({ ...definition, terms: e.target.value })
-                  }
-                />
-              </label>
-              <label>
-                Target{" "}
-                <input
-                  type="number"
-                  min="1"
-                  value={definition.target}
-                  onChange={(e) =>
-                    setDefinition({
-                      ...definition,
-                      target: Number(e.target.value),
-                    })
-                  }
-                />
-              </label>
-              <label>
-                Unit{" "}
-                <input
-                  value={definition.unit}
-                  maxLength={40}
-                  onChange={(e) =>
-                    setDefinition({ ...definition, unit: e.target.value })
-                  }
-                />
-              </label>
-              <label>
-                Due after days{" "}
-                <input
-                  type="number"
-                  min="0"
-                  placeholder="No due date"
-                  value={definition.dueAfterDays ?? ""}
-                  onChange={(e) =>
-                    setDefinition({
-                      ...definition,
-                      dueAfterDays:
-                        e.target.value === "" ? null : Number(e.target.value),
-                    })
-                  }
-                />
-              </label>
-              <button
-                disabled={
-                  busy || !definition.name.trim() || !definition.terms.trim()
-                }
-                onClick={async () => {
-                  await mutate("save-definition", undefined, { definition });
-                  setDefinition({ ...emptyDefinition });
-                }}
-              >
-                Save definition
-              </button>
-              {(state.definitions || []).map((item: any) => (
-                <div key={item.id}>
-                  <strong>{item.name}</strong> · {item.target} {item.unit}{" "}
-                  <button
-                    disabled={busy || !item.enabled}
-                    onClick={() => void mutate("propose", item.id)}
-                  >
-                    Create offer
-                  </button>
-                  <button
-                    disabled={busy}
-                    onClick={() => {
-                      setDefinition(item);
-                    }}
-                  >
-                    Edit
-                  </button>
-                </div>
-              ))}
-            </details>
-          )}
-          {!unresolved && (
-            <small>No pending offers or active commitments.</small>
-          )}
         </div>
       )}
       {error && <p role="alert">{error}</p>}

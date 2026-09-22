@@ -13,7 +13,7 @@
     <UseLocalCoveCore Condition="'$(UseLocalCoveCore)' == ''">false</UseLocalCoveCore>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(MSBuildProjectName)' != 'AIDome.Tests'">
+  <PropertyGroup Condition="Exists('$(MSBuildProjectDirectory)\extension.json')">
     <EnableDynamicLoading>true</EnableDynamicLoading>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
   </PropertyGroup>

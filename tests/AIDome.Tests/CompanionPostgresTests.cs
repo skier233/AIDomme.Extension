@@ -5,8 +5,8 @@ using System.Text.Json;
 using AIDome;
 using AIDome.Persistence;
 using AIDome.Tracking;
-using AIDome2025.Data;
-using AIDome2025.Services;
+using AIDome.Data;
+using AIDome.Services;
 using Cove.Core.Auth;
 using Cove.Core.Interfaces;
 using Cove.Data;
@@ -84,31 +84,17 @@ public sealed partial class TrackerPostgresTests
     private static object StartBody(SessionPolicy policy) => new { intensity = 3, length = 3, denial = 3, kink = 3, mean = 3, policy };
 
     [PostgresTrackerFact]
-    public async Task Commitments_RequireExplicitAcceptance_DeduplicateAndRemainAccountScoped()
+    public async Task Commitments_UsersCannotAuthorOrProposeOffersThemselves()
     {
         await InstallCompanionAsync(); await using var app = await CompanionAppAsync();
-        using var first = Client(app); using var second = Client(app, 2);
-        var initial = await JsonAsync(await first.GetAsync("/api/ext/aidome/commitments"));
-        var definitionId = Guid.NewGuid(); var saveEvent = Guid.NewGuid();
-        object Mutate(Guid eventId, long revision, string action, Guid? targetId = null, object? definition = null, decimal? amount = null, string? outcome = null, int? degree = null)
-            => new { eventId, expectedRevision = revision, action, targetId, definition, amount, outcome, degree };
-        var definition = new { id = definitionId, name = "Example", terms = "Complete the agreed task.", unit = "items", target = 3, dueAfterDays = 2, enabled = true };
-        var saved = await JsonAsync(await first.PostAsJsonAsync("/api/ext/aidome/commitments/mutate", Mutate(saveEvent, 0, "save-definition", definition: definition)));
-        Assert.Empty(saved.GetProperty("commitments").EnumerateArray());
-        var proposed = await JsonAsync(await first.PostAsJsonAsync("/api/ext/aidome/commitments/mutate", Mutate(Guid.NewGuid(), 1, "propose", definitionId)));
-        var offerId = proposed.GetProperty("offers")[0].GetProperty("id").GetGuid();
-        Assert.Empty(proposed.GetProperty("commitments").EnumerateArray());
-        var acceptEvent = Guid.NewGuid();
-        var accepted = await JsonAsync(await first.PostAsJsonAsync("/api/ext/aidome/commitments/mutate", Mutate(acceptEvent, 2, "accept", offerId)));
-        var repeated = await JsonAsync(await first.PostAsJsonAsync("/api/ext/aidome/commitments/mutate", Mutate(acceptEvent, 2, "accept", offerId)));
-        Assert.Single(repeated.GetProperty("commitments").EnumerateArray());
-        var commitmentId = accepted.GetProperty("commitments")[0].GetProperty("id").GetGuid();
-        var progressed = await JsonAsync(await first.PostAsJsonAsync("/api/ext/aidome/commitments/mutate", Mutate(Guid.NewGuid(), 3, "progress", commitmentId, amount: 2)));
-        Assert.Equal(2, progressed.GetProperty("commitments")[0].GetProperty("progress").GetDecimal());
-        Assert.Empty((await JsonAsync(await second.GetAsync("/api/ext/aidome/commitments"))).GetProperty("definitions").EnumerateArray());
-        Assert.Equal(HttpStatusCode.Conflict, (await first.PostAsJsonAsync("/api/ext/aidome/commitments/mutate", Mutate(Guid.NewGuid(), 3, "report", commitmentId, outcome: "Completed", degree: 100))).StatusCode);
-        var afterRestart = await JsonAsync(await first.GetAsync("/api/ext/aidome/commitments"));
-        Assert.Single(afterRestart.GetProperty("commitments").EnumerateArray());
+        using var first = Client(app);
+        // Offers come from the domme's offer library, never from definitions the user writes.
+        foreach (var action in new[] { "save-definition", "delete-definition", "propose" })
+            Assert.Equal(HttpStatusCode.BadRequest, (await first.PostAsJsonAsync("/api/ext/aidome/commitments/mutate",
+                new { eventId = Guid.NewGuid(), expectedRevision = 0, action, targetId = Guid.NewGuid() })).StatusCode);
+        var state = await JsonAsync(await first.GetAsync("/api/ext/aidome/commitments"));
+        Assert.Empty(state.GetProperty("offers").EnumerateArray());
+        Assert.Equal(0, state.GetProperty("revision").GetInt64());
     }
 
     [PostgresTrackerFact]

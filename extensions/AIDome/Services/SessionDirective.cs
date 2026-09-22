@@ -1,6 +1,6 @@
-using AIDome2025.Data;
+using AIDome.Data;
 
-namespace AIDome2025.Services;
+namespace AIDome.Services;
 
 /// <summary>
 /// Represents what the user should be doing RIGHT NOW during a live session.
@@ -91,6 +91,9 @@ public sealed class OnlineSessionState
     public int Arousal { get; init; }
     public bool IsFinished { get; init; }
     public int Points { get; init; }
+
+    /// <summary>Debug sessions may be ended by the user; all other sessions can only be paused.</summary>
+    public bool IsDebugSession { get; init; }
 
     /// <summary>Seconds remaining on the current timed step, or -1 if not a timed step.</summary>
     public int RemainingSeconds { get; init; }

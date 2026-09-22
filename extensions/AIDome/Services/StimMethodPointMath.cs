@@ -1,6 +1,6 @@
-using AIDome2025.Data;
+using AIDome.Data;
 
-namespace AIDome2025.Services;
+namespace AIDome.Services;
 
 public static class StimMethodPointMath
 {

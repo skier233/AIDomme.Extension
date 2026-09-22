@@ -1,7 +1,7 @@
 using System;
 using System.ComponentModel.DataAnnotations;
 
-namespace AIDome2025.Data;
+namespace AIDome.Data;
 
 public sealed class TuningRatingEntry
 {

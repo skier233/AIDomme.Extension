@@ -1,6 +1,6 @@
 using System;
 
-namespace AIDome2025.Data;
+namespace AIDome.Data;
 
 /// <summary>The type of mini-game offered to the user.</summary>
 public enum GameType

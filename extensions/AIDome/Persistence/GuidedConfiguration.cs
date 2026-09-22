@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using AIDome.Tracking;
-using AIDome2025.Data;
-using AIDome2025.Services;
+using AIDome.Data;
+using AIDome.Services;
 using Microsoft.EntityFrameworkCore;
 
 namespace AIDome.Persistence;

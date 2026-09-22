@@ -1,4 +1,4 @@
-namespace AIDome2025.Data;
+namespace AIDome.Data;
 
 public sealed class GuidedEventReceipt
 {

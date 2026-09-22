@@ -3,13 +3,13 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using AIDome2025.Utils;
-using AIDome2025.Data;
+using AIDome.Utils;
+using AIDome.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-namespace AIDome2025.Services;
+namespace AIDome.Services;
 
 public sealed class CommandCenterService : ICommandCenterService, IHostedService, IDisposable
 {
@@ -185,7 +185,7 @@ public sealed class CommandCenterService : ICommandCenterService, IHostedService
 
                 if (!alreadyRecorded)
                     await _interactionManager.RecordEdgeAsync(edgeSpeed, edgeHold, cancellationToken);
-                AddMessage(new ChatMessage(Guid.NewGuid(), DateTime.UtcNow, "Manager", $"Edge logged (speed {edgeSpeed}, hold {edgeHold.TotalSeconds:N0}s)."));
+                AddMessage(new ChatMessage(Guid.NewGuid(), DateTime.UtcNow, "Manager", "Edge recorded."));
 
                 if (edgeDirective is not null)
                     AddMessage(new ChatMessage(Guid.NewGuid(), DateTime.UtcNow, "Domme", FormatDirectiveForChat(edgeDirective)));

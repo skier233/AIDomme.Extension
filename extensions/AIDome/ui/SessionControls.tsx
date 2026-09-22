@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   guidedApi,
   guidedClient,
@@ -278,47 +278,85 @@ export function GameControls({
   );
 }
 
+/** Instruction-style actions the user can send; which ones apply depends on the step and mode. */
+function sessionActions(snapshot: any, online: any) {
+  return (snapshot.actions || []).filter(
+    (action: any) =>
+      !["edged", "orgasm"].includes(action.id) &&
+      (action.id !== "done" ||
+        online?.isLubePause ||
+        online?.currentDirective?.kind === "Finish") &&
+      !(
+        snapshot.policy.guidance === "Permission" &&
+        ["done", "beg-to-stop"].includes(action.id)
+      ),
+  );
+}
+
+function formatRemaining(seconds: number) {
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+}
+
+/**
+ * The live session view. `compact` is the floating companion: the current instruction, a short
+ * chat log, and only the controls the user holds. The full variant is the AI Domme page.
+ * Outside debug sessions there is no End: the user can pause, and the domme decides the ending.
+ */
 export function GuidedPanel({ compact = false }: { compact?: boolean }) {
   const state = useGuidedSession();
   const snapshot = state.snapshot,
     online = snapshot?.online;
-  const [chatOpen, setChatOpen] = useState(!compact);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(defaultPolicy);
   const [draftRevision, setDraftRevision] = useState(0);
+  const logRef = useRef<HTMLOListElement | null>(null);
+  const messages: any[] = snapshot?.messages || [];
+  const log = compact ? messages.slice(-12) : messages;
+  useEffect(() => {
+    if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
+  }, [log.length, log.at(-1)?.id]);
   if (!snapshot?.sessionActive)
     return state.error ? <p role="alert">{state.error}</p> : null;
   const remaining = remainingSeconds(state);
   const text = online?.currentDirective?.text;
   const blocked = state.busy || !!state.pending || online?.isPaused;
+  const canEnd = !!online?.isDebugSession;
   return (
-    <section className="aidomme-guided-panel" aria-label="Guided session">
-      <strong>
-        {online?.isPaused ? "Session paused" : "AI Domme"} ·{" "}
-        {online?.edgesThisSession || 0} edges
-      </strong>
-      {text && <p className="aidomme-current-command">{text}</p>}
-      {remaining >= 0 && (
-        <output aria-label="Step remaining">
-          {Math.floor(remaining / 60)}:{String(remaining % 60).padStart(2, "0")}
-          {online?.isPaused ? " · paused" : ""}
-        </output>
-      )}
-      <div className="aidomme-tracker-actions">
-        <button
-          onClick={() =>
-            void guidedClient.control(online?.isPaused ? "resume" : "pause")
-          }
-        >
-          {online?.isPaused ? "Resume session" : "Pause session"}
-        </button>
-        <button onClick={() => void guidedClient.control("end")}>
-          End session
-        </button>
-        <button aria-expanded={chatOpen} onClick={() => setChatOpen(!chatOpen)}>
-          {chatOpen ? "Hide chat" : "Show chat"}
-        </button>
+    <section
+      className={`aidomme-guided-panel${compact ? " is-compact" : ""}`}
+      aria-label="Guided session"
+    >
+      <div className="aidomme-session-status">
+        <strong>{online?.isPaused ? "Paused" : "In session"}</strong>
+        <span>{online?.edgesThisSession || 0} edges</span>
+        {remaining >= 0 && (
+          <output aria-label="Step remaining">
+            {formatRemaining(remaining)}
+          </output>
+        )}
       </div>
+      {text && <p className="aidomme-current-command">{text}</p>}
+      <ol className="aidomme-companion-chat" ref={logRef} aria-label="Chat log">
+        {log
+          // The companion already shows the current instruction above the log.
+          .filter((message: any) => !(compact && message.content === text))
+          .map((message: any) => (
+          <li
+            key={message.id}
+            className={`from-${String(message.sender).toLowerCase()}`}
+          >
+            <strong>{message.sender === "Domme" ? "Domme" : message.sender}</strong>{" "}
+            {message.content}
+          </li>
+        ))}
+      </ol>
+      <GameControls
+        online={online}
+        disabled={blocked}
+        submit={(answer) => {
+          void guidedClient.control("game-answer", answer);
+        }}
+      />
       {!compact && (
         <div className="aidomme-tracker-actions">
           <button
@@ -336,69 +374,137 @@ export function GuidedPanel({ compact = false }: { compact?: boolean }) {
         </div>
       )}
       <div className="aidomme-tracker-actions">
-        {(snapshot.actions || [])
-          .filter(
-            (action: any) =>
-              !["edged", "orgasm"].includes(action.id) &&
-              (action.id !== "done" ||
-                online?.isLubePause ||
-                online?.currentDirective?.kind === "Finish") &&
-              !(
-                snapshot.policy.guidance === "Permission" &&
-                ["done", "beg-to-stop"].includes(action.id)
-              ),
-          )
-          .map((action: any) => (
+        {sessionActions(snapshot, online).map((action: any) => (
+          <button
+            disabled={blocked}
+            key={action.id}
+            onClick={() => void guidedClient.control(action.id)}
+          >
+            {action.label}
+          </button>
+        ))}
+        <button
+          onClick={() =>
+            void guidedClient.control(online?.isPaused ? "resume" : "pause")
+          }
+        >
+          {online?.isPaused ? "Resume" : "Pause"}
+        </button>
+        {canEnd && (
+          <button onClick={() => void guidedClient.control("end")}>
+            End (debug)
+          </button>
+        )}
+      </div>
+      {!compact && (
+        <>
+          <details>
+            <summary>Report an infraction</summary>
             <button
               disabled={blocked}
-              key={action.id}
-              onClick={() => void guidedClient.control(action.id)}
+              onClick={() =>
+                void guidedClient.mutate("/session/infraction", {
+                  type: "Disobedience",
+                })
+              }
             >
-              {action.label}
+              Disobedience
             </button>
-          ))}
-      </div>
-      <details>
-        <summary>Report an infraction</summary>
-        <button
-          disabled={blocked}
-          onClick={() =>
-            void guidedClient.mutate("/session/infraction", {
-              type: "Disobedience",
-            })
-          }
-        >
-          Disobedience
-        </button>
-        <button
-          disabled={blocked}
-          onClick={() =>
-            void guidedClient.mutate("/session/infraction", {
-              type: "RuinedOrgasm",
-            })
-          }
-        >
-          Ruined orgasm
-        </button>
-      </details>
-      <GameControls
-        online={online}
-        disabled={blocked}
-        submit={(answer) => {
-          void guidedClient.control("game-answer", answer);
-        }}
-      />
-      <label>
-        <input
-          type="checkbox"
-          disabled={online?.isPaused}
-          checked={state.voiceEnabled}
-          onChange={(e) => void guidedClient.setVoice(e.target.checked)}
-        />{" "}
-        Narrate in this browser
-      </label>
+            <button
+              disabled={blocked}
+              onClick={() =>
+                void guidedClient.mutate("/session/infraction", {
+                  type: "RuinedOrgasm",
+                })
+              }
+            >
+              Ruined orgasm
+            </button>
+          </details>
+          <GuidedMenu />
+          <button
+            disabled={!snapshot.policy.canChangeDuringSession}
+            onClick={() => {
+              setDraft(snapshot.policy);
+              setDraftRevision(snapshot.policyRevision);
+              setEditing(!editing);
+            }}
+          >
+            Session settings{" "}
+            {snapshot.policy.canChangeDuringSession ? "" : "(locked)"}
+          </button>
+          {editing && (
+            <>
+              <SessionPolicyEditor
+                value={draft}
+                onChange={setDraft}
+                active
+                disabled={state.busy}
+              />
+              <button
+                disabled={state.busy || !!state.pending}
+                onClick={async () => {
+                  const response = await guidedClient.mutate(
+                    "/session/policy",
+                    {
+                      sessionId: online.sessionId,
+                      revision: draftRevision,
+                      policy: draft,
+                    },
+                    "PUT",
+                  );
+                  if (response) setEditing(false);
+                }}
+              >
+                Save session settings
+              </button>
+            </>
+          )}
+        </>
+      )}
+      {state.error && <p role="alert">{state.error}</p>}
+      {state.pending && (
+        <div className="aidomme-tracker-actions">
+          <button
+            disabled={state.busy}
+            onClick={() => void guidedClient.retry()}
+          >
+            Retry same request
+          </button>
+          <button disabled={state.busy} onClick={() => guidedClient.dismiss()}>
+            Dismiss request
+          </button>
+        </div>
+      )}
+    </section>
+  );
+}
+
+/**
+ * Secondary, per-browser options: narration, directed media, and the metronome. When the domme
+ * owns pacing the metronome is hers, so its controls are not offered here.
+ */
+export function GuidedMenu({ metronome }: { metronome?: React.ReactNode }) {
+  const state = useGuidedSession();
+  const snapshot = state.snapshot,
+    online = snapshot?.online;
+  const active = !!snapshot?.sessionActive;
+  const dommePaces = active && snapshot.policy?.pacing === "Engine";
+  return (
+    <div className="aidomme-guided-menu">
+      {active && (
+        <label>
+          <input
+            type="checkbox"
+            disabled={online?.isPaused}
+            checked={state.voiceEnabled}
+            onChange={(e) => void guidedClient.setVoice(e.target.checked)}
+          />{" "}
+          Narrate in this browser
+        </label>
+      )}
       {state.voiceStatus && <small role="status">{state.voiceStatus}</small>}
-      {snapshot.policy.media === "Engine" && (
+      {active && snapshot.policy.media === "Engine" && (
         <>
           <label>
             <input
@@ -416,67 +522,15 @@ export function GuidedPanel({ compact = false }: { compact?: boolean }) {
           )}
         </>
       )}
-      {chatOpen && (
-        <ol className="aidomme-companion-chat">
-          {(snapshot.messages || []).map((message: any) => (
-            <li key={message.id}>
-              <strong>{message.sender}</strong> {message.content}
-            </li>
-          ))}
-        </ol>
-      )}
-      <button
-        disabled={!snapshot.policy.canChangeDuringSession}
-        onClick={() => {
-          setDraft(snapshot.policy);
-          setDraftRevision(snapshot.policyRevision);
-          setEditing(!editing);
-        }}
-      >
-        Session settings{" "}
-        {snapshot.policy.canChangeDuringSession ? "" : "(locked)"}
-      </button>
-      {editing && (
-        <>
-          <SessionPolicyEditor
-            value={draft}
-            onChange={setDraft}
-            active
-            disabled={state.busy}
-          />
-          <button
-            disabled={state.busy || !!state.pending}
-            onClick={async () => {
-              const response = await guidedClient.mutate(
-                "/session/policy",
-                {
-                  sessionId: online.sessionId,
-                  revision: draftRevision,
-                  policy: draft,
-                },
-                "PUT",
-              );
-              if (response) setEditing(false);
-            }}
-          >
-            Save session settings
-          </button>
-        </>
-      )}
-      {state.error && <p role="alert">{state.error}</p>}
-      {state.pending && (
-        <div>
-          <button
-            disabled={state.busy}
-            onClick={() => void guidedClient.retry()}
-          >
-            Retry same request
-          </button>
-          <button disabled={state.busy} onClick={() => guidedClient.dismiss()}>
-            Dismiss request
-          </button>
-        </div>
-      )}
-    </section>
+      {metronome &&
+        (dommePaces ? (
+          <small>The domme sets the pace in this session.</small>
+        ) : (
+          <details>
+            <summary>Metronome</summary>
+            {metronome}
+          </details>
+        ))}
+    </div>
   );
 }

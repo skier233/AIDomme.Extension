@@ -334,3 +334,18 @@ it("does not request speech for an already claimed message", async () => {
     false,
   );
 });
+
+it("offers pause but not end outside debug sessions", async () => {
+  guidedClient.start(1);
+  await loaded(guidedClient);
+  render(<GuidedPanel compact />);
+  expect(screen.getByRole("button", { name: "Pause" })).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "End (debug)" })).toBeNull();
+  snapshot = {
+    ...snapshot,
+    revision: 2,
+    online: { ...snapshot.online, isDebugSession: true },
+  };
+  await guidedClient.refresh();
+  await screen.findByRole("button", { name: "End (debug)" });
+});

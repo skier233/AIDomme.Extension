@@ -1,6 +1,6 @@
 using System;
 
-namespace AIDome2025.Data;
+namespace AIDome.Data;
 
 /// <summary>How the session ended from the user's perspective.</summary>
 public enum SessionOutcome

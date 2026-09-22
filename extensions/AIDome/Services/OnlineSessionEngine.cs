@@ -1,9 +1,9 @@
-using AIDome2025.Data;
-using AIDome2025.Utils;
+using AIDome.Data;
+using AIDome.Utils;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
-namespace AIDome2025.Services;
+namespace AIDome.Services;
 
 public sealed partial class OnlineSessionEngine : IOnlineSessionEngine
 {
@@ -139,7 +139,8 @@ public sealed partial class OnlineSessionEngine : IOnlineSessionEngine
                 ActiveGameAnswerReady = _activeGameAnswerReady,
                 Mood = _mood.ToString(),
                 IsLubePause = _pendingLubeDirective is not null,
-                Outcome = _sessionOutcome
+                Outcome = _sessionOutcome,
+                IsDebugSession = _session?.IsDebugSession ?? false,
             };
         }
     }

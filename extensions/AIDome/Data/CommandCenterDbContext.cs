@@ -1,7 +1,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 
-namespace AIDome2025.Data;
+namespace AIDome.Data;
 
 public sealed class CommandCenterDbContext(DbContextOptions<CommandCenterDbContext> options, int ownerId = 0) : DbContext(options)
 {

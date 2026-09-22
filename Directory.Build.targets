@@ -1,0 +1,69 @@
+<Project>
+
+  <!--
+    Cove host-contract wiring for every extension project (anything with an extension.json).
+
+    Extensions compile against the Cove host contracts. The host process provides those assemblies at
+    runtime, so they are referenced COMPILE-ONLY and never shipped: a bundled copy would split the
+    identity of types that cross the host boundary (entities, DbContext, ...) and break casts and DI.
+
+      * Local dev (sibling ../cove checkout present) -> ProjectReference.
+      * Otherwise -> PackageReference to the published Cove.Sdk / Cove.Core packages.
+
+    AI Domme owns tables in Cove's PostgreSQL database and shares the host CoveContext with Cove's
+    engagement service, so it also compiles against Cove.Data. Cove.Data is deliberately not published
+    as a package, so building requires the sibling checkout; the build fails clearly without it.
+    Mirrors EmpPrep.Extension/Directory.Build.targets.
+  -->
+
+  <ItemGroup Condition="Exists('$(MSBuildProjectDirectory)\extension.json') and '$(UseLocalCoveSource)' == 'true'">
+    <ProjectReference Include="$(MSBuildThisFileDirectory)..\cove\src\Cove.Sdk\Cove.Sdk.csproj">
+      <Private>false</Private>
+      <ExcludeAssets>runtime</ExcludeAssets>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup Condition="Exists('$(MSBuildProjectDirectory)\extension.json') and '$(UseLocalCoveSource)' != 'true'">
+    <PackageReference Include="Cove.Sdk" Version="$(CoveSdkVersion)" />
+  </ItemGroup>
+
+  <ItemGroup Condition="Exists('$(MSBuildProjectDirectory)\extension.json') and '$(UseLocalCoveCore)' == 'true'">
+    <ProjectReference Include="$(MSBuildThisFileDirectory)..\cove\src\Cove.Core\Cove.Core.csproj">
+      <Private>false</Private>
+      <ExcludeAssets>runtime</ExcludeAssets>
+    </ProjectReference>
+    <ProjectReference Include="$(MSBuildThisFileDirectory)..\cove\src\Cove.Data\Cove.Data.csproj">
+      <Private>false</Private>
+      <ExcludeAssets>runtime</ExcludeAssets>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup Condition="Exists('$(MSBuildProjectDirectory)\extension.json') and '$(UseLocalCoveCore)' != 'true'">
+    <PackageReference Include="Cove.Core" Version="$(CoveCoreVersion)" />
+  </ItemGroup>
+
+  <Target Name="CoveRequireDataContracts" BeforeTargets="ResolveReferences"
+          Condition="Exists('$(MSBuildProjectDirectory)\extension.json') and '$(UseLocalCoveCore)' != 'true'">
+    <Error Text="AI Domme compiles against Cove.Data, which Cove does not publish as a package. Check out Cove as a sibling directory (..\cove) and build again." />
+  </Target>
+
+  <!-- Assemblies the Cove host provides at runtime. Leading/trailing ';' so membership is a substring test. -->
+  <PropertyGroup Condition="Exists('$(MSBuildProjectDirectory)\extension.json')">
+    <CoveHostProvidedAssemblies Condition="'$(CoveHostProvidedAssemblies)' == ''">;Cove.Core;Cove.Data;Cove.Plugins;Cove.Sdk;Microsoft.EntityFrameworkCore;Microsoft.EntityFrameworkCore.Abstractions;Microsoft.EntityFrameworkCore.Relational;Npgsql;Npgsql.EntityFrameworkCore.PostgreSQL;Pgvector;Pgvector.EntityFrameworkCore;MediatR.Contracts;</CoveHostProvidedAssemblies>
+  </PropertyGroup>
+
+  <Target Name="CoveStripHostProvidedCopyLocal" AfterTargets="ResolveReferences"
+          Condition="Exists('$(MSBuildProjectDirectory)\extension.json')">
+    <ItemGroup>
+      <ReferenceCopyLocalPaths Remove="@(ReferenceCopyLocalPaths)"
+        Condition="$(CoveHostProvidedAssemblies.Contains(';%(ReferenceCopyLocalPaths.FileName);'))" />
+    </ItemGroup>
+  </Target>
+
+  <Target Name="CoveStripHostProvidedPublish" AfterTargets="ComputeFilesToPublish"
+          Condition="Exists('$(MSBuildProjectDirectory)\extension.json')">
+    <ItemGroup>
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)"
+        Condition="$(CoveHostProvidedAssemblies.Contains(';%(ResolvedFileToPublish.FileName);'))" />
+    </ItemGroup>
+  </Target>
+
+</Project>

@@ -1,6 +1,6 @@
 using System;
 
-namespace AIDome2025.Data;
+namespace AIDome.Data;
 
 /// <summary>What kind of thing does this instruction step ask the user to do?</summary>
 public enum InstructionKind

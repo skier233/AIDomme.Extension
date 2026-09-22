@@ -1,8 +1,8 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-using AIDome2025.Data;
-using AIDome2025.Services;
+using AIDome.Data;
+using AIDome.Services;
 using AIDome.Tracking;
 using AIDome.Persistence;
 using Cove.Data;
@@ -42,7 +42,7 @@ public sealed class AiDomeExtension : FullExtensionBase
     public override string Id => "cove.community.aidome";
     public override string Name => "AI Domme";
     public override string Version => "0.6.0";
-    public override string Description => "Session-based interactive command center: live sessions, mini-games, and punishment tracking.";
+    public override string Description => "A rule-driven domme for guided edging sessions on your Cove library, with an app-wide edge tracker, orgasm permission, games and persistent commitments.";
     public override string Author => "Cove Community";
     public override string Url => "https://github.com/yourcove/AIDome.Extension";
 
@@ -235,6 +235,7 @@ public sealed class AiDomeExtension : FullExtensionBase
 
         group.MapPost("/session/end", async (ICommandCenterService cc, CancellationToken ct) =>
         {
+            if (PauseOnly(_runtimes!.Current)) return PauseOnlyConflict();
             await cc.EndSessionAsync(ct);
             return JsonResult(await BuildSnapshotAsync(cc, ct));
         });
@@ -276,7 +277,8 @@ public sealed class AiDomeExtension : FullExtensionBase
                 return Results.Conflict(new { message = "The step changed or is paused. Review the current instruction." });
             if (request.Action is not ("pause" or "resume" or "end" or "game-answer" or "done" or "beg-to-cum" or "beg-to-stop"))
                 return Results.BadRequest(new { message = "Unknown session control." });
-            if (request.Action == "done" && !state.IsLubePause && state.CurrentDirective?.Kind != AIDome2025.Data.InstructionKind.Finish)
+            if (request.Action == "end" && PauseOnly(runtime)) return PauseOnlyConflict();
+            if (request.Action == "done" && !state.IsLubePause && state.CurrentDirective?.Kind != AIDome.Data.InstructionKind.Finish)
                 return Results.Conflict(new { message = "This step advances through its timer, edge target or challenge result." });
             if (request.Action == "game-answer" && request.Answer is null) return Results.BadRequest(new { message = "An answer is required." });
             await runtime.SaveAsync(ct);
@@ -455,6 +457,12 @@ public sealed class AiDomeExtension : FullExtensionBase
         => Store.SetAsync(SettingsStoreKey, JsonSerializer.Serialize(settings, JsonOpts), ct);
 
     private static IResult JsonResult<T>(T value) => Results.Json(value, JsonOpts);
+
+    // Outside debug sessions the user can pause but not end; the domme decides when it is over.
+    private static bool PauseOnly(GuidedRuntime runtime)
+        => runtime.Online.HasActiveSession && !runtime.Online.GetCurrentState().IsDebugSession;
+    private static IResult PauseOnlyConflict()
+        => Results.Conflict(new { message = "This session can be paused, not ended. The domme decides when it is over." });
 
     private static async Task<IResult> TrackerResultAsync<T>(Func<Task<T>> action)
     {

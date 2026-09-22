@@ -1,6 +1,6 @@
-using AIDome2025.Data;
+using AIDome.Data;
 
-namespace AIDome2025.Services;
+namespace AIDome.Services;
 
 /// <summary>
 /// Generates a plan of <see cref="InstructionStep"/>s for a session based on its

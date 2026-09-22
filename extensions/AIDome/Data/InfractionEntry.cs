@@ -1,6 +1,6 @@
 using System;
 
-namespace AIDome2025.Data;
+namespace AIDome.Data;
 
 /// <summary>What type of infraction did the user commit?</summary>
 public enum InfractionType

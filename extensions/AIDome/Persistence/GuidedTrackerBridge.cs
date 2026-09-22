@@ -1,6 +1,6 @@
 using AIDome.Tracking;
-using AIDome2025.Data;
-using AIDome2025.Services;
+using AIDome.Data;
+using AIDome.Services;
 using Cove.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;

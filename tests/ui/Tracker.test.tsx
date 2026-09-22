@@ -17,7 +17,7 @@ const runtime = vi.hoisted(() => ({
 }));
 vi.mock("@cove/runtime/api", () => ({ extensionFetch: runtime.fetch }));
 vi.mock("../../extensions/AIDome/ui/GuidedClient", () => ({ guidedClient: { start: () => () => {}, refresh: () => Promise.resolve(), control: () => Promise.resolve(), getSnapshot: () => ({ snapshot: null }) } }));
-vi.mock("../../extensions/AIDome/ui/SessionControls", () => ({ GuidedPanel: () => null }));
+vi.mock("../../extensions/AIDome/ui/SessionControls", () => ({ GuidedPanel: () => null, GuidedMenu: () => null }));
 vi.mock("@cove/runtime/components", () => ({
   getActiveMedia: () => runtime.media,
   useActiveMedia: () => runtime.media,
