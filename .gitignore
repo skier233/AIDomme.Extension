@@ -1,0 +1,7 @@
+bin/
+obj/
+node_modules/
+*.user
+.vs/
+.idea/
+# Built UI bundles are checked in (per the AI.Extensions convention) — do NOT ignore dist/
