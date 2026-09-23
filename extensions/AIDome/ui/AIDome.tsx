@@ -18,6 +18,7 @@ import {
   ChatLog,
   GameControls,
   GuidedMenu,
+  HerLatest,
   PendingRequest,
   SessionActions,
   SessionStatus,
@@ -179,6 +180,9 @@ function SetupScreen() {
                 <span>{label}</span>
                 <output>
                   {value < 1 ? `Her choice (${defaults[key]})` : value}
+                  {key === "length" &&
+                    setup.lengthMinutes?.[(value < 1 ? defaults[key] : value) - 1] &&
+                    `, about ${setup.lengthMinutes[(value < 1 ? defaults[key] : value) - 1]} min`}
                 </output>
                 <input
                   type="range"
@@ -472,6 +476,7 @@ function SessionScreen({ session }: { session: any }) {
         <SessionStatus session={session} />
         <Obligations session={session} />
         {text && <p className="aidomme-current-command">{text}</p>}
+        <HerLatest messages={state.snapshot.messages || []} order={text} />
         <OfferCard session={session} />
         <GameControls
           game={session.game}

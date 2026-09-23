@@ -77,6 +77,9 @@ public sealed class SessionRecord : IUserOwned
     /// <summary>Her plan for the session, as JSON (what she intended and how it was revised).</summary>
     public string? PlanJson { get; set; }
 
+    /// <summary>Seconds of play, not counting pauses. With <see cref="Points"/> it gives his pace.</summary>
+    public int? ActiveSeconds { get; set; }
+
     // ── Navigation ──
     public ICollection<EdgeEntry> Edges { get; set; } = new List<EdgeEntry>();
     public ICollection<OrgasmEntry> Orgasms { get; set; } = new List<OrgasmEntry>();

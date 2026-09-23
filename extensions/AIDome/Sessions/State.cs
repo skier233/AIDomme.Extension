@@ -98,6 +98,8 @@ public sealed class SessionState
     public int ContractRevision { get; set; } = 1;
     /// <summary>The account's effective method library at start, within the contract's limits.</summary>
     public List<MethodInfo> Methods { get; set; } = [];
+    /// <summary>What each Length means to him, in minutes; with his pace it sets the points budget.</summary>
+    public SessionLengths Lengths { get; set; } = new();
 
     public DateTime StartedAtUtc { get; set; }
     public bool Ended { get; set; }
@@ -179,6 +181,8 @@ public sealed class SessionState
     // Deals.
     public List<OfferTemplate> OfferTemplates { get; set; } = [];
     public List<int> RecentOfferTemplates { get; set; } = [];
+    /// <summary>Offers he turned down or let lapse this session: each makes her next price higher.</summary>
+    public List<RefusedOffer> RefusedOffers { get; set; } = [];
     public PendingOffer? Offer { get; set; }
     public Price? Price { get; set; }
 
@@ -212,3 +216,6 @@ public sealed class SessionState
     [JsonIgnore] public bool Active => SessionId > 0 && !Ended;
     private static int Pref(int value) => value is >= 1 and <= 10 ? value : 5;
 }
+
+/// <summary>An offer he refused, remembered so the next one for the same thing costs more.</summary>
+public sealed record RefusedOffer(OfferBuys Buys, int TemplateId, double Points);

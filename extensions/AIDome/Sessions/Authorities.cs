@@ -1,7 +1,17 @@
 namespace AIDome.Sessions;
 
 /// <summary>How a step wants its method chosen when the domme picks it.</summary>
-public sealed record MethodPreference(int IntensityCeiling, bool Tease = false, bool Torture = false, bool Closeness = false, bool Basic = false);
+/// <summary>
+/// What a step wants from a method. <paramref name="MinCloseness"/> is set when he must reach the
+/// edge on it: a method that can barely get him there (a gentle finger, a teasing pinch) is never
+/// chosen for edging while a closer one is available.
+/// </summary>
+public sealed record MethodPreference(int IntensityCeiling, bool Tease = false, bool Torture = false, bool Closeness = false, bool Basic = false,
+    int MinCloseness = 0)
+{
+    /// <summary>How close a method must get him (Closeness 0–10) for her to ask for edges on it.</summary>
+    public const int EdgeReach = 5;
+}
 
 /// <summary>Who chooses the stimulation method.</summary>
 public interface IMethodAuthority
@@ -103,18 +113,30 @@ public sealed class DommeMethods(IRandom random) : IMethodAuthority
         if (all.Count == 0) return MethodInfo.UserChoice(all);
         var pool = all.Where(m => m.Intensity <= p.IntensityCeiling).ToList();
         if (pool.Count == 0) pool = all.ToList();
+        if (p.MinCloseness > 0)
+        {
+            // Edging needs a method that gets him there: within the ceiling if possible, then any,
+            // and failing that the closest few he has.
+            var reach = pool.Where(m => m.Closeness >= p.MinCloseness).ToList();
+            if (reach.Count == 0) reach = all.Where(m => m.Closeness >= p.MinCloseness).ToList();
+            if (reach.Count == 0) reach = all.OrderByDescending(m => m.Closeness).Take(3).ToList();
+            pool = reach;
+        }
 
         // Once lube is on, dry methods are impractical.
         if (state.LubeActive)
         {
             var lubed = pool.Where(m => m.RequiresLube).ToList();
+            // Too few lubed grips under the ceiling would mean the same one all night: reach a little higher.
+            if (lubed.Count < 3)
+                lubed = all.Where(m => m.RequiresLube && m.Intensity <= p.IntensityCeiling + 2 && (p.MinCloseness == 0 || m.Closeness >= p.MinCloseness)).ToList();
             if (lubed.Count == 0) lubed = all.Where(m => m.RequiresLube).ToList();
             if (lubed.Count > 0) pool = lubed;
         }
 
         // Deliberate repetition: stay on a basic grip for a step or two before switching.
         if (state.ChainMethodId is int chain && state.ChainStepsRemaining > 0 && !p.Torture
-            && pool.FirstOrDefault(m => m.Id == chain) is { Closeness: >= 3, Tease: < 6 } chained && random.Chance(55))
+            && pool.FirstOrDefault(m => m.Id == chain) is { Closeness: >= 3, Tease: < 6 } chained && chained.Closeness >= p.MinCloseness && random.Chance(55))
         {
             state.ChainStepsRemaining--;
             return Track(state, chained);

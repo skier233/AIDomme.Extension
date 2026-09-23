@@ -2,8 +2,8 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { extensionFetch } from "@cove/runtime/api";
 import { MetronomeAudio } from "./MetronomeAudio";
 
-type Preferences = { bpm: number; volume: number; muted: boolean };
-const defaults: Preferences = { bpm: 60, volume: 0.3, muted: false };
+type Preferences = { bpm: number; volume: number; muted: boolean; follow: boolean };
+const defaults: Preferences = { bpm: 60, volume: 0.3, muted: false, follow: true };
 const PAUSE_METRONOME = "aidomme:pause-metronome";
 export function pauseMetronome() {
   window.dispatchEvent(new Event(PAUSE_METRONOME));
@@ -33,9 +33,11 @@ async function lease(clientId: string, release = false) {
 /**
  * Lives in the app-wide companion even when its portal is hidden or closed. When `followBpm` is a
  * number the domme sets the pace: the metronome plays her tempo, falls silent at 0 (rests, holds,
- * stops), and the user cannot change the tempo.
+ * stops), and the user cannot change the tempo. With `autoStart` (a session running at her pace)
+ * it starts on the user's next click anywhere, since browsers only allow audio after a gesture,
+ * unless the user paused it themselves or turned automatic starts off.
  */
-export function useMetronome(userId?: number, followBpm?: number | null) {
+export function useMetronome(userId?: number, followBpm?: number | null, autoStart = false) {
   const following = typeof followBpm === "number";
   const [preferences, setPreferences] = useState(defaults);
   const [running, setRunning] = useState(false);
@@ -47,6 +49,7 @@ export function useMetronome(userId?: number, followBpm?: number | null) {
   const epoch = useRef(0);
   const heartbeat = useRef<ReturnType<typeof setInterval> | null>(null);
   const frame = useRef(0);
+  const pausedByUser = useRef(false);
   const key = userId ? `aidomme-metronome:${userId}` : null;
 
   const pause = useCallback(() => {
@@ -80,6 +83,7 @@ export function useMetronome(userId?: number, followBpm?: number | null) {
           bpm: Math.max(20, Math.min(240, Math.round(stored.bpm))),
           volume: Math.max(0, Math.min(1, stored.volume)),
           muted: !!stored.muted,
+          follow: stored.follow !== false,
         };
     } catch {
       /* Optional local preferences. */
@@ -207,6 +211,26 @@ export function useMetronome(userId?: number, followBpm?: number | null) {
     }
   }, [pause, userId]);
 
+  // The button and the shortcut are the user's own choice: a pause from them sticks until the
+  // session ends; automatic starts never undo it.
+  const userToggle = useCallback(() => {
+    pausedByUser.current = !!owner.current;
+    return toggle();
+  }, [toggle]);
+  useEffect(() => {
+    if (!following) pausedByUser.current = false;
+  }, [following]);
+  useEffect(() => {
+    if (!autoStart || !preferences.follow) return;
+    const start = (e: Event) => {
+      if (owner.current || pausedByUser.current) return;
+      if ((e.target as Element | null)?.closest?.(".aidomme-metronome")) return;
+      void toggle();
+    };
+    document.addEventListener("pointerdown", start, true);
+    return () => document.removeEventListener("pointerdown", start, true);
+  }, [autoStart, preferences.follow, toggle]);
+
   const controls = (
     <section className="aidomme-metronome" aria-label="Metronome">
       <div className="aidomme-metronome-heading">
@@ -241,7 +265,7 @@ export function useMetronome(userId?: number, followBpm?: number | null) {
         </label>
       )}
       <div className="aidomme-tracker-actions">
-        <button disabled={!userId} onClick={() => void toggle()}>
+        <button disabled={!userId} onClick={() => void userToggle()}>
           {starting || running
             ? "Pause metronome"
             : following
@@ -267,6 +291,16 @@ export function useMetronome(userId?: number, followBpm?: number | null) {
         />
         <output>{Math.round(preferences.volume * 100)}%</output>
       </label>
+      {following && (
+        <label>
+          <input
+            type="checkbox"
+            checked={preferences.follow}
+            onChange={(e) => change({ follow: e.target.checked })}
+          />{" "}
+          Start with her pace automatically
+        </label>
+      )}
       {error && <p role="alert">{error}</p>}
       <small>
         One beat per stroke. Hiding the companion keeps it playing; leaving
@@ -274,5 +308,5 @@ export function useMetronome(userId?: number, followBpm?: number | null) {
       </small>
     </section>
   );
-  return { controls, toggle, running, pause };
+  return { controls, toggle: userToggle, running, pause };
 }

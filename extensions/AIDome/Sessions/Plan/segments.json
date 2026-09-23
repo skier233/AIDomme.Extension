@@ -135,7 +135,7 @@
     {
       "id": "torment",
       "name": "Torment",
-      "goal": "Grips that hurt more than they please. He takes every second.",
+      "goal": "Grips so intense he is desperate to stop. He takes every second.",
       "tags": ["torture"],
       "intensity": 8,
       "needs": ["pacing", "methods"],

@@ -16,6 +16,7 @@ vi.mock("@cove/runtime/components", () => ({ getActiveMedia: () => null }));
 const stored = () => ({
   settings: {
     persona: { harshness: 5, humiliation: 3, manipulation: 5, talkativeness: 5, variance: 2, names: ["pet"] },
+    lengths: { length1: 10, length5: 35, length10: 90 },
     segments: { torment: { frequency: "Rarely", length: "Shorter" } },
   },
   segments: [
@@ -42,11 +43,13 @@ it("edits her persona and segment preferences, and saves them together", async (
   expect((screen.getByRole("combobox", { name: "Torment: how often" }) as HTMLSelectElement).value).toBe("Rarely");
   fireEvent.change(screen.getByRole("combobox", { name: "Edge ladder: how often" }), { target: { value: "Often" } });
   fireEvent.change(screen.getByRole("textbox", { name: "What she calls you" }), { target: { value: "pet,  toy , " } });
+  fireEvent.change(screen.getByRole("slider", { name: "Length 5 in minutes" }), { target: { value: "45" } });
   fireEvent.click(screen.getByRole("button", { name: "Save her settings" }));
   await screen.findByText("Saved. New sessions use these settings.");
   const [, options] = runtime.fetch.mock.calls.find(([, o]) => o?.method === "PUT")!;
   const body = JSON.parse(options.body);
   expect(body.persona).toMatchObject({ harshness: 8, names: ["pet", "toy"] });
+  expect(body.lengths).toEqual({ length1: 10, length5: 45, length10: 90 });
   expect(body.segments).toMatchObject({
     torment: { frequency: "Rarely", length: "Shorter" },
     "edge-ladder": { frequency: "Often", length: "Normal" },

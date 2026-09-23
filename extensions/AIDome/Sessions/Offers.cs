@@ -74,6 +74,12 @@ public sealed class PendingOffer
     public OfferFlavor Flavor { get; set; }
     public string Text { get; set; } = "";
     public DateTime ExpiresAtUtc { get; set; }
+    /// <summary>How many offers for the same thing he refused before this one (her price has gone up).</summary>
+    public int AfterRefusals { get; set; }
+    /// <summary>The same kind of deal as the one he last refused, at a higher price.</summary>
+    public bool SameAsRefused { get; set; }
+    /// <summary>Worth more than the offer he last refused for the same thing.</summary>
+    public bool Raised { get; set; }
     /// <summary>For mercy: the game stakes the offer would replace.</summary>
     public List<Consequence> Replaces { get; set; } = [];
 
@@ -115,7 +121,11 @@ public static class Offers
         {
             case OfferBuys.Orgasm:
             {
-                double value = s.Budget * 0.35 + Math.Max(0, s.Budget - s.Points) * 0.6;
+                // What skipping the rest of the session is worth, on a scale that grows gently with
+                // Length, so a long session doesn't make every price its maximum.
+                double scale = 72 * (0.7 + 0.06 * s.Length);
+                double left = s.Budget <= 0 ? 1 : Math.Clamp(1 - s.Points / s.Budget, 0, 1);
+                double value = scale * (0.35 + 0.6 * left);
                 value *= 0.6 + s.Denial / 10.0;
                 return value * s.Mood.Mood switch { DommeMood.Cruel => 1.2, DommeMood.Playful => 0.85, _ => 1.0 };
             }
@@ -136,11 +146,18 @@ public static class Offers
         }
     }
 
-    /// <summary>Picks and fills an offer for what the user wants, or null if nothing in the library fits.</summary>
+    /// <summary>
+    /// Picks and fills an offer for what the user wants, or null if nothing in the library fits.
+    /// Every offer he refused for the same thing raises her price by a third; she usually tries a
+    /// different deal, but may put the same one back on the table, dearer.
+    /// </summary>
     public static PendingOffer? Make(SessionState s, OfferBuys buys, IRandom r, DateTime now, IReadOnlyList<Consequence>? mercy = null)
     {
         double value = Value(s, buys, mercy);
         if (value <= 0) return null;
+        var refused = s.RefusedOffers.Where(x => x.Buys == buys).ToList();
+        var lastRefused = refused.LastOrDefault();
+        value *= Math.Min(2.2, 1 + refused.Count / 3.0);
         var candidates = new List<(OfferTemplate, double)>();
         foreach (var t in s.OfferTemplates)
         {
@@ -159,12 +176,24 @@ public static class Offers
             var (low, high) = Range(t);
             if (value < low * 0.8 || value > high * 1.25) w *= 0.15;
             if (s.RecentOfferTemplates.Contains(t.Id)) w *= 0.3;
+            if (lastRefused is not null)
+            {
+                // After a no, sterner deals; the refused one again only if she is the insisting kind.
+                if (t.Id == lastRefused.TemplateId) w *= 0.4 + s.Persona.Harshness / 20.0 + s.Persona.Manipulation / 20.0;
+                if (t.Flavor is OfferFlavor.Strict or OfferFlavor.Cruel) w *= 1 + refused.Count * 0.4;
+            }
             candidates.Add((t, w));
         }
         if (candidates.Count == 0) return null;
+        // After a no, only deals that can cost more than the one he refused, when there are any.
+        if (lastRefused is not null && candidates.Any(c => Range(c.Item1).High > lastRefused.Points))
+            candidates = candidates.Where(c => Range(c.Item1).High > lastRefused.Points).ToList();
         var template = r.Weighted(candidates, candidates[0].Item1);
         var (amount, hold) = Fill(template, value, r);
-        double points = template.BasePoints + amount * (template.PointsPerUnit + hold * template.PointsPerHoldSecond);
+        double Cost(int n) => template.BasePoints + n * (template.PointsPerUnit + hold * template.PointsPerHoldSecond);
+        // Never cheaper than what he already turned down.
+        while (lastRefused is not null && Cost(amount) <= lastRefused.Points && amount < Math.Max(template.MinAmount, template.MaxAmount)) amount++;
+        double points = Cost(amount);
         s.RecentOfferTemplates.Add(template.Id);
         if (s.RecentOfferTemplates.Count > 4) s.RecentOfferTemplates.RemoveAt(0);
         return new()
@@ -172,6 +201,8 @@ public static class Offers
             Id = Guid.NewGuid(), TemplateId = template.Id, Name = template.Name, Buys = buys, Kind = template.Kind, Amount = amount,
             Hold = hold, Points = Math.Round(points, 1), Flavor = template.Flavor, Severity = Severity(template.Kind, amount),
             Text = Words(template, amount, hold, buys), ExpiresAtUtc = now.AddSeconds(ExpirySeconds), Replaces = mercy?.ToList() ?? [],
+            AfterRefusals = refused.Count, SameAsRefused = lastRefused?.TemplateId == template.Id,
+            Raised = lastRefused is not null && points > lastRefused.Points,
         };
     }
 

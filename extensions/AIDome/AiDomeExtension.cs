@@ -43,7 +43,7 @@ public sealed class AiDomeExtension : FullExtensionBase
 
     public override string Id => "cove.community.aidome";
     public override string Name => "AI Domme";
-    public override string Version => "0.10.0";
+    public override string Version => "0.11.0";
     public override string Description => "A rule-driven domme for guided edging sessions on your Cove library, with an app-wide edge tracker, orgasm permission, games and persistent commitments.";
     public override string Author => "Cove Community";
     public override string Url => "https://github.com/yourcove/AIDome.Extension";
@@ -124,6 +124,7 @@ public sealed class AiDomeExtension : FullExtensionBase
         Migration("006_session_contracts", GuidedMigrations.Load("006_session_contracts"));
         Migration("007_ledger", GuidedMigrations.Load("007_ledger"));
         Migration("008_voice", GuidedMigrations.Load("008_voice"));
+        Migration("009_pace", GuidedMigrations.Load("009_pace"));
     }
 
     public override void MapEndpoints(IEndpointRouteBuilder endpoints)
@@ -256,7 +257,10 @@ public sealed class AiDomeExtension : FullExtensionBase
         {
             var session = _runtimes!.Current.Session;
             var defaults = await session.ResolvedDefaultsAsync(ct);
-            return JsonResult(new AiDomeSetupSnapshot(defaults, await session.Ledger.ViewAsync(ct), ModePresets, session.Messages()));
+            await using var db = _runtimes.Current.Factory.Open();
+            var lengths = (await RecallStore.SettingsAsync(db, ct)).Lengths;
+            var minutes = Enumerable.Range(1, 10).Select(x => (int)Math.Round(lengths.Minutes(x))).ToList();
+            return JsonResult(new AiDomeSetupSnapshot(defaults, await session.Ledger.ViewAsync(ct), ModePresets, session.Messages(), minutes));
         });
 
         group.MapGet("/history", async (int? count, CancellationToken ct) =>

@@ -14,7 +14,14 @@ type Persona = {
   variance: number;
   names: string[];
 };
-type Settings = { persona: Persona; segments: Record<string, Preference> };
+type Lengths = { length1: number; length5: number; length10: number };
+type Settings = { persona: Persona; lengths: Lengths; segments: Record<string, Preference> };
+
+const lengthDials: { key: keyof Lengths; label: string; min: number; max: number }[] = [
+  { key: "length1", label: "Length 1", min: 3, max: 60 },
+  { key: "length5", label: "Length 5", min: 10, max: 180 },
+  { key: "length10", label: "Length 10", min: 20, max: 360 },
+];
 type SegmentInfo = { id: string; name: string; goal: string; tags: string[] };
 
 const dials: { key: keyof Persona; label: string; hint: string }[] = [
@@ -72,6 +79,11 @@ export function HerSettings() {
   }, []);
   if (!settings) return <p>{error || "Loading her settings…"}</p>;
   const persona = settings.persona;
+  const minutes = settings.lengths || { length1: 10, length5: 35, length10: 90 };
+  const setLength = (key: keyof Lengths, value: number) => {
+    setSettings({ ...settings, lengths: { ...minutes, [key]: value } });
+    setNotice("");
+  };
   const setPersona = (patch: Partial<Persona>) => {
     setSettings({ ...settings, persona: { ...persona, ...patch } });
     setNotice("");
@@ -167,6 +179,32 @@ export function HerSettings() {
         </label>
       </fieldset>
 
+      <h2>Session length</h2>
+      <p className="aidomme-muted">
+        Roughly how many minutes of play each Length means to you; the lengths
+        between follow. She still runs on what you do, not the clock: a session
+        full of edges ends sooner than one full of slow teasing, and she learns
+        your pace from the sessions you finish.
+      </p>
+      <fieldset disabled={busy}>
+        {lengthDials.map((dial) => (
+          <label key={dial.key} className="aidomme-dial">
+            <span>
+              {dial.label} <output>{minutes[dial.key]} min</output>
+            </span>
+            <input
+              type="range"
+              min={dial.min}
+              max={dial.max}
+              step={dial.max > 60 ? 5 : 1}
+              value={minutes[dial.key]}
+              aria-label={`${dial.label} in minutes`}
+              onChange={(e) => setLength(dial.key, Number(e.target.value))}
+            />
+          </label>
+        ))}
+      </fieldset>
+
       <h2>What she plans</h2>
       <p className="aidomme-muted">
         A session is a series of segments she chooses as she goes. Tell her
@@ -250,8 +288,12 @@ export function PlanDebug({ plan }: { plan: any }) {
         mind games {persona.manipulation}, talkativeness {persona.talkativeness}.
       </p>
       <p>
-        Ending she leans toward: <b>{plan.ending}</b> ({plan.endingReason}).
-        She will be {String(plan.presentation).toLowerCase()} about it.
+        Ending she leans toward: <b>{plan.ending}</b> ({plan.endingReason}).{" "}
+        {plan.presentation === "Honest"
+          ? "Her hints will be honest."
+          : plan.presentation === "Lie"
+            ? "Her hints may be lies."
+            : "She will keep it to herself."}
       </p>
       <ol className="aidomme-plan-segments">
         {(plan.segments || []).map((segment: any, i: number) => (

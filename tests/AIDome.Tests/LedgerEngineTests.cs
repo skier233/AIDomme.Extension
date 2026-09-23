@@ -127,6 +127,30 @@ public sealed class LedgerEngineTests
     }
 
     [Fact]
+    public void ARefusedOffer_MakesHerNextOfferDearer_AndSheSaysSo()
+    {
+        var clock = new FakeClock();
+        var engine = new SessionEngine(new FixedRandom(0.1), clock);
+        var s = State(SessionMode.FullGuided, offers: [EarnIt, PayInDays]);
+        engine.Begin(s);
+        s.Points = s.Budget * 0.3;
+        var first = Offers.Make(s, OfferBuys.Orgasm, engine.Random, clock.UtcNow)!;
+        s.Offer = first;
+        engine.DeclineOffer(s);
+        Assert.Single(s.RefusedOffers);
+        var asked = engine.RequestPermission(s);
+        var second = Assert.Single(asked.Effects.OfType<OfferMade>()).Offer;
+        Assert.Equal(1, second.AfterRefusals);
+        Assert.Contains(asked.Say, u => u.Act == SpeechAct.OfferMade && u.Has("raised"));
+        Assert.True(second.Points > first.Points, $"{second.Name} {second.Points} after refusing {first.Name} {first.Points}");
+        // A lapsed offer counts as a no too.
+        clock.UtcNow = second.ExpiresAtUtc.AddSeconds(1);
+        engine.Edge(s);
+        Assert.Equal(2, s.RefusedOffers.Count);
+        Assert.Equal(2, Offers.Make(s, OfferBuys.Orgasm, engine.Random, clock.UtcNow)!.AfterRefusals);
+    }
+
+    [Fact]
     public void ADealStruckMidHold_EndsTheHold_SoHeCanPay()
     {
         var clock = new FakeClock();

@@ -253,3 +253,35 @@ it("follows the domme's tempo without a tempo control, and falls silent when she
   expect(screen.getByText("Silent until she sets a pace.")).toBeTruthy();
   expect(output.gain.setValueAtTime).toHaveBeenLastCalledWith(0, expect.any(Number));
 });
+
+function AutoHarness({ auto }: { auto: boolean }) {
+  const metronome = useMetronome(1, 120, auto);
+  return (
+    <>
+      <button>Somewhere on the page</button>
+      {metronome.controls}
+    </>
+  );
+}
+
+it("starts with her pace on the next click during her session, but never undoes the user's own pause", async () => {
+  const view = render(<AutoHarness auto={false} />);
+  fireEvent.pointerDown(screen.getByText("Somewhere on the page"));
+  expect(screen.getByText("Paused")).toBeTruthy();
+  view.rerender(<AutoHarness auto />);
+  fireEvent.pointerDown(screen.getByText("Somewhere on the page"));
+  await screen.findByText("Playing");
+  fireEvent.click(screen.getByText("Pause metronome"));
+  await screen.findByText("Paused");
+  fireEvent.pointerDown(screen.getByText("Somewhere on the page"));
+  await new Promise((done) => setTimeout(done, 20));
+  expect(screen.getByText("Paused")).toBeTruthy();
+});
+
+it("can be told not to start by itself", async () => {
+  render(<AutoHarness auto />);
+  fireEvent.click(screen.getByLabelText("Start with her pace automatically"));
+  fireEvent.pointerDown(screen.getByText("Somewhere on the page"));
+  await new Promise((done) => setTimeout(done, 20));
+  expect(screen.getByText("Paused")).toBeTruthy();
+});

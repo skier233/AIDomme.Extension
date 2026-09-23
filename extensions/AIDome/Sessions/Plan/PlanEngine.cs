@@ -264,6 +264,10 @@ public sealed class PlanEngine(IRandom r, SegmentCatalogue catalogue)
         {
             EndingAuthority.Refresh(s, s.Ending, projected: true);
             plan.Foreshadowed++;
+            // Remember what the hint says, so the ending can own it or reveal the lie.
+            bool allowed = s.Ending.Kind is EndingKind.Full or EndingKind.Ruined;
+            if (s.Ending.Kind != EndingKind.PunishmentEnding)
+                s.Ending.HintedOrgasm = s.Ending.Presentation == Presentation.Honest ? allowed : !allowed;
             say.Add(Utterance.Of(SpeechAct.Foreshadow, $"lean:{s.Ending.Kind}", $"presentation:{s.Ending.Presentation}") with { Stream = SpeechStream.Chatter });
         }
         return say;

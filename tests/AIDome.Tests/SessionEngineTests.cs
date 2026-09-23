@@ -423,4 +423,21 @@ public sealed class SessionEngineTests
         Assert.Equal(edges, open.EdgesThisSession);
         Assert.Equal(2, open.ContractRevision);
     }
+
+    [Fact]
+    public void Length_MeansTheMinutesHeSet_AtHisPace()
+    {
+        var lengths = new SessionLengths { Length1 = 10, Length5 = 30, Length10 = 120 };
+        Assert.Equal(10, lengths.Minutes(1));
+        Assert.Equal(20, lengths.Minutes(3));
+        Assert.Equal(66, lengths.Minutes(7));
+        Assert.Equal(30 * Points.DefaultPointsPerMinute, Points.Budget(5, false, lengths), 3);
+        Assert.Equal(30 * Points.DefaultPointsPerMinute * 1.25, Points.Budget(5, true, lengths), 3);
+        // His own pace takes over as sessions accumulate, within a factor of two of the default.
+        double slow = Points.Budget(5, false, lengths, new Recall { PointsPerMinute = 4, PaceSessions = 9 });
+        Assert.Equal(30 * (8.0 * 3 + 4 * 9) / 12, slow, 3);
+        Assert.Equal(Points.Budget(5, false, lengths, new Recall { PointsPerMinute = 1, PaceSessions = 9 }),
+            Points.Budget(5, false, lengths, new Recall { PointsPerMinute = 4, PaceSessions = 9 }), 3);
+        Assert.Throws<ArgumentException>(() => new SessionLengths { Length1 = 40, Length5 = 30, Length10 = 90 }.Validate());
+    }
 }

@@ -8,14 +8,31 @@ namespace AIDome.Sessions;
 /// </summary>
 public static class Points
 {
-    /// <summary>Budget by Length 1–10. Calibrated for per-edge plus per-second scoring.</summary>
-    private static readonly int[] LengthBudget = [20, 33, 52, 72, 98, 130, 170, 215, 275, 350];
+    /// <summary>
+    /// Points a typical user earns per minute of play (strokes, edges and holds, with rests between).
+    /// Measured from simulated sessions, which run a little fast; each user's own pace replaces it
+    /// as his sessions are recorded.
+    /// </summary>
+    public const double DefaultPointsPerMinute = 8.0;
 
     /// <summary>Stimulation that goes unreported longer than this is not counted (the user may have stepped away).</summary>
     public static readonly TimeSpan MaxUnreportedStimulation = TimeSpan.FromMinutes(5);
 
-    public static double Budget(int length, bool punishment)
-        => LengthBudget[Math.Clamp(length, 1, 10) - 1] * (punishment ? 1.25 : 1.0);
+    /// <summary>The session's points budget: the minutes his Length means, at his pace.</summary>
+    public static double Budget(int length, bool punishment, SessionLengths? lengths = null, Recall? recall = null)
+        => (lengths ?? new()).Minutes(length) * Pace(recall) * (punishment ? 1.25 : 1.0);
+
+    /// <summary>
+    /// His points per minute: the default, pulled toward what his recent sessions show as they
+    /// accumulate (three sessions count as much as the default), and never more than a factor of
+    /// two away from it.
+    /// </summary>
+    public static double Pace(Recall? recall)
+    {
+        if (recall is not { PointsPerMinute: double seen, PaceSessions: > 0 and var n }) return DefaultPointsPerMinute;
+        double observed = Math.Clamp(seen, DefaultPointsPerMinute / 2, DefaultPointsPerMinute * 2);
+        return (DefaultPointsPerMinute * 3 + observed * n) / (3 + n);
+    }
 
     /// <summary>One recorded edge. Later edges in a session are worth slightly more (up to +30%).</summary>
     public static double ForEdge(MethodInfo method, int edgesBefore)

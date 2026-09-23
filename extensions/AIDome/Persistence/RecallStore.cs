@@ -47,7 +47,7 @@ public static class RecallStore
         var sessions = await db.Sessions.AsNoTracking()
             .Where(x => !x.IsDebugSession && x.Mode != "Homework")
             .OrderByDescending(x => x.StartedAtUtc).Take(30)
-            .Select(x => new { x.Id, x.StartedAtUtc, x.LastInteractionUtc, x.Outcome, x.ContractJson, x.PlanJson, x.Mode })
+            .Select(x => new { x.Id, x.StartedAtUtc, x.LastInteractionUtc, x.Outcome, x.ContractJson, x.PlanJson, x.Mode, x.Points, x.ActiveSeconds })
             .ToListAsync(ct);
         var ids = sessions.Select(x => x.Id).ToList();
         var requests = await db.CumRequests.AsNoTracking().Where(x => ids.Contains(x.SessionId))
@@ -99,8 +99,14 @@ public static class RecallStore
             """).ToListAsync(ct);
         var starts = sessions.Select(x => x.StartedAtUtc).ToList();
 
+        // His pace: points per minute of play over his last finished sessions of five minutes or more.
+        var paced = sessions.Where(x => x.Outcome is not (SessionOutcome.Unknown or SessionOutcome.Abandoned) && x.ActiveSeconds >= 300 && x.Points > 0)
+            .Take(10).ToList();
+        double? pace = paced.Count == 0 ? null : paced.Sum(x => x.Points) / (paced.Sum(x => x.ActiveSeconds!.Value) / 60.0);
+
         return new()
         {
+            PointsPerMinute = pace, PaceSessions = paced.Count,
             Sessions = sessions.Count,
             DaysSinceLastSession = sessions.FirstOrDefault() is { } last ? (now - last.LastInteractionUtc).TotalDays : null,
             LastOutcome = finished.FirstOrDefault()?.Outcome,

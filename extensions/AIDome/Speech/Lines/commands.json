@@ -101,7 +101,22 @@
     },
     {
       "id": "instruct.torment", "act": "Instruct", "when": ["step.category!=Rest", "segment=torment|hated-grip"], "weight": 2.5,
-      "variants": ["[Instruction] It's supposed to hurt.", "This one's for me. [Instruction]", "[Instruction] Take every second.", "[Instruction] No stopping, no matter how it feels."]
+      "variants": [
+        "[Instruction] Too much? That's the point.",
+        "This one's for me. [Instruction]",
+        "[Instruction] Take every second.",
+        "[Instruction] No stopping, no matter how it feels.",
+        "[Instruction] You'll want to stop almost at once. You won't.",
+        "[Instruction] Let it overwhelm you."
+      ]
+    },
+    {
+      "id": "instruct.torment.body", "act": "Instruct", "when": ["step.category!=Rest", "segment=torment|hated-grip|punish"], "weight": 1.2,
+      "variants": [
+        "[Instruction] Feel the heat spread all through you.",
+        "[Instruction] Breathe through it. You don't get to stop.",
+        "[Instruction] Don't try to think. You won't manage it."
+      ]
     },
     {
       "id": "instruct.hated", "act": "Instruct", "when": ["step.category!=Rest", "segment=hated-grip", "segment.steps<=1"], "weight": 3,
@@ -192,6 +207,7 @@
       "id": "denied.teasing", "act": "Denied", "when": ["mood=Teasing|Playful", "!#too-slow", "!#why:Promise"],
       "variants": ["You were so hopeful. That's cute. Denied.", "Almost... but no."]
     },
+    { "id": "denied.as-told", "act": "Denied", "when": ["#told:Honest", "!#why:Promise", "!#too-slow"], "weight": 3, "variants": ["I told you tonight wasn't your night. Denied.", "You knew this was coming. No orgasm."] },
     { "id": "denied.after-lie", "act": "Denied", "when": ["#told:Lie"], "weight": 4, "variants": ["I said you might cum tonight. I say a lot of things. Denied.", "Did you believe me? That's adorable. No."] },
     { "id": "denied.promise", "act": "Denied", "when": ["#why:Promise"], "weight": 4, "variants": ["You promised me no orgasm tonight, and you're keeping that promise. We're done.", "Your promise holds. No orgasm. Session over."] },
     { "id": "denied.window", "act": "Denied", "when": ["#why:Denial|why:Sold"], "weight": 4, "variants": ["You're still in denial. Nothing for you tonight.", "Your denial isn't over. So neither is the ache."] },

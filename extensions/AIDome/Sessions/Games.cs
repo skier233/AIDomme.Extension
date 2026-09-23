@@ -404,19 +404,42 @@ public static class Games
         }
     }
 
-    /// <summary>Plain-language description of stakes, used in prompts and choice labels.</summary>
+    /// <summary>
+    /// Stakes in her words, for prompts and choice labels. The session's points never reach him:
+    /// they are her clock, so a points stake becomes mercy or a longer night.
+    /// </summary>
     public static string Describe(IReadOnlyList<Consequence> consequences)
-        => consequences.Count == 0 ? "nothing" : string.Join(" and ", consequences.Select(Describe));
+        => consequences.Count == 0 ? "nothing"
+            : string.Join(" and ", consequences.OrderBy(c => c.Kind is ConsequenceKind.Points or ConsequenceKind.PermissionOdds ? 1 : 0).Select(Describe));
 
     private static string Describe(Consequence c) => c.Description != "" ? c.Description : c.Kind switch
     {
         ConsequenceKind.Rest => $"{c.Amount} seconds of rest",
         ConsequenceKind.ExtraEdges => c.Hold > 0 ? $"{c.Amount} extra edges held for {c.Hold} seconds each" : $"{c.Amount} extra edges",
         ConsequenceKind.Torment => $"{c.Amount} seconds of torment",
-        ConsequenceKind.Points => c.Amount >= 0 ? $"{c.Amount} points off your session" : $"{-c.Amount} points added to your session",
-        ConsequenceKind.PermissionOdds => c.Amount >= 0 ? "better odds when I decide your ending" : "worse odds when I decide your ending",
+        ConsequenceKind.Points => c.Amount switch
+        {
+            >= 10 => "a shorter night for you",
+            >= 6 => "I go easier on you for the rest of tonight",
+            >= 0 => "a little mercy",
+            > -6 => "I keep you a little longer",
+            _ => "a much longer night",
+        },
+        ConsequenceKind.PermissionOdds => c.Amount >= 0 ? "a better chance at a good ending" : "a worse chance at a good ending",
         _ => "",
     };
+
+    /// <summary>The stakes as the engine applies them, for transcripts and the session record.</summary>
+    public static string Mechanics(IReadOnlyList<Consequence> consequences)
+        => consequences.Count == 0 ? "nothing" : string.Join(", ", consequences.Select(c => c.Kind switch
+        {
+            ConsequenceKind.Rest => $"{c.Amount}s rest",
+            ConsequenceKind.ExtraEdges => c.Hold > 0 ? $"{c.Amount} edges held {c.Hold}s" : $"{c.Amount} edges",
+            ConsequenceKind.Torment => $"{c.Amount}s torment",
+            ConsequenceKind.Points => $"{c.Amount:+0;-0} points",
+            ConsequenceKind.PermissionOdds => $"{c.Amount:+0;-0}% ending odds",
+            _ => c.Kind.ToString(),
+        }));
 
     private static Consequence Rest(int seconds) => new(ConsequenceKind.Rest, seconds);
     private static Consequence Torment(int seconds) => new(ConsequenceKind.Torment, seconds);
@@ -430,7 +453,7 @@ public static class Games
         new(ConsequenceKind.PermissionOdds, -40, 0, "denial becomes very likely tonight"),
         new(ConsequenceKind.Torment, 120, 0, "two minutes of your worst"),
         ctx.DommeOwnsEdges ? new(ConsequenceKind.ExtraEdges, 5, 20, "five edges, each held for twenty seconds") : new(ConsequenceKind.Torment, 90, 0, "ninety seconds of torment"),
-        new(ConsequenceKind.Points, 10, 0, "a little mercy: ten points off your session"),
+        new(ConsequenceKind.Points, 10, 0, "a little mercy: I go easier on you for the rest of tonight"),
         new(ConsequenceKind.PermissionOdds, 20, 0, "I'll be generous when I decide your ending"),
     ];
 

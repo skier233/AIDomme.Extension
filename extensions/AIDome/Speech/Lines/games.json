@@ -37,7 +37,7 @@
     { "id": "game.redlight.edge", "act": "GameResult", "when": ["#detail:edge-on-red"], "weight": 5, "variants": ["An edge on a red light. You couldn't stop when I told you to."] },
     { "id": "game.redlight.won", "act": "GameResult", "when": ["#game:RedLightGreenLight", "#result:won"], "weight": 4, "variants": ["Good. That's what obedience looks like."] },
     { "id": "game.redlight.confessed", "act": "GameResult", "when": ["#detail:confessed"], "weight": 5, "variants": ["At least you're honest. You still pay."] },
-    { "id": "game.chicken.bailed", "act": "GameResult", "when": ["#detail:bailed"], "weight": 5, "variants": ["You bailed after [seconds] seconds. That's [made] points off.", "[Seconds] seconds, then you flinched. [Made] points off. Coward."] },
+    { "id": "game.chicken.bailed", "act": "GameResult", "when": ["#detail:bailed"], "weight": 5, "variants": ["You bailed after [seconds] seconds. That bought you a little mercy.", "[Seconds] seconds, then you flinched. Coward. You still earned something."] },
     { "id": "game.chicken.coward", "act": "GameResult", "when": ["#detail:coward"], "weight": 5, "variants": ["Bailed already? Coward. Nothing for you."] },
     { "id": "game.chicken.edged", "act": "GameResult", "when": ["#detail:edged"], "weight": 5, "variants": ["You edged before you bailed. Greedy. You lose all of it."] },
     { "id": "game.chicken.survived", "act": "GameResult", "when": ["#detail:survived"], "weight": 5, "variants": ["You lasted the whole way without edging. I'm almost impressed."] },

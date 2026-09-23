@@ -117,6 +117,7 @@ export function TrackerCompanion() {
       : session?.contract?.pacing === "Domme"
         ? 0
         : undefined,
+    !!guided.snapshot?.sessionActive && session?.contract?.pacing === "Domme" && !session.isPaused,
   );
   useEffect(() => {
     if (snapshot?.preferences.userId)

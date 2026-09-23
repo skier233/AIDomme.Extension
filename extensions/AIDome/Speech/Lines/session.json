@@ -116,7 +116,7 @@
       "when": ["#punishment"],
       "variants": [
         "This session is punishment. Every second of it.",
-        "You're here to be punished. Remember that when it hurts.",
+        "You're here to be punished. Remember that when you're desperate for it to stop.",
         "Punishment time. No mercy tonight."
       ]
     },
@@ -283,7 +283,7 @@
       "id": "segment.torment",
       "act": "SegmentStart",
       "when": ["#segment:torment|segment:hated-grip"],
-      "variants": ["Now something that hurts a little.", "Time to suffer for me.", "This part isn't for your pleasure. It's for mine."]
+      "variants": ["Now something you won't be able to sit still for.", "Time to squirm for me.", "This part isn't for your pleasure. It's for mine.", "Let's see how long before you're begging me to stop."]
     },
     {
       "id": "segment.hated-grip",

@@ -44,7 +44,7 @@
     { "id": "blocked.edges", "act": "Blocked", "when": ["#why:OwedEdges"], "variants": ["Not until you've paid what you owe. [Owed] first.", "You still owe me [owed]. Pay, then ask."] },
 
     // ── Asking for a rest ──
-    { "id": "rest.granted", "act": "BegRestGranted", "when": ["#plain"], "variants": ["Fine. A short break. Don't get used to it.", "Alright. But the next part will be worse.", "I'll let you rest. Only so the next part hurts more."] },
+    { "id": "rest.granted", "act": "BegRestGranted", "when": ["#plain"], "variants": ["Fine. A short break. Don't get used to it.", "Alright. But the next part will be worse.", "I'll let you rest. Only so the next part is worse."] },
     { "id": "rest.granted.twist", "act": "BegRestGranted", "when": ["#twist"], "variants": ["Fine. You can stop this. You won't like what comes next.", "Alright, a change. Be careful what you wish for."] },
     { "id": "rest.denied", "act": "BegRestDenied", "variants": ["No. Keep going.", "You don't get to stop. I decide when this ends.", "Too bad.", "Stop? Not a chance."] },
     { "id": "rest.denied.again", "act": "BegRestDenied", "when": ["begs>=2"], "weight": 2, "variants": ["Asking me to stop again? Now it gets longer.", "Every time you ask to stop, I want to push harder."] },
@@ -60,6 +60,9 @@
     // ── Deals ──
     { "id": "offer.orgasm", "act": "OfferMade", "when": ["#buys:orgasm"], "variants": ["No. Not for free. [offer]", "Not yet... unless you pay for it. [offer]", "You want it that badly? Then pay. [offer]", "Hmm. Maybe. [offer]"] },
     { "id": "offer.orgasm.playful", "act": "OfferMade", "when": ["#buys:orgasm", "mood=Playful|Teasing"], "variants": ["Let's make a deal. [offer]", "I'm feeling generous. Sort of. [offer]"] },
+    { "id": "offer.orgasm.raised", "act": "OfferMade", "when": ["#buys:orgasm", "#raised", "!#same"], "weight": 6, "variants": ["You said no last time. This one costs more. [offer]", "Turning me down was a mistake. [offer]", "The price went up while you were saying no. [offer]", "Try refusing this one. [offer]"] },
+    { "id": "offer.orgasm.same", "act": "OfferMade", "when": ["#buys:orgasm", "#same"], "weight": 6, "variants": ["Same deal. Higher price. [offer]", "I'll ask again, and it's worse now. [offer]", "You didn't like my offer. Here it is again, dearer. [offer]"] },
+    { "id": "offer.rest.raised", "act": "OfferMade", "when": ["#buys:rest", "#raised"], "weight": 6, "variants": ["You refused my last price. This one's higher. [offer]", "A break costs more every time you say no. [offer]"] },
     { "id": "offer.rest", "act": "OfferMade", "when": ["#buys:rest"], "variants": ["A break costs something. [offer]", "Tired already? Fine, but it isn't free. [offer]", "You can have one. For a price. [offer]"] },
     { "id": "offer.accepted.now", "act": "OfferAccepted", "when": ["#pay-now"], "variants": ["Good. Get to work.", "Deal. Now earn it.", "That's what I like to hear."] },
     { "id": "offer.accepted.later", "act": "OfferAccepted", "when": ["#pay-later"], "variants": ["Deal.", "Good. I'll remember that.", "Mmm. Done. Don't forget you owe me."] },

@@ -99,7 +99,9 @@ public sealed class SegmentPlanner(IRandom r, Authorities a) : IPlanner
             }
         }
 
-        var method = Method(s, tpl.Method, seg);
+        // Steps that ask for edges need a method that can get him there.
+        bool edging = tpl.Kind is StepKind.Edges or StepKind.Hold or StepKind.MaxEdges;
+        var method = Method(s, tpl.Method, seg, edging ? MethodPreference.EdgeReach : 0);
         int speed = Speed(s, tpl, seg, type);
         Directive d = tpl.Kind switch
         {
@@ -139,13 +141,15 @@ public sealed class SegmentPlanner(IRandom r, Authorities a) : IPlanner
     }
 
     /// <summary>A method by the segment's policy, within the session's intensity plus the policy's ceiling.</summary>
-    private MethodInfo Method(SessionState s, MethodPolicy policy, PlannedSegment seg)
+    private MethodInfo Method(SessionState s, MethodPolicy policy, PlannedSegment seg, int minCloseness = 0)
     {
         if (!a.Methods.DommeChooses) return MethodInfo.UserChoice(s.Methods);
         int ceiling = Math.Clamp(s.Intensity + policy.Ceiling, 2, 10);
         var preference = new MethodPreference(ceiling, Tease: policy.Prefer == "tease", Torture: policy.Prefer == "torture",
-            Closeness: policy.Prefer == "closeness", Basic: policy.Prefer == "basic");
+            Closeness: policy.Prefer == "closeness", Basic: policy.Prefer == "basic", MinCloseness: minCloseness);
         MethodInfo? fixedMethod = seg.MethodId is int id ? s.Methods.FirstOrDefault(m => m.Id == id) : null;
+        // A method kept for the segment still has to reach the edge when this step asks for one.
+        if (fixedMethod is not null && fixedMethod.Closeness < minCloseness && s.Methods.Any(m => m.Closeness >= minCloseness)) fixedMethod = null;
         switch (policy.Policy)
         {
             case "same" when fixedMethod is not null:
@@ -154,7 +158,7 @@ public sealed class SegmentPlanner(IRandom r, Authorities a) : IPlanner
                 return fixedMethod;
             case "favorite":
             {
-                var favorite = s.Recall.FavoriteMethods.Select(f => s.Methods.FirstOrDefault(m => m.Id == f && m.Intensity <= ceiling)).FirstOrDefault(m => m is not null);
+                var favorite = s.Recall.FavoriteMethods.Select(f => s.Methods.FirstOrDefault(m => m.Id == f && m.Intensity <= ceiling && m.Closeness >= minCloseness)).FirstOrDefault(m => m is not null);
                 var chosen = favorite ?? a.Methods.Choose(s, preference);
                 seg.MethodId = chosen.Id;
                 return chosen;
@@ -234,7 +238,7 @@ public sealed class SegmentPlanner(IRandom r, Authorities a) : IPlanner
                 return new(Rest(s, c.Amount), c.Amount) { Tags = ["reward"] };
             case ConsequenceKind.ExtraEdges when a.Edges.DommeSets:
             {
-                var m = a.Methods.Choose(s, new(Math.Min(10, s.Intensity + 1), Closeness: true, Basic: true));
+                var m = a.Methods.Choose(s, new(Math.Min(10, s.Intensity + 1), Closeness: true, Basic: true, MinCloseness: MethodPreference.EdgeReach));
                 var d = new Directive
                 {
                     Kind = InstructionKind.EdgeCount, Category = StepCategory.Edge, Method = m, Speed = a.Pacing.Speed(r, 5, 9),
@@ -300,7 +304,7 @@ public sealed class SegmentPlanner(IRandom r, Authorities a) : IPlanner
                 Kind = InstructionKind.FreeText, Category = a.PlansSteps ? StepCategory.Edge : StepCategory.FreePlay, Method = MethodInfo.UserChoice(s.Methods),
                 Phase = SessionPhase.Edging, HiddenTimer = !a.PlansSteps, DurationOrCount = price.EdgesLeft, HoldSeconds = price.Hold,
             };
-        var m = a.Methods.Choose(s, new(Math.Min(10, s.Intensity + 1), Closeness: true, Basic: true));
+        var m = a.Methods.Choose(s, new(Math.Min(10, s.Intensity + 1), Closeness: true, Basic: true, MinCloseness: MethodPreference.EdgeReach));
         return new()
         {
             Kind = InstructionKind.EdgeCount, Category = StepCategory.Edge, Method = m, Speed = a.Pacing.Speed(r, 5, 9),
@@ -321,7 +325,8 @@ public sealed class SegmentPlanner(IRandom r, Authorities a) : IPlanner
         Phase = SessionPhase.Building, DurationOrCount = checkSeconds, HiddenTimer = true,
     };
 
-    public MethodInfo Stroke(SessionState s) => a.Methods.Choose(s, new(Math.Min(10, s.Intensity + 1), Basic: true));
+    /// <summary>A plain grip for games, most of which end at the edge, so it must get him there.</summary>
+    public MethodInfo Stroke(SessionState s) => a.Methods.Choose(s, new(Math.Min(10, s.Intensity + 1), Basic: true, MinCloseness: MethodPreference.EdgeReach));
 
     public GameContext GameContext(SessionState s, MethodInfo stroke, DateTime? now = null)
         => new(s.Mean, s.Intensity, s.Arousal, s.Mood.Mood, stroke, a.Edges.DommeSets, s.EdgesThisStep, now ?? s.LastActivityUtc, r);

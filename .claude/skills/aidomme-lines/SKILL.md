@@ -73,6 +73,9 @@ and the voice scheduler if anything below is unclear.
 - Slots in brackets: `[name]`, `[edges]`, `[left]`, `[performer]`, `[tag]`, `[owed]`, `[stakes]`...
   A capitalised slot (`[Edges]`) capitalises its value. Only use slots from `KnownSlots`, and
   only on acts that fill them (check the engine or Knowledge).
+- Torture is intensity, not pain: torturous methods are overwhelming, almost unbearable, and he
+  is desperate to stop. His whole body heats up and he can't focus. Never say it hurts, and don't
+  call it ticklish.
 - On-screen lines use `performer`, `tag`, `screen.now` facts. Keep them rare and specific.
 - Chatter yields to orders: it must make sense on its own, at any quiet moment the conditions
   allow. Never write chatter that assumes what the next order is.

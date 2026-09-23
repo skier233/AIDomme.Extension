@@ -156,6 +156,47 @@ export function SessionActions({
   );
 }
 
+/**
+ * Her words since the current order, shown right under it so nothing she says gets lost in the
+ * log: what she said with the order, and every reaction and aside after it. The newest stands out.
+ */
+export function HerLatest({ messages, order }: { messages: any[]; order?: string }) {
+  let at = -1;
+  for (let i = messages.length - 1; i >= 0; i--)
+    if (messages[i].sender === "Domme" && (messages[i].kind === "order" || messages[i].content === order)) {
+      at = i;
+      break;
+    }
+  if (at < 0) return null;
+  const moment = Date.parse(messages[at].timestamp);
+  // Lines spoken in the same moment as the order (a segment's opening words) belong with it.
+  let from = at;
+  while (
+    from > 0 &&
+    messages[from - 1].sender === "Domme" &&
+    messages[from - 1].kind !== "order" &&
+    Math.abs(Date.parse(messages[from - 1].timestamp) - moment) < 1500
+  )
+    from--;
+  const lines = messages
+    .slice(from)
+    .filter((m, i) => m.sender === "Domme" && from + i !== at && m.content !== order)
+    .slice(-4);
+  if (lines.length === 0) return null;
+  return (
+    <ul className="aidomme-latest" aria-label="What she said" aria-live="polite">
+      {lines.map((m, i) => (
+        <li
+          key={m.id}
+          className={`kind-${m.kind || "say"}${i === lines.length - 1 ? " is-newest" : ""}`}
+        >
+          {m.content}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 /** The chat log: the domme's words, with notices de-emphasized. */
 export function ChatLog({
   messages,
@@ -180,7 +221,7 @@ export function ChatLog({
       {visible.map((message) => (
         <li
           key={message.id}
-          className={`from-${String(message.sender).toLowerCase()}`}
+          className={`from-${String(message.sender).toLowerCase()} kind-${message.kind || "say"}`}
         >
           {message.sender !== "Domme" && <strong>{message.sender} </strong>}
           {message.content}
@@ -238,6 +279,7 @@ export function GuidedPanel() {
       <SessionStatus session={session} />
       <Obligations session={session} />
       {text && <p className="aidomme-current-command">{text}</p>}
+      <HerLatest messages={state.snapshot.messages || []} order={text} />
       <OfferCard session={session} />
       <ChatLog
         messages={(state.snapshot.messages || []).slice(-12)}

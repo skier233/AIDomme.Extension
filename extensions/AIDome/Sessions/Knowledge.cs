@@ -46,10 +46,39 @@ public sealed record PersonaSettings
     }
 }
 
-/// <summary>The user's settings for her: her persona, and how often and how long she uses each segment type.</summary>
+/// <summary>
+/// What the Length setting means to this user: minutes of play for a length 1, 5 and 10 session,
+/// with the lengths between interpolated. Sessions still run on points (what he does, not the
+/// clock); minutes become points at his pace.
+/// </summary>
+public sealed record SessionLengths
+{
+    public int Length1 { get; init; } = 10;
+    public int Length5 { get; init; } = 35;
+    public int Length10 { get; init; } = 90;
+
+    public double Minutes(int length)
+    {
+        length = Math.Clamp(length, 1, 10);
+        return length <= 5
+            ? Length1 + (Length5 - Length1) * (length - 1) / 4.0
+            : Length5 + (Length10 - Length5) * (length - 5) / 5.0;
+    }
+
+    public SessionLengths Validate()
+    {
+        if (Length1 is < 3 or > 120 || Length5 is < 5 or > 240 || Length10 is < 10 or > 480)
+            throw new ArgumentException("Session lengths run from 3 minutes (length 1) to 8 hours (length 10).");
+        if (!(Length1 < Length5 && Length5 < Length10)) throw new ArgumentException("Longer lengths must be longer sessions.");
+        return this;
+    }
+}
+
+/// <summary>The user's settings for her: her persona, what a session length means, and how often and how long she uses each segment type.</summary>
 public sealed record DommeSettings
 {
     public PersonaSettings Persona { get; init; } = new();
+    public SessionLengths Lengths { get; init; } = new();
     public Dictionary<string, SegmentPreference> Segments { get; init; } = new(StringComparer.OrdinalIgnoreCase);
 
     public SegmentPreference For(string segment) => Segments.TryGetValue(segment, out var p) ? p : new();
@@ -64,7 +93,7 @@ public sealed record DommeSettings
                 throw new ArgumentException($"Invalid preference for '{id}'.");
             segments[id] = preference;
         }
-        return new() { Persona = (Persona ?? new()).Validate(), Segments = segments };
+        return new() { Persona = (Persona ?? new()).Validate(), Lengths = (Lengths ?? new()).Validate(), Segments = segments };
     }
 }
 
@@ -135,6 +164,9 @@ public sealed record Recall
     public string[] LastSegments { get; init; } = [];
     public SessionPersona? LastPersona { get; init; }
     public Dictionary<string, ModuleUse> Usage { get; init; } = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>Points he earned per minute of play in his recent finished sessions, and how many sessions that is from.</summary>
+    public double? PointsPerMinute { get; init; }
+    public int PaceSessions { get; init; }
 }
 
 /// <summary>What is on screen right now, as Cove reports it.</summary>

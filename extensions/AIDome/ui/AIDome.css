@@ -140,8 +140,17 @@ kbd {
 .aidomme-current-command { font-size: 1.15rem; line-height: 1.45; font-weight: 600; margin: 0.25rem 0; }
 
 .aidomme-chat { list-style: none; margin: 0; padding: 0; max-height: 44vh; overflow-y: auto; display: flex; flex-direction: column; gap: 0.45rem; }
-.aidomme-chat li { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.45; }
-.aidomme-chat li.from-domme { padding: 0.45rem 0.7rem; border-radius: 0.5rem; background: color-mix(in srgb, var(--color-accent, #4f8ff7) 10%, transparent); }
+.aidomme-chat li { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.5; font-size: 0.98rem; }
+.aidomme-chat li.from-domme { padding: 0.5rem 0.75rem; border-radius: 0.5rem; background: color-mix(in srgb, var(--color-accent, #4f8ff7) 16%, transparent); color: var(--color-text, inherit); }
+.aidomme-chat li.from-domme.kind-order { border-left: 3px solid var(--color-accent, #4f8ff7); }
+.aidomme-chat li.from-domme.kind-aside { font-style: italic; background: color-mix(in srgb, var(--color-accent, #4f8ff7) 8%, transparent); }
+.aidomme-chat li.from-domme:last-child { background: color-mix(in srgb, var(--color-accent, #4f8ff7) 26%, transparent); }
+.aidomme-latest { list-style: none; margin: 0.35rem 0 0.2rem; padding: 0; display: flex; flex-direction: column; gap: 0.3rem; }
+.aidomme-latest li { padding: 0.4rem 0.7rem; border-radius: 0.5rem; line-height: 1.45; font-size: 1rem; background: color-mix(in srgb, var(--color-accent, #4f8ff7) 12%, transparent); }
+.aidomme-latest li.kind-aside { font-style: italic; }
+.aidomme-latest li.is-newest { font-weight: 600; background: color-mix(in srgb, var(--color-accent, #4f8ff7) 24%, transparent); animation: aidomme-arrive 1.6s ease-out; }
+@keyframes aidomme-arrive { from { background: color-mix(in srgb, var(--color-accent, #4f8ff7) 55%, transparent); transform: translateY(-2px); } }
+.aidomme-tracker .aidomme-latest li { font-size: 13px; padding: 0.3rem 0.5rem; }
 .aidomme-chat li.from-manager, .aidomme-chat li.from-system { font-size: 0.82rem; color: var(--color-secondary, #9ea3b0); }
 .aidomme-chat.is-compact { max-height: 150px; font-size: 12.5px; gap: 0.3rem; }
 .aidomme-chat.is-compact li.from-domme { padding: 0.3rem 0.5rem; }

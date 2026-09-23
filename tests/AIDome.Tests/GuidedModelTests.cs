@@ -29,7 +29,7 @@ public sealed class GuidedModelTests
         foreach (var table in GuidedSchema.EntityTypes.Select(x => db.Model.FindEntityType(x)!.GetTableName()))
             Assert.Contains($"CREATE TABLE {table} (", sql);
         // Cove applies migrations as raw SQL, where braces are format placeholders.
-        foreach (var name in new[] { "005_guided_v2", "006_session_contracts", "007_ledger", "008_voice" })
+        foreach (var name in new[] { "005_guided_v2", "006_session_contracts", "007_ledger", "008_voice", "009_pace" })
             Assert.DoesNotContain("{", GuidedMigrations.Load(name));
     }
 

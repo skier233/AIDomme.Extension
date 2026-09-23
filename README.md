@@ -87,8 +87,10 @@ permission all change what comes next. She leans toward an ending early and may 
 about it. Free play has no segments, only her verdict.
 
 Her persona is set once on the Tuning page: harshness, humiliation, mind games, talkativeness, what
-she calls you, and how much she varies from session to session. The same page sets how often she
-uses each kind of segment and how long it runs. Session settings decide how strict a session is;
+she calls you, and how much she varies from session to session. The same page sets how many minutes
+a length 1, 5 and 10 session means to you, and how often she uses each kind of segment and how long
+it runs. Sessions still run on points (what you do), so the minutes are a target: she converts them
+at your pace, which she learns from the sessions you finish. Session settings decide how strict a session is;
 the persona decides how she talks.
 
 She has two streams of speech: orders, on time, and chatter in the quiet between them (remarks,
@@ -96,6 +98,9 @@ teasing, stories, comments on what is on screen). Stock lines don't repeat withi
 are tracked across sessions so they stay rare. A debug session shows her plan and how it changed.
 
 ## Upgrading an existing install
+
+Version 0.11.0 adds migration `009_pace`: one column recording minutes of play per session, so she
+can learn your pace. It only adds a column.
 
 Version 0.10.0 adds migration `008_voice`: her persona and plan settings, the plan kept with each
 session, and a record of which of her lines have been used. It only adds tables and a column. It was

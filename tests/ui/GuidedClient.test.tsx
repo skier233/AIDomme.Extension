@@ -518,3 +518,30 @@ it("proposes a structured promise, and accepts her terms", async () => {
     setup.ledger = { commitments: [], entries: [], followUps: [] };
   }
 });
+
+it("shows what she said since the current order right under it, newest first to catch the eye", async () => {
+  const at = new Date().toISOString();
+  snapshot = {
+    ...snapshot,
+    revision: 5,
+    session: { ...snapshot.session, currentDirective: { text: "Edge for me.", kind: "EdgeCount" } },
+    messages: [
+      { id: "old", sender: "Domme", content: "Earlier order.", kind: "order", timestamp: at },
+      { id: "open", sender: "Domme", content: "One edge at a time.", kind: "say", timestamp: at },
+      { id: "order", sender: "Domme", content: "Edge for me.", kind: "order", timestamp: at },
+      { id: "aside", sender: "Domme", content: "Getting close? Good.", kind: "aside", timestamp: at },
+      { id: "count", sender: "Domme", content: "That's 2.", kind: "say", timestamp: at },
+      { id: "note", sender: "Manager", content: "A notice.", timestamp: at },
+    ],
+  };
+  guidedClient.start(1);
+  await loaded(guidedClient);
+  render(<GuidedPanel />);
+  const latest = await screen.findByRole("list", { name: "What she said" });
+  expect(Array.from(latest.querySelectorAll("li")).map((x) => x.textContent)).toEqual([
+    "One edge at a time.",
+    "Getting close? Good.",
+    "That's 2.",
+  ]);
+  expect(latest.querySelector("li.is-newest")?.textContent).toBe("That's 2.");
+});

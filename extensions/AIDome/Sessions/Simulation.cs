@@ -43,7 +43,7 @@ public sealed record SimulatedUser
     public static readonly SimulatedUser Beggar = new() { Name = "begs to cum", BegEvery = 90 };
     public static readonly SimulatedUser Soft = new() { Name = "begs to stop", BegRestOnTorture = 0.8, Offers = "decline" };
     public static readonly SimulatedUser Silent = new() { Name = "only edges", Offers = "ignore", FailsChallenges = 0.1 };
-    public static readonly SimulatedUser Weak = new() { Name = "fails and slips", EdgeSeconds = 20, FailsChallenges = 0.9, Luck = 0.2, Slips = 1, BegEvery = 240 };
+    public static readonly SimulatedUser Weak = new() { Name = "fails and slips", EdgeSeconds = 20, FailsChallenges = 0.9, Luck = 0.2, Slips = 1, BegEvery = 240, Offers = "decline" };
     public static readonly SimulatedUser[] All = [Obedient, Beggar, Soft, Silent, Weak];
 }
 
@@ -83,6 +83,20 @@ public static class Simulation
                 lines.Add(new(clock.UtcNow - start, line.Stream == SpeechStream.Chatter ? "Her (aside)" : "Her", line.Text, line.Act, s.Current?.Segment,
                     Directive: line.Instruction ? s.Current : null, Turn: turn, Module: line.Module));
             foreach (var notice in t.Notices) lines.Add(new(clock.UtcNow - start, "Note", notice));
+            // What she said about the stakes is her words; the transcript also shows the real numbers.
+            foreach (var effect in t.Effects)
+                switch (effect)
+                {
+                    case GameStarted { Game: var g } when g.Win.Count + g.Loss.Count > 0:
+                        lines.Add(new(clock.UtcNow - start, "Note", $"{g.Type} stakes: win {Games.Mechanics(g.Win)}; lose {Games.Mechanics(g.Loss)}"));
+                        break;
+                    case GameFinished { Result: { } result }:
+                        lines.Add(new(clock.UtcNow - start, "Note", $"game {(result.Neutral ? "over" : result.Won ? "won" : "lost")}: {Games.Mechanics(result.Consequences)}"));
+                        break;
+                    case OfferMade { Offer: var o }:
+                        lines.Add(new(clock.UtcNow - start, "Note", $"offer: {o.Name}, {o.Kind} x{o.Amount}, worth {o.Points:0} points" + (o.AfterRefusals > 0 ? $", after {o.AfterRefusals} refusal(s)" : "")));
+                        break;
+                }
             if (t.Rejected is not null) lines.Add(new(clock.UtcNow - start, "Note", $"refused: {t.Rejected}"));
         }
         void User(string what) => lines.Add(new(clock.UtcNow - start, "Him", what));

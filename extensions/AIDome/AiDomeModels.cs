@@ -34,7 +34,9 @@ public sealed record AiDomeSetupSnapshot(
     ResolvedDefaults Defaults,
     LedgerView Ledger,
     IReadOnlyList<ModePresetView> Modes,
-    IReadOnlyList<ChatMessage> Messages);
+    IReadOnlyList<ChatMessage> Messages,
+    /// <summary>Roughly how many minutes of play each Length (1 to 10) means for this user.</summary>
+    IReadOnlyList<int>? LengthMinutes = null);
 
 public sealed record StartSessionRequest(SessionContract Contract);
 public sealed record HomeworkRequest(SessionContract Contract, bool Punishment = false);

@@ -9,7 +9,8 @@ using Microsoft.Extensions.Logging;
 
 namespace AIDome.Sessions;
 
-public record ChatMessage(Guid Id, DateTime Timestamp, string Sender, string Content);
+/// <summary>A line in the chat log. Kind, for her lines: "order" (an instruction), "say" (a reaction or remark) or "aside" (chatter).</summary>
+public record ChatMessage(Guid Id, DateTime Timestamp, string Sender, string Content, string Kind = "say");
 public record ResolvedDefaults(int Intensity, int Length, int Denial, int Mean);
 /// <summary>The running game as the user sees it: never the secret, only how to answer.</summary>
 public sealed record GameView(GameType Type, string Name, GameInput Input, IReadOnlyList<GameChoice> Choices);
@@ -171,7 +172,7 @@ public sealed class SessionHost : IDisposable
         var state = new SessionState
         {
             SessionId = record.Id, Contract = contract, Methods = methods, Enders = enders, OfferTemplates = offers, Recall = recall,
-            Plan = new SessionPlan { Preferences = settings.Segments },
+            Plan = new SessionPlan { Preferences = settings.Segments }, Lengths = settings.Lengths,
             HoursSinceLastOrgasmAtStart = metrics.LastOrgasmAtUtc is DateTime last ? (now - last).TotalHours : null,
         };
         Transition t;
@@ -302,7 +303,7 @@ public sealed class SessionHost : IDisposable
     {
         List<Spoken> lines;
         lock (sync) lines = Narrate([u]);
-        foreach (var line in lines) AddMessage("Domme", line.Text);
+        foreach (var line in lines) AddMessage("Domme", line.Text, KindOf(line));
         return string.Join(" ", lines.Select(x => x.Text));
     }
 
@@ -315,7 +316,7 @@ public sealed class SessionHost : IDisposable
             if (State is { } s && voice.NextChatter(s, Engine.Clock.UtcNow) is DateTime due && due <= Engine.Clock.UtcNow.AddSeconds(1))
                 lines = voice.Tick(s, Context(s));
         }
-        foreach (var line in lines) AddMessage("Domme", line.Text);
+        foreach (var line in lines) AddMessage("Domme", line.Text, KindOf(line));
         await RecordUsageAsync(ct);
         ArmChatter();
     }
@@ -405,6 +406,7 @@ public sealed class SessionHost : IDisposable
         var state = new SessionState
         {
             SessionId = record.Id, Contract = contract, Methods = methods, Recall = recall, Plan = new SessionPlan { Preferences = settings.Segments },
+            Lengths = settings.Lengths,
         };
         var result = Simulation.Run(state, SimulatedUser.Obedient with { Name = "homework", Offers = "decline", FailsChallenges = 0, BegEvery = 0 },
             Engine.Random.Next(0, int.MaxValue), chatter: false);
@@ -584,7 +586,7 @@ public sealed class SessionHost : IDisposable
                 Notice("Part of this session's record could not be saved. The session continues.");
             }
         }
-        foreach (var line in lines) AddMessage("Domme", line.Text);
+        foreach (var line in lines) AddMessage("Domme", line.Text, KindOf(line));
         foreach (var line in t.Notices) AddMessage("Manager", line);
         if (t.Rejected is not null) AddMessage("System", t.Rejected);
         await RecordUsageAsync(ct);
@@ -651,8 +653,8 @@ public sealed class SessionHost : IDisposable
                     var row = db.Add(new GameChallenge
                     {
                         SessionId = sessionId, IssuedAtUtc = now, GameType = started.Game.Type, CorrectAnswer = started.Game.Secret,
-                        Prompt = Truncate(started.Game.Prompt, 1024), SuccessReward = Truncate(Games.Describe(started.Game.Win), 512),
-                        FailureConsequence = Truncate(Games.Describe(started.Game.Loss), 512),
+                        Prompt = Truncate(started.Game.Prompt, 1024), SuccessReward = Truncate(Games.Mechanics(started.Game.Win), 512),
+                        FailureConsequence = Truncate(Games.Mechanics(started.Game.Loss), 512),
                     });
                     await db.SaveChangesAsync(ct);
                     lock (sync) started.Game.RecordId = row.Id;
@@ -702,6 +704,8 @@ public sealed class SessionHost : IDisposable
                     lock (sync) points = State?.Points ?? 0;
                     record.Outcome = ended.Outcome;
                     record.Points = (int)Math.Round(points);
+                    if (ended.State is { } played)
+                        record.ActiveSeconds = (int)Math.Max(0, (played.LastActivityUtc - played.StartedAtUtc).TotalSeconds - played.PausedSeconds);
                     record.LastInteractionUtc = now;
                     if (ended.State?.Plan is { } plan) record.PlanJson = JsonSerializer.Serialize(plan, Json);
                     await db.SaveChangesAsync(ct);
@@ -796,15 +800,17 @@ public sealed class SessionHost : IDisposable
     /// <summary>Her words outside a session transition (promises, answers to her questions).</summary>
     public void Say(string text) => AddMessage("Domme", text);
 
-    private void AddMessage(string sender, string text)
+    private void AddMessage(string sender, string text, string kind = "say")
     {
         if (string.IsNullOrWhiteSpace(text)) return;
         lock (sync)
         {
-            messages.Add(new ChatMessage(Guid.NewGuid(), Engine.Clock.UtcNow, sender, text));
+            messages.Add(new ChatMessage(Guid.NewGuid(), Engine.Clock.UtcNow, sender, text, kind));
             if (messages.Count > MaxMessages) messages.RemoveRange(0, messages.Count - MaxMessages);
         }
     }
+
+    private static string KindOf(Spoken line) => line.Instruction ? "order" : line.Stream == SpeechStream.Chatter ? "aside" : "say";
 
     private static string Truncate(string value, int length) => value.Length <= length ? value : value[..length];
 

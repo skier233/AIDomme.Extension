@@ -449,3 +449,29 @@ shrinks the rest of the plan before dropping the segments that fit late least.
 length predates the plan and may need retuning against real sessions. The line library is a first
 draft. Free play chatter has no segment context, so it leans on edges, begs and the screen. Games
 carry their own point bonuses, which the plan treats as progress like any other points.
+
+## 15. First feedback round (0.11.0)
+
+From the user's first live sessions and transcript reading:
+
+- **Metronome**: it followed her tempo but only after a click on "Follow her pace". It now starts
+  on the next click anywhere while a session runs at her pace (browsers need a gesture for audio),
+  unless the user paused it or turned automatic starts off.
+- **Chat**: her lines are tagged order / say / aside. Everything she said since the current order
+  shows under it, newest highlighted; the log has more contrast, asides in italics.
+- **Ending lean**: the reason now reads "N% chance she lets him cum; the draw made at the start
+  says yes/no". Her hints are recorded when given, so the ending owns a hint that came true and
+  reveals one that didn't, instead of assuming from the planned presentation.
+- **Games**: points never reach him. Points stakes read as mercy or a longer night; transcripts
+  note the real stakes and results.
+- **Torment**: intensity, not pain: overwhelming, desperate to stop, body heating up, can't focus.
+  Transcripts fail on "hurt".
+- **Length**: the user sets the minutes a length 1, 5 and 10 session means (defaults 10, 35, 90).
+  Budget = minutes x points per minute; the rate starts at 8 and moves toward the user's own pace
+  from finished sessions (migration 009 records active seconds). Offer prices scale gently with
+  length so long sessions don't max every price.
+- **Edge methods**: steps that ask for edges (and games, prices, edge stakes) only use methods with
+  Closeness 5 or more when any exist. Transcripts fail otherwise.
+- **Offers**: each refused or lapsed offer raises her next price for the same thing by a third,
+  only deals that can cost more are considered, sterner flavors gain weight, and she may repeat the
+  refused deal dearer. Lines say so only when the price really went up.

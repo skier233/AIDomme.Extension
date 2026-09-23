@@ -60,7 +60,7 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
     {
         var t = new Transition();
         s.StartedAtUtc = s.LastActivityUtc = s.StepStartedAtUtc = Now;
-        s.Budget = Points.Budget(s.Length, s.Contract.Punishment);
+        s.Budget = Points.Budget(s.Length, s.Contract.Punishment, s.Lengths, s.Recall);
         var owed = s.Contract.Obligations;
         s.DenialUntilUtc = owed.NoOrgasmUntilUtc;
         s.DenialReason = owed.NoOrgasmReason;
@@ -362,7 +362,7 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
         s.RequestsDenied++;
         if (MayOffer(s, OfferBuys.Orgasm) && Offers.Make(s, OfferBuys.Orgasm, random, Now) is { } offer)
         {
-            t.Say.Add(Utterance.Of(SpeechAct.OfferMade, "buys:orgasm", $"flavor:{offer.Flavor}").With("offer", offer.Text));
+            t.Say.Add(OfferLine(offer));
             Put(s, t, offer);
             return t;
         }
@@ -399,7 +399,7 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
         }
         if (MayOffer(s, OfferBuys.Rest) && Offers.Make(s, OfferBuys.Rest, random, Now) is { } offer)
         {
-            t.Say.Add(Utterance.Of(SpeechAct.OfferMade, "buys:rest", $"flavor:{offer.Flavor}").With("offer", offer.Text));
+            t.Say.Add(OfferLine(offer));
             Put(s, t, offer);
             return t;
         }
@@ -752,7 +752,7 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
         }
         EndingAuthority.Refresh(s, s.Ending, projected: false);
         var lean = s.Ending;
-        string told = $"told:{lean.Presentation}";
+        string told = lean.Told(orgasm: false);
         if (Blocked(s) is { } block)
         {
             s.FinishDecided = true;
@@ -789,7 +789,7 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
         s.FinishRuinOwed = !ruinNow && s.OwedRuins > 0;
         s.FinishRuined = ruinNow || s.FinishRuinOwed;
         var finishing = planner.Finishing(s, s.FinishRuined);
-        var tags = new List<string> { requested ? "requested" : "her-decision", $"told:{s.Ending.Presentation}" };
+        var tags = new List<string> { requested ? "requested" : "her-decision", s.Ending.Told(orgasm: true) };
         if (s.FinishRuined) tags.Add("ruined");
         Present(s, t, finishing, finishing.DurationOrCount, newStep: true, act: SpeechAct.Finish, tags: [.. tags]);
     }
@@ -892,8 +892,19 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
 
     private static void Decide(SessionState s, Transition t, OfferStatus status)
     {
-        t.Effects.Add(new OfferDecided(s.Offer!, status));
+        var offer = s.Offer!;
+        t.Effects.Add(new OfferDecided(offer, status));
+        if (status is OfferStatus.Declined or OfferStatus.Expired) s.RefusedOffers.Add(new(offer.Buys, offer.TemplateId, offer.Points));
         s.Offer = null;
+    }
+
+    /// <summary>Her words for an offer: whether her price went up since his last no, and whether it's the same deal.</summary>
+    private static Utterance OfferLine(PendingOffer offer)
+    {
+        var line = Utterance.Of(SpeechAct.OfferMade, $"buys:{offer.Buys.ToString().ToLowerInvariant()}", $"flavor:{offer.Flavor}").With("offer", offer.Text);
+        if (offer.Raised) line = line.Tagged("raised");
+        if (offer.Raised && offer.SameAsRefused) line = line.Tagged("same");
+        return line;
     }
 
     /// <summary>Orgasm and rest offers lapse quietly; a mercy offer waits on its own timer.</summary>

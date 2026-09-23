@@ -129,6 +129,12 @@ public sealed class TranscriptTests(ITestOutputHelper output)
                 Assert.DoesNotContain("[", line.Text);
                 Assert.DoesNotContain("  ", line.Text);
                 Assert.DoesNotContain(" .", line.Text);
+                // Points are her clock, never something she talks about; torment overwhelms, it doesn't hurt.
+                Assert.False(System.Text.RegularExpressions.Regex.IsMatch(line.Text, @"points", System.Text.RegularExpressions.RegexOptions.IgnoreCase), $"She mentioned points in {name}: {line.Text}");
+                Assert.False(System.Text.RegularExpressions.Regex.IsMatch(line.Text, @"hurts?", System.Text.RegularExpressions.RegexOptions.IgnoreCase), $"She called it pain in {name}: {line.Text}");
+                // She only asks for edges on a method that can get him there.
+                if (line.Directive is { Method: { IsUserChoice: false } m } d && (d.Kind == Data.InstructionKind.EdgeCount || d.CountEdges))
+                    Assert.True(m.Closeness >= MethodPreference.EdgeReach, $"Edges asked on {m.Name} (closeness {m.Closeness}) in {name}: {line.Text}");
             }
             // Asides never repeat within a session; a story is told once.
             var asides = hers.Where(x => x.Who == "Her (aside)").Select(x => x.Text).ToList();

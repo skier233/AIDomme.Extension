@@ -25,6 +25,14 @@ public sealed class EndingLean
     public double Draw { get; set; }
     public double RuinDraw { get; set; }
     public string Reason { get; set; } = "";
+    /// <summary>What her hints told him: that he would cum (true), that he wouldn't (false), or nothing yet.</summary>
+    public bool? HintedOrgasm { get; set; }
+
+    /// <summary>
+    /// How her hints compare with how it ends: "told:Honest" when they came true, "told:Lie" when
+    /// they didn't, "told:Silent" when she never hinted.
+    /// </summary>
+    public string Told(bool orgasm) => HintedOrgasm is bool hinted ? hinted == orgasm ? "told:Honest" : "told:Lie" : "told:Silent";
 }
 
 /// <summary>
@@ -74,11 +82,13 @@ public static class EndingAuthority
         if (!allowed)
         {
             lean.Kind = EndingKind.Denied;
-            lean.Reason = $"odds {chance:0}%";
+            lean.Reason = $"{chance:0}% chance she lets him cum; the draw made at the start says no";
             return;
         }
         lean.Kind = s.OwedRuins > 0 || lean.RuinDraw < RuinChance(s) ? EndingKind.Ruined : EndingKind.Full;
-        lean.Reason = s.OwedRuins > 0 ? "an owed ruin" : $"odds {chance:0}%";
+        lean.Reason = s.OwedRuins > 0 ? "an owed ruin"
+            : $"{chance:0}% chance she lets him cum; the draw made at the start says yes"
+              + (lean.Kind == EndingKind.Ruined ? $", and her {RuinChance(s):P0} ruin chance came up" : "");
     }
 
     /// <summary>How likely an allowed orgasm is ruined by her choice.</summary>
