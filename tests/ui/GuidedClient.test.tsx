@@ -97,7 +97,7 @@ const contract = (content = "Domme", pacing = "Domme") => ({
 });
 const setup = {
   defaults: { intensity: 5, length: 5, denial: 5, mean: 5 },
-  activePunishments: [],
+  ledger: { commitments: [], entries: [], followUps: [] },
   messages: [],
   modes: [
     { mode: "FullGuided", name: "Fully guided", description: "She decides everything.", contract: contract() },
@@ -423,4 +423,83 @@ it("starts a session with the chosen mode's authorities and the user's preferenc
   const body = JSON.parse(runtime.fetch.mock.calls.find(([path]) => path.endsWith("/session/start"))![1].body);
   expect(body.contract).toMatchObject({ content: "User", methods: "User", pacing: "Domme", edges: "Domme" });
   expect(body.contract.preferences).toMatchObject({ mean: 8, intensity: -1 });
+});
+
+const bodyOf = (suffix: string) => {
+  const call = runtime.fetch.mock.calls.find(([path]) => path.endsWith(suffix));
+  return call ? JSON.parse(call[1].body) : undefined;
+};
+
+it("asks her questions before anything else, and sends the chosen answer", async () => {
+  snapshot = {
+    ...snapshot,
+    sessionActive: false,
+    session: null,
+    followUps: [
+      {
+        id: "q1",
+        kind: "UnauthorizedOrgasm",
+        question: "You came without my permission. Was it an accident?",
+        observed: "An orgasm was recorded.",
+        occurredAtUtc: new Date().toISOString(),
+        answers: [
+          { value: "accident", label: "It was an accident" },
+          { value: "intent", label: "I did it on purpose" },
+        ],
+      },
+    ],
+  };
+  guidedClient.start(1);
+  await waitFor(() => expect(guidedClient.getSnapshot().setup).not.toBeNull());
+  render(<CommandCenterPage />);
+  expect(await screen.findByText("Before anything else")).toBeTruthy();
+  expect((screen.getByRole("button", { name: "Begin" }) as HTMLButtonElement).disabled).toBe(true);
+  fireEvent.click(screen.getByRole("button", { name: "It was an accident" }));
+  await waitFor(() => expect(bodyOf("/followups/q1/answer")).toEqual({ answer: "accident" }));
+});
+
+it("shows her offer with accept and decline, and the debts the session carries", async () => {
+  snapshot = {
+    ...snapshot,
+    session: {
+      ...snapshot.session,
+      canRequestPermission: false,
+      owedEdges: 4,
+      noOrgasmUntilUtc: null,
+      offer: { id: "o1", buys: "Orgasm", kind: "EdgesNow", text: "Edge 5 more times, then you may cum.", secondsLeft: 40 },
+    },
+  };
+  guidedClient.start(1);
+  await loaded(guidedClient);
+  render(<GuidedPanel />);
+  expect(screen.getByText("Edge 5 more times, then you may cum.")).toBeTruthy();
+  expect(screen.getByText("4 owed edges")).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Accept" }));
+  await waitFor(() => expect(bodyOf("/session/control")).toMatchObject({ action: "offer-accept", sessionId: 10 }));
+});
+
+it("proposes a structured promise, and accepts her terms", async () => {
+  snapshot = { ...snapshot, sessionActive: false, session: null, followUps: [] };
+  setup.ledger = {
+    commitments: [
+      { id: "c1", status: "Pending", response: "Not enough. Make it no orgasm for the next 5 days.", description: "no orgasm for the next 5 days", stakes: [] },
+    ],
+    entries: [{ id: 1, kind: "Edges", status: "Owed", description: "10 edges before you cum again", reason: "You came without permission." }],
+    followUps: [],
+  };
+  try {
+    guidedClient.start(1);
+    await waitFor(() => expect(guidedClient.getSnapshot().setup).not.toBeNull());
+    render(<CommandCenterPage />);
+    expect(await screen.findByText("10 edges before you cum again")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Accept her terms" }));
+    await waitFor(() => expect(runtime.fetch.mock.calls.some(([path]) => path.endsWith("/commitments/c1/accept"))).toBe(true));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Mean" }));
+    fireEvent.click(screen.getByRole("radio", { name: /For/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Propose" }));
+    await waitFor(() => expect(bodyOf("/commitments/propose")).toBeDefined());
+    expect(bodyOf("/commitments/propose").terms).toMatchObject({ scope: "Days", days: 3, noOrgasm: true, mean: true });
+  } finally {
+    setup.ledger = { commitments: [], entries: [], followUps: [] };
+  }
 });

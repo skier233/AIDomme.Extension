@@ -149,6 +149,8 @@ describe("tracker companion", () => {
       "session-complete",
       "session-permission",
       "session-stop-request",
+      "offer-accept",
+      "offer-decline",
       "session-pause",
     ]);
     fireEvent.click(screen.getByRole("button", { name: "Hide tracker" }));

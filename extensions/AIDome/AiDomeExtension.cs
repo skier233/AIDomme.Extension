@@ -42,7 +42,7 @@ public sealed class AiDomeExtension : FullExtensionBase
 
     public override string Id => "cove.community.aidome";
     public override string Name => "AI Domme";
-    public override string Version => "0.8.0";
+    public override string Version => "0.9.0";
     public override string Description => "A rule-driven domme for guided edging sessions on your Cove library, with an app-wide edge tracker, orgasm permission, games and persistent commitments.";
     public override string Author => "Cove Community";
     public override string Url => "https://github.com/yourcove/AIDome.Extension";
@@ -62,7 +62,6 @@ public sealed class AiDomeExtension : FullExtensionBase
         services.AddSingleton<GuidedRuntimes>();
         services.AddScoped<GuidedTrackerBridge>();
         services.AddScoped<GuidedConfiguration>();
-        services.AddScoped<CommitmentStore>();
         services.AddScoped<TrackerService>();
         services.AddSingleton<MetronomeLeases>();
         services.AddSingleton<NarrationLeases>();
@@ -103,6 +102,8 @@ public sealed class AiDomeExtension : FullExtensionBase
             .AddKeyboardAction("session-permission", "Ask permission to cum", ["Alt+B"], [new("global"), new("overlay")], group: "AI Domme")
             .AddKeyboardAction("session-stop-request", "Beg for a rest", ["Alt+S"], [new("global"), new("overlay")], group: "AI Domme")
             .AddKeyboardAction("session-pause", "Pause / resume session", ["Alt+P"], [new("global"), new("overlay")], group: "AI Domme")
+            .AddKeyboardAction("offer-accept", "Accept her offer", ["Alt+Y"], [new("global"), new("overlay")], group: "AI Domme")
+            .AddKeyboardAction("offer-decline", "Decline her offer", ["Alt+N"], [new("global"), new("overlay")], group: "AI Domme")
             .Build();
 
     public override void ConfigureModel(ModelBuilder modelBuilder)
@@ -119,6 +120,7 @@ public sealed class AiDomeExtension : FullExtensionBase
         Migration("004_commitments", GuidedMigrations.Superseded);
         Migration("005_guided_v2", GuidedMigrations.Load("005_guided_v2"));
         Migration("006_session_contracts", GuidedMigrations.Load("006_session_contracts"));
+        Migration("007_ledger", GuidedMigrations.Load("007_ledger"));
     }
 
     public override void MapEndpoints(IEndpointRouteBuilder endpoints)
@@ -139,7 +141,13 @@ public sealed class AiDomeExtension : FullExtensionBase
             await runtime.Gate.WaitAsync(invocation.HttpContext.RequestAborted);
             try
             {
-                await invocation.HttpContext.RequestServices.GetRequiredService<GuidedTrackerBridge>().DrainUnderGateAsync(runtime, invocation.HttpContext.RequestAborted);
+                var ct = invocation.HttpContext.RequestAborted;
+                await invocation.HttpContext.RequestServices.GetRequiredService<GuidedTrackerBridge>().DrainUnderGateAsync(runtime, ct);
+                // A session nobody was watching stops as of the last visit; then facts are reconciled
+                // (breaches become questions) before anything else is answered.
+                await runtime.Session.InterruptIfUnattendedAsync(ct);
+                runtime.Session.Seen();
+                await runtime.Session.Ledger.ReconcileAsync(ct);
                 return await next(invocation);
             }
             catch (ArgumentException ex) { return Results.BadRequest(new { message = ex.Message }); }
@@ -179,9 +187,34 @@ public sealed class AiDomeExtension : FullExtensionBase
         group.MapPost("/configuration/optimize", async (GuidedConfiguration config, CancellationToken ct) =>
             await TrackerResultAsync(async () => await config.OptimizeAsync(ct)));
 
-        group.MapGet("/commitments", async (CommitmentStore store, CancellationToken ct) => JsonResult(await store.GetAsync(ct)));
-        group.MapPost("/commitments/mutate", async (CommitmentMutation request, CommitmentStore store, CancellationToken ct) =>
-            JsonResult(await store.MutateAsync(request, ct)));
+        group.MapPut("/configuration/offers/{id:int}", async (int id, OfferDefinition body, GuidedConfiguration config, CancellationToken ct) =>
+            await TrackerResultAsync(async () => await config.SaveAsync(id, body, ct)));
+        group.MapDelete("/configuration/offers/{id:int}/override", async (int id, GuidedConfiguration config, CancellationToken ct) =>
+            await TrackerResultAsync(async () => await config.ResetAsync<OfferDefinition>(id, ct)));
+
+        // ── Promises, the ledger and her questions ──
+        group.MapGet("/ledger", async (CancellationToken ct) => JsonResult(await _runtimes!.Current.Session.Ledger.ViewAsync(ct)));
+        group.MapPost("/commitments/propose", async (CommitmentProposal request, CancellationToken ct) =>
+        {
+            if (request?.Terms is null) return Results.BadRequest(new { message = "Terms are required." });
+            await _runtimes!.Current.Session.Ledger.ProposeAsync(request.Terms, ct);
+            return JsonResult(await _runtimes.Current.Session.Ledger.ViewAsync(ct));
+        });
+        group.MapPost("/commitments/{id:guid}/accept", async (Guid id, CancellationToken ct) =>
+        {
+            await _runtimes!.Current.Session.Ledger.DecideAsync(id, accept: true, ct);
+            return JsonResult(await _runtimes.Current.Session.Ledger.ViewAsync(ct));
+        });
+        group.MapPost("/commitments/{id:guid}/decline", async (Guid id, CancellationToken ct) =>
+        {
+            await _runtimes!.Current.Session.Ledger.DecideAsync(id, accept: false, ct);
+            return JsonResult(await _runtimes.Current.Session.Ledger.ViewAsync(ct));
+        });
+        group.MapPost("/followups/{id:guid}/answer", async (Guid id, FollowUpAnswerRequest request, CancellationToken ct) =>
+        {
+            await _runtimes!.Current.Session.Ledger.AnswerAsync(id, request?.Answer ?? "", ct);
+            return JsonResult(await BuildSnapshotAsync(ct));
+        });
 
         // ── Live state ──
         // Polls only refresh the saved countdown occasionally; state changes are saved when they happen.
@@ -191,8 +224,7 @@ public sealed class AiDomeExtension : FullExtensionBase
         {
             var session = _runtimes!.Current.Session;
             var defaults = await session.ResolvedDefaultsAsync(ct);
-            var punishments = await session.ActivePunishmentsAsync(ct);
-            return JsonResult(new AiDomeSetupSnapshot(defaults, punishments, ModePresets, session.Messages()));
+            return JsonResult(new AiDomeSetupSnapshot(defaults, await session.Ledger.ViewAsync(ct), ModePresets, session.Messages()));
         });
 
         group.MapGet("/history", async (int? count, CancellationToken ct) =>
@@ -237,7 +269,7 @@ public sealed class AiDomeExtension : FullExtensionBase
             if (session is null || request.SessionId != session.SessionId)
                 return Results.Conflict(new { message = "The session changed. Refresh before acting." });
             var action = request.Action switch { "beg-to-cum" => "request-permission", "beg-to-stop" => "request-rest", var other => other };
-            if (action is not ("pause" or "resume" or "end" or "game-answer" or "done" or "request-permission" or "request-rest"))
+            if (action is not ("pause" or "resume" or "end" or "game-answer" or "done" or "request-permission" or "request-rest" or "offer-accept" or "offer-decline"))
                 return Results.BadRequest(new { message = "Unknown session control." });
             // Step-specific controls must still refer to the instruction the user saw.
             if (action is "done" or "game-answer" && (session.IsPaused || request.StepNumber != session.StepNumber))
@@ -325,7 +357,7 @@ public sealed class AiDomeExtension : FullExtensionBase
         var mediaCue = session is { IsPaused: false, Contract.Content: Authority.Domme }
             ? runtime.Media.Advance(session.SessionId, true) : runtime.Media.Advance(null, false);
         return new AiDomeStateSnapshot(runtime.Factory.UserId, runtime.InstanceId, runtime.Revision, session is not null,
-            session, runtime.Session.StepEndsAtUtc(), mediaCue, runtime.Session.Messages());
+            session, runtime.Session.StepEndsAtUtc(), mediaCue, runtime.Session.Messages(), await runtime.Session.Ledger.OpenFollowUpsAsync(ct));
     }
 
     private static readonly IReadOnlyList<ModePresetView> ModePresets =

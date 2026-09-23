@@ -47,6 +47,9 @@ public sealed class PunishmentEnder : IDefinition<PunishmentEnder>
     [MaxLength(512)]
     public string AnnouncementText { get; set; } = string.Empty;
 
+    /// <summary>False for endings that deny (they can serve during a denial window).</summary>
+    public bool EndsInOrgasm { get; set; } = true;
+
     /// <summary>A detached copy presented under the definition's stable ID.</summary>
     public PunishmentEnder AsDefinition(int id)
     {

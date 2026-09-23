@@ -32,13 +32,13 @@ public sealed class GuidedData : IAsyncDisposable, IDisposable
     public IQueryable<OrgasmEntry> Orgasms => Owned<OrgasmEntry>();
     public IQueryable<CumRequest> CumRequests => Owned<CumRequest>();
     public IQueryable<InstructionStep> InstructionSteps => Owned<InstructionStep>();
-    public IQueryable<PunishmentEntry> Punishments => Owned<PunishmentEntry>();
     public IQueryable<InfractionEntry> Infractions => Owned<InfractionEntry>();
     public IQueryable<GameChallenge> GameChallenges => Owned<GameChallenge>();
     public IQueryable<GuidedEventReceipt> TrackerReceipts => Owned<GuidedEventReceipt>();
     public IQueryable<OfferRecord> Offers => Owned<OfferRecord>();
     public IQueryable<CommitmentRecord> Commitments => Owned<CommitmentRecord>();
-    public IQueryable<CommitmentReportRecord> CommitmentReports => Owned<CommitmentReportRecord>();
+    public IQueryable<FollowUpRecord> FollowUps => Owned<FollowUpRecord>();
+    public IQueryable<LedgerEntry> Ledger => Owned<LedgerEntry>();
 
     /// <summary>Shared calibration plus this account's own.</summary>
     public IQueryable<TuningRatingEntry> TuningRatings
@@ -82,6 +82,7 @@ public sealed class GuidedData : IAsyncDisposable, IDisposable
     public Task<List<StimMethod>> MethodsAsync(CancellationToken ct = default) => Definitions.EffectiveAsync(Db.Set<StimMethod>(), UserId, ct);
     public List<StimMethod> Methods() => Definitions.Effective(Db.Set<StimMethod>(), UserId);
     public Task<List<PunishmentEnder>> EndersAsync(CancellationToken ct = default) => Definitions.EffectiveAsync(Db.Set<PunishmentEnder>(), UserId, ct);
+    public Task<List<OfferDefinition>> OfferDefinitionsAsync(CancellationToken ct = default) => Definitions.EffectiveAsync(Db.Set<OfferDefinition>(), UserId, ct);
 
     public void Dispose() => scope?.Dispose();
 

@@ -10,6 +10,7 @@ type View = {
 type Configuration = {
   methods: View[];
   enders: View[];
+  offers: View[];
   ratings: View[];
   comparisons: View[];
 };
@@ -35,7 +36,40 @@ const enderFields = [
   ["requiresBondage", "Requires bondage", "checkbox"],
   ["requiresCEI", "Requires CEI", "checkbox"],
   ["requiresSelfOral", "Requires self-oral", "checkbox"],
+  ["endsInOrgasm", "Ends in an orgasm", "checkbox"],
 ];
+const offerFields = [
+  ["name", "Name", "text"],
+  ["wording", "Her words ([amount], [hold], [s] and [what] are filled in)", "textarea"],
+  ["kind", "Price", "offerKind"],
+  ["minAmount", "Smallest amount", "number"],
+  ["maxAmount", "Largest amount", "number"],
+  ["minHold", "Shortest hold (seconds, edges now only)", "number"],
+  ["maxHold", "Longest hold (seconds)", "number"],
+  ["basePoints", "Base value (session points)", "number"],
+  ["pointsPerUnit", "Value per unit", "number"],
+  ["pointsPerHoldSecond", "Value per hold second, per edge", "number"],
+  ["flavor", "Flavor", "flavor"],
+  ["moods", "Moods that favour it (comma-separated)", "text"],
+  ["forOrgasm", "Can buy an orgasm", "checkbox"],
+  ["forRest", "Can buy a rest", "checkbox"],
+  ["forMercy", "Can buy mercy after a lost game", "checkbox"],
+  ["enabled", "She uses it", "checkbox"],
+];
+const choices: Record<string, string[]> = {
+  toy: ["None", "HeadVibrator", "Fleshlight", "Autoblow", "ProstateMassager"],
+  offerKind: [
+    "EdgesNow",
+    "EdgesLater",
+    "Denial",
+    "PunishmentSession",
+    "PunishmentEnding",
+    "Ruin",
+    "RuinNow",
+  ],
+  flavor: ["Strict", "Cruel", "Playful", "Teasing", "Humiliating"],
+};
+const fields = { methods: methodFields, enders: enderFields, offers: offerFields };
 
 async function request(path = "", method = "GET", body?: unknown) {
   const response = await extensionFetch(
@@ -64,7 +98,7 @@ async function request(path = "", method = "GET", body?: unknown) {
 
 export function DefinitionSettings() {
   const [data, setData] = useState<Configuration | null>(null);
-  const [kind, setKind] = useState<"methods" | "enders">("methods");
+  const [kind, setKind] = useState<"methods" | "enders" | "offers">("methods");
   const [selected, setSelected] = useState(1);
   const [draft, setDraft] = useState<Definition | null>(null);
   const [busy, setBusy] = useState(false);
@@ -123,6 +157,7 @@ export function DefinitionSettings() {
           >
             <option value="methods">Stroking methods</option>
             <option value="enders">Punishment endings</option>
+            <option value="offers">Offers (her deals)</option>
           </select>
         </label>
         <label>
@@ -155,7 +190,7 @@ export function DefinitionSettings() {
               );
             }}
           >
-            {(kind === "methods" ? methodFields : enderFields).map(
+            {fields[kind].map(
               ([key, label, type]) => (
                 <label key={key}>
                   {label}
@@ -166,22 +201,16 @@ export function DefinitionSettings() {
                         setDraft({ ...draft, [key]: e.target.value })
                       }
                     />
-                  ) : type === "toy" ? (
+                  ) : choices[type] ? (
                     <select
                       value={draft[key]}
                       onChange={(e) =>
                         setDraft({ ...draft, [key]: e.target.value })
                       }
                     >
-                      {[
-                        "None",
-                        "HeadVibrator",
-                        "Fleshlight",
-                        "Autoblow",
-                        "ProstateMassager",
-                      ].map((toy) => (
-                        <option key={toy} value={toy}>
-                          {toy}
+                      {choices[type].map((choice) => (
+                        <option key={choice} value={choice}>
+                          {choice}
                         </option>
                       ))}
                     </select>

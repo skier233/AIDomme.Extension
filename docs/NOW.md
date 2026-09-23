@@ -193,6 +193,83 @@ Goal: the four modes exist, as presets over independent authorities, on a rewrit
 
 ## Phase 3 — Commitments, offers and the punishment ledger (6–10 days)
 
+**Status: done 2026-09-23 (version 0.9.0).** Migration `007_ledger` adds the ledger, structured
+commitments, the offer library and follow-up questions. It carries earlier punishments into the
+ledger (origin `Legacy`). Earlier free-form offers and commitments cannot be enforced, so they are
+kept under `aidomme_legacy_*` names; the real install had none, so its old tables are simply
+dropped. What landed:
+
+- **Promises** (`Sessions/Ledger.cs`, `Persistence/LedgerStore.cs`): picked on the setup page, not
+  typed. The options are no orgasm plus any of long, intense, torturous, mean and teasing, for the
+  next session or for 1–60 days, with an optional note. She answers in the chat. She accepts, or
+  asks for more (more days, or another trait), and always names what breaking it costs. A promise
+  broken in the last 30 days makes her ask for more, with harsher stakes. The user then accepts her
+  terms or takes the promise back. Promises are made before a session, not during one.
+- **Obligations are folded into the session contract** (`SessionContract.Obligations`, set by
+  the server). A no-orgasm promise or a denial window blocks permission. At her ending it means
+  denial, in every mode. Traits raise the length, intensity and meanness preferences and weight
+  the planner toward torment or teasing. An owed punishment session makes the session one. Owed
+  edges must be recorded before she allows an orgasm, and she collects them before deciding the
+  ending. An owed ruin ruins the next permitted orgasm. An owed punishment ending replaces her
+  ending with one from the library; during a denial window only endings without an orgasm qualify.
+  A new `EndsInOrgasm` flag on endings marks those.
+- **Settling**: a session she brought to her own ending serves an owed punishment session and
+  keeps its session promises. Edges, ruins and endings are served as they happen. Anything
+  unserved goes back to owed. Session promises carry over to the next session when one stops
+  uncleanly. Ledger rows are never deleted.
+- **Offers** (`Sessions/Offers.cs`, `aidomme_offer_definitions`): a library with shared defaults
+  and personal overrides, edited on the Tuning page. Each offer has her wording with `[amount]`,
+  `[hold]`, `[s]` and `[what]` slots, a price kind, amount and hold ranges, a point value, a flavor
+  and moods that favour it. The price kinds are edges now, edges owed, denial days, punishment
+  sessions, a punishment ending, ruined orgasms, and "ruined now". Ten defaults ship.
+  - **When she offers:** when she refuses a request to cum (more often the more you beg), refuses
+    a rest, or you lose a game (mercy).
+  - **How she prices it:** she values what is asked for in session points. An orgasm is worth
+    more early in a session and more at high denial. She picks an offer weighted by her mood, her
+    meanness and how well it fits that value, then fills in the amount.
+  - **Same deal in every mode:** because the price comes from the same points, a deal costs the
+    same whoever sets the pace.
+  - **Accepting and declining:** accept or decline with Alt+Y / Alt+N or the buttons. An orgasm or
+    rest offer lapses after a minute. A mercy offer waits a minute and then the loss stands. Edges
+    now are paid by recording them in any mode, then she grants the orgasm or rest. A ledger price
+    for an orgasm starts after that orgasm; a price for a rest or mercy applies at once.
+- **Breaches found from facts** (`LedgerStore.ReconcileAsync`): whenever the account is next seen,
+  she checks tracker orgasms against sessions and against no-orgasm windows. That covers orgasms
+  recorded outside AI Domme and while a session was paused. An orgasm that breaks either becomes a
+  question: accident or on purpose? The answer applies the broken promise's stakes, plus a
+  punishment session if it was deliberate. Without a promise, the standing rules apply: accidents
+  cost owed edges, deliberate ones a punishment session and denial days. An orgasm undone in the
+  tracker before it is answered voids its question. Debug sessions never create questions or
+  ledger entries.
+- **Unclean endings are never lost**: a session stops, and she asks what happened, when:
+  - Cove stops mid-session (on the next start);
+  - no page or companion has checked in for 3 minutes (browser closed, machine asleep);
+  - a pause lasts 12 hours.
+
+  It cannot be resumed until the question is answered. The answers are: something interrupted me
+  (no cost; resumable for 6 hours), I stopped on purpose (walking out costs a punishment session
+  and owed edges, and breaks that session's promises), or I came (accident or on purpose). Open
+  questions block starting a session, and they show on the page and in the companion.
+- **Removed**: `PunishmentEntry` and its table, the free-form `CommitmentStore`, and its panel.
+  In-session retaliation stays as mood; lasting consequences now live in the ledger.
+- **Tests**: `LedgerEngineTests` covers denial in every mode, owed edges, the same offer in every
+  mode, price timing, mercy, punishment endings, ruins, interruptions and the rules.
+  `LedgerPostgresTests` covers these end to end over HTTP:
+  - promises folded into a session and kept;
+  - a broken promise outside a session, answered and voided by an undo;
+  - an interrupted session and walking out;
+  - an in-session orgasm without permission;
+  - an accepted offer's ledger price;
+  - debug sessions staying out of the ledger.
+
+  The model test also checks that migrations contain no `{`, because Cove runs them as raw SQL
+  where braces are format placeholders. Migrations 005–007 were run against a copy of the real
+  install's tables.
+
+Known limits: a failed hold is not detected (holds are on your honour, and nothing the tracker
+records shows one). Offers are not made during games; mercy is offered after a lost game. Her
+wording for promises and deals is still a small fixed set, pending the narration work in Phase 4.
+
 1. **Structured commitment picker** on the setup screen and available to the domme as a counter:
    denial length (days), scope (this session / until date), session character (long, intense,
    torturous, mean, teasing…), combinable, optional note.

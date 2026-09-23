@@ -12,7 +12,7 @@ export { TrackerCompanion } from "./Tracker";
 import { TrackerCompanion, openTracker } from "./Tracker";
 import { DefinitionSettings } from "./Configuration";
 import { guidedApi, guidedClient, useGuidedSession } from "./GuidedClient";
-import { CommitmentPanel } from "./Commitments";
+import { FollowUps, LedgerPanel, Obligations, OfferCard, PromiseForm } from "./Ledger";
 import {
   ChatLog,
   GameControls,
@@ -83,7 +83,6 @@ export function CommandCenterPage() {
       </div>
       {state.error && <div className="aidomme-error">{state.error}</div>}
       {session ? <SessionScreen session={session} /> : <SetupScreen />}
-      <CommitmentPanel />
     </div>
   );
 }
@@ -118,6 +117,7 @@ function SetupScreen() {
     };
   }, []);
   if (!setup || !contract) return <p className="aidomme-muted">Loading…</p>;
+  const questions = state.snapshot?.followUps?.length > 0;
 
   const patch = (data: Partial<Contract>) =>
     setContract({ ...contract, ...data });
@@ -144,6 +144,12 @@ function SetupScreen() {
 
   return (
     <>
+      {questions && (
+        <section className="aidomme-card">
+          <h2>Before anything else</h2>
+          <FollowUps />
+        </section>
+      )}
       <section className="aidomme-card">
         <h2>How do you want to play?</h2>
         <div className="aidomme-modes" role="group" aria-label="Session mode">
@@ -276,7 +282,8 @@ function SetupScreen() {
           <button
             type="button"
             className="is-primary"
-            disabled={state.busy || !!state.pending}
+            disabled={state.busy || !!state.pending || (questions && !contract.debug)}
+            title={questions && !contract.debug ? "Answer her first." : undefined}
             onClick={() => void start()}
           >
             Begin
@@ -284,21 +291,11 @@ function SetupScreen() {
         </div>
       </section>
 
-      {setup.activePunishments?.length > 0 && (
-        <section className="aidomme-card">
-          <h2>You still owe her</h2>
-          <ul className="aidomme-list">
-            {setup.activePunishments.map((p: any) => (
-              <li key={p.id}>
-                {p.description}
-                {p.denialEndsAtUtc &&
-                  ` · until ${new Date(p.denialEndsAtUtc).toLocaleString()}`}
-                {p.remainingCount > 0 && ` · ${p.remainingCount} left`}
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      <section className="aidomme-card">
+        <h2>Promises and debts</h2>
+        <LedgerPanel ledger={setup.ledger} />
+        <PromiseForm />
+      </section>
 
       {setup.messages?.length > 0 && (
         <section className="aidomme-card">
@@ -469,9 +466,12 @@ function SessionScreen({ session }: { session: any }) {
   return (
     <>
       <MediaWindow session={session} />
+      <FollowUps />
       <section className="aidomme-card">
         <SessionStatus session={session} />
+        <Obligations session={session} />
         {text && <p className="aidomme-current-command">{text}</p>}
+        <OfferCard session={session} />
         <GameControls
           game={session.game}
           disabled={blocked}

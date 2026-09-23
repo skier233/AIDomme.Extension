@@ -9,16 +9,6 @@ namespace AIDome.Sessions;
 
 public record ChatMessage(Guid Id, DateTime Timestamp, string Sender, string Content);
 public record ResolvedDefaults(int Intensity, int Length, int Denial, int Mean);
-public sealed class PunishmentSummary
-{
-    public int Id { get; init; }
-    public string Description { get; init; } = "";
-    public PunishmentCategory Category { get; init; }
-    public int Tier { get; init; }
-    public int RemainingCount { get; init; }
-    public DateTime? DenialEndsAtUtc { get; init; }
-}
-
 /// <summary>The running game as the user sees it: never the secret, only how to answer.</summary>
 public sealed record GameView(GameType Type, string Name, GameInput Input, IReadOnlyList<GameChoice> Choices);
 
@@ -50,7 +40,19 @@ public sealed record SessionView
     public bool CanComplete { get; init; }
     /// <summary>The metronome tempo she is setting right now (0 = silent or not hers to set).</summary>
     public int Tempo { get; init; }
+    /// <summary>Her deal on the table, if any.</summary>
+    public OfferView? Offer { get; init; }
+    /// <summary>What the user still owes this session.</summary>
+    public int OwedEdges { get; init; }
+    public int OwedRuins { get; init; }
+    public bool OwesPunishmentEnding { get; init; }
+    /// <summary>No orgasm before this time; <see cref="DateTime.MaxValue"/> for the whole session.</summary>
+    public DateTime? NoOrgasmUntilUtc { get; init; }
+    /// <summary>Stopped with nobody here; she asks what happened before it can resume.</summary>
+    public bool Interrupted { get; init; }
 }
+
+public sealed record OfferView(Guid Id, OfferBuys Buys, OfferKind Kind, string Text, int SecondsLeft);
 
 /// <summary>
 /// Owns one account's running session: applies engine transitions under a lock, persists what they
@@ -70,6 +72,10 @@ public sealed class SessionHost : IDisposable
     private Timer? timer;
     private long armedGeneration = -1;
     private bool disposed;
+    private DateTime lastSeenUtc;
+
+    /// <summary>A running session nobody has looked at for this long stops, as of the last visit.</summary>
+    public static readonly TimeSpan UnattendedAfter = TimeSpan.FromMinutes(3);
 
     public SessionHost(GuidedDataFactory data, IInstructionEngine homework, ILogger logger, IRandom? random = null, IClock? clock = null,
         Func<IRandom, Authorities, IPlanner>? planners = null)
@@ -78,9 +84,12 @@ public sealed class SessionHost : IDisposable
         this.homework = homework;
         this.logger = logger;
         Engine = new SessionEngine(random ?? SystemRandom.Instance, clock ?? SystemClock.Instance, planners);
+        Ledger = new LedgerStore(data, this);
+        lastSeenUtc = Engine.Clock.UtcNow;
     }
 
     public SessionEngine Engine { get; }
+    public LedgerStore Ledger { get; }
 
     /// <summary>Set by the account runtime so timer transitions take the same gate as requests.</summary>
     public Func<Func<Task>, Task>? TimerDispatcher { get; init; }
@@ -98,9 +107,12 @@ public sealed class SessionHost : IDisposable
     public async Task StartAsync(SessionContract requested, CancellationToken ct)
     {
         if (Active) throw new InvalidOperationException("The current session isn't over yet.");
-        var contract = requested.Validate();
+        var contract = requested.Validate() with { Obligations = new() };
+        if (!contract.Debug) await Ledger.ReconcileAsync(ct, force: true);
         var now = Engine.Clock.UtcNow;
         await using var db = data.Open();
+        if (!contract.Debug && await db.FollowUps.AnyAsync(x => x.Status == FollowUpStatus.Open, ct))
+            throw new InvalidOperationException("Answer her questions before you start.");
         var defaults = await ResolvedDefaultsAsync(db, ct);
         var p = contract.Preferences;
         contract = contract with
@@ -117,23 +129,27 @@ public sealed class SessionHost : IDisposable
         if (contract.Methods == Authority.Domme && methods.Count == 0) throw new ArgumentException("No methods match these limits.");
         var metrics = await data.ReadTrackerMetricsAsync(now, ct);
 
-        var limits = contract.Limits;
-        var record = db.Add(new SessionRecord
-        {
-            StartedAtUtc = now, LastInteractionUtc = now, Intensity = contract.Preferences.Intensity, Length = contract.Preferences.Length,
-            Denial = contract.Preferences.Denial, Mean = contract.Preferences.Mean, Kink = -1,
-            AllowToys = limits.Toys.Length > 0, AllowVibrator = limits.Toys.Contains(ToyCategory.HeadVibrator),
-            AllowFleshlight = limits.Toys.Contains(ToyCategory.Fleshlight), AllowAutoblow = limits.Toys.Contains(ToyCategory.Autoblow),
-            AllowProstate = limits.Toys.Contains(ToyCategory.ProstateMassager), AllowAnal = limits.Anal, AllowBondage = limits.Bondage,
-            AllowCEI = limits.Cei, AllowSelfOral = limits.SelfOral, IsDebugSession = contract.Debug,
-            Mode = contract.Mode.ToString(), ContractJson = JsonSerializer.Serialize(contract, Json),
-        });
+        var record = db.Add(new SessionRecord { StartedAtUtc = now, LastInteractionUtc = now, Kink = -1, IsDebugSession = contract.Debug });
+        Describe(record, contract);
         await db.SaveChangesAsync(ct);
+        // What the user owes is folded in; a debug session never carries obligations.
+        if (!contract.Debug)
+        {
+            contract = LedgerStore.Apply(contract, await LedgerStore.FoldAsync(db, record.Id, now, ct));
+            Describe(record, contract);
+            await db.SaveChangesAsync(ct);
+        }
         await RecordContractAsync(db, record.Id, 1, contract, ct);
 
+        var limits = contract.Limits;
+        var enders = contract.Obligations.PunishmentEnding
+            ? (await db.EndersAsync(ct)).Where(e => (!e.RequiresBondage || limits.Bondage) && (!e.RequiresCEI || limits.Cei) && (!e.RequiresSelfOral || limits.SelfOral))
+                .Select(EnderInfo.From).ToList()
+            : [];
+        var offers = (await db.OfferDefinitionsAsync(ct)).Where(x => x.Enabled).Select(OfferTemplate.From).ToList();
         var state = new SessionState
         {
-            SessionId = record.Id, Contract = contract, Methods = methods,
+            SessionId = record.Id, Contract = contract, Methods = methods, Enders = enders, OfferTemplates = offers,
             HoursSinceLastOrgasmAtStart = metrics.LastOrgasmAtUtc is DateTime last ? (now - last).TotalHours : null,
         };
         Transition t;
@@ -145,6 +161,27 @@ public sealed class SessionHost : IDisposable
         }
         Notice($"Session {record.Id} started: {ModeName(contract.Mode)}.");
         await FinishAsync(t, ct);
+    }
+
+    private static void Describe(SessionRecord record, SessionContract contract)
+    {
+        var limits = contract.Limits;
+        var p = contract.Preferences;
+        record.Intensity = p.Intensity;
+        record.Length = p.Length;
+        record.Denial = p.Denial;
+        record.Mean = p.Mean;
+        record.AllowToys = limits.Toys.Length > 0;
+        record.AllowVibrator = limits.Toys.Contains(ToyCategory.HeadVibrator);
+        record.AllowFleshlight = limits.Toys.Contains(ToyCategory.Fleshlight);
+        record.AllowAutoblow = limits.Toys.Contains(ToyCategory.Autoblow);
+        record.AllowProstate = limits.Toys.Contains(ToyCategory.ProstateMassager);
+        record.AllowAnal = limits.Anal;
+        record.AllowBondage = limits.Bondage;
+        record.AllowCEI = limits.Cei;
+        record.AllowSelfOral = limits.SelfOral;
+        record.Mode = contract.Mode.ToString();
+        record.ContractJson = JsonSerializer.Serialize(contract, Json);
     }
 
     public async Task ChangeContractAsync(int sessionId, int revision, SessionContract requested, CancellationToken ct)
@@ -175,6 +212,8 @@ public sealed class SessionHost : IDisposable
         "request-permission" => ApplyAsync(Engine.RequestPermission, ct),
         "request-rest" => ApplyAsync(Engine.RequestRest, ct),
         "game-answer" => ApplyAsync(s => Engine.Answer(s, answer ?? throw new ArgumentException("An answer is required.")), ct),
+        "offer-accept" => ApplyAsync(Engine.AcceptOffer, ct),
+        "offer-decline" => ApplyAsync(Engine.DeclineOffer, ct),
         "end" => ApplyAsync(s => Engine.End(s, SessionOutcome.Unknown), ct),
         _ => throw new ArgumentException("Unknown session control."),
     };
@@ -214,6 +253,48 @@ public sealed class SessionHost : IDisposable
         await ApplyAsync(s => Engine.End(s, SessionOutcome.Unknown), ct);
         Notice("Guidance stopped after a tracking correction. Recorded counts were corrected; start a new session to continue.");
     }
+
+    /// <summary>Ends the session with an outcome decided outside the engine (an answer about an interruption).</summary>
+    public Task EndAsync(SessionOutcome outcome, CancellationToken ct) => ApplyAsync(s => Engine.End(s, outcome), ct);
+
+    /// <summary>A page or the companion checked in: someone is here.</summary>
+    public void Seen() { lock (sync) lastSeenUtc = Engine.Clock.UtcNow; }
+
+    /// <summary>A running session nobody has looked at for a while stops as of the last visit.</summary>
+    public async Task InterruptIfUnattendedAsync(CancellationToken ct)
+    {
+        DateTime seen;
+        lock (sync)
+        {
+            if (!Unattended(State)) return;
+            seen = lastSeenUtc;
+        }
+        await ApplyAsync(s => Engine.Interrupt(s, seen), ct);
+    }
+
+    /// <summary>Cove is stopping: the session stops now, and she asks about it next time.</summary>
+    public async Task InterruptAsync(CancellationToken ct)
+    {
+        if (Active && !Paused) await ApplyAsync(s => Engine.Interrupt(s, Engine.Clock.UtcNow), ct);
+    }
+
+    /// <summary>A session left paused for too long is treated as interrupted.</summary>
+    public async Task InterruptLongPauseAsync(TimeSpan after, CancellationToken ct)
+    {
+        DateTime pausedAt;
+        lock (sync)
+        {
+            if (State is not { Active: true, Paused: true, InterruptedAtUtc: null, PausedAtUtc: DateTime at } s || s.Contract.Debug
+                || Engine.Clock.UtcNow - at < after) return;
+            pausedAt = at;
+        }
+        await ApplyAsync(s => Engine.Interrupt(s, pausedAt), ct);
+    }
+
+    public void ClearInterruption() { lock (sync) if (State is { } s) Engine.ClearInterruption(s); }
+
+    private bool Unattended(SessionState? s)
+        => s is { Active: true, Paused: false } && !s.Contract.Debug && Engine.Clock.UtcNow - lastSeenUtc > UnattendedAfter;
 
     /// <summary>Ends without any outcome (recovery found an interrupted command).</summary>
     public void Abandon(string notice)
@@ -264,7 +345,8 @@ public sealed class SessionHost : IDisposable
             int remaining = d?.HiddenTimer == true ? -1
                 : s.Paused ? (s.PausedTimerSeconds > 0 ? s.PausedTimerSeconds : -1)
                 : s.TimerDueUtc is DateTime due ? Math.Max(0, (int)Math.Ceiling((due - now).TotalSeconds)) : -1;
-            int? edgesRemaining = d is { Kind: InstructionKind.EdgeCount } && !s.Holding ? Math.Max(0, d.DurationOrCount - s.EdgesThisStep)
+            int? edgesRemaining = s.Price is { } price && !s.Holding ? price.EdgesLeft
+                : d is { Kind: InstructionKind.EdgeCount } && !s.Holding ? Math.Max(0, d.DurationOrCount - s.EdgesThisStep)
                 : s.Game is { Type: GameType.EdgeRush or GameType.EdgeWager } g && (g.Type == GameType.EdgeRush || g.Phase == 1)
                     ? Math.Max(0, g.Target - (s.EdgesThisStep - g.EdgesAtPhaseStart)) : null;
             return new()
@@ -276,10 +358,18 @@ public sealed class SessionHost : IDisposable
                 Mood = s.Mood.Mood.ToString(), Phase = d?.Phase ?? SessionPhase.Building,
                 Game = s.Game is { } game ? new(game.Type, GameName(game.Type), game.Input, game.Choices) : null,
                 PermissionGranted = s.PermissionGranted,
-                CanRequestPermission = !s.FinishDecided && s.Game is null,
-                CanRequestRest = a.Pacing.DommeSets && !s.FinishDecided && s.Game is null && d?.Kind != InstructionKind.Rest && !s.Holding,
+                CanRequestPermission = !s.FinishDecided && s.Game is null && s.Offer is null && s.Price is null,
+                CanRequestRest = a.Pacing.DommeSets && !s.FinishDecided && s.Game is null && s.Offer is null && s.Price is null
+                    && d?.Kind != InstructionKind.Rest && !s.Holding,
                 CanComplete = d?.Kind == InstructionKind.Finish || (s.PendingLube is not null && d?.Category == StepCategory.Rest && s.TimerDueUtc is null),
                 Tempo = s.Paused ? 0 : d?.Tempo ?? 0,
+                Offer = s.Offer is { } offer && (offer.Buys == OfferBuys.Mercy || offer.ExpiresAtUtc > now)
+                    ? new(offer.Id, offer.Buys, offer.Kind, offer.Text,
+                        offer.Buys == OfferBuys.Mercy ? Math.Max(0, remaining) : Math.Max(0, (int)Math.Ceiling((offer.ExpiresAtUtc - now).TotalSeconds)))
+                    : null,
+                OwedEdges = s.OwedEdges, OwedRuins = s.OwedRuins, OwesPunishmentEnding = s.OwedEndings > 0,
+                NoOrgasmUntilUtc = s.DenialUntilUtc is DateTime until && until > now ? until : null,
+                Interrupted = s.InterruptedAtUtc is not null,
             };
         }
     }
@@ -320,20 +410,6 @@ public sealed class SessionHost : IDisposable
         return await db.Sessions.AsNoTracking().OrderByDescending(s => s.StartedAtUtc).Take(Math.Clamp(count, 1, 100)).ToListAsync(ct);
     }
 
-    public async Task<IReadOnlyList<PunishmentSummary>> ActivePunishmentsAsync(CancellationToken ct)
-    {
-        await using var db = data.Open();
-        var now = Engine.Clock.UtcNow;
-        return await db.Punishments.AsNoTracking()
-            .Where(p => !p.Completed && (p.DenialEndsAtUtc == null || p.DenialEndsAtUtc > now))
-            .OrderByDescending(p => p.IssuedAtUtc).Take(10)
-            .Select(p => new PunishmentSummary
-            {
-                Id = p.Id, Description = p.Description, Category = p.Category, Tier = p.Tier,
-                RemainingCount = p.RemainingCount, DenialEndsAtUtc = p.DenialEndsAtUtc,
-            }).ToListAsync(ct);
-    }
-
     // ── Recovery ──
 
     public string? ExportState() { lock (sync) return State is { Active: true } s ? JsonSerializer.Serialize(s, Json) : null; }
@@ -359,6 +435,8 @@ public sealed class SessionHost : IDisposable
                 s.TimerDueUtc = null;
                 s.TimerGeneration++;
                 s.ActiveSinceUtc = null;
+                // It was running when Cove stopped: she will ask what happened.
+                if (!s.Contract.Debug) s.InterruptedAtUtc ??= savedAtUtc;
             }
             State = s.Active ? s : null;
         }
@@ -400,7 +478,8 @@ public sealed class SessionHost : IDisposable
     private async Task PersistAsync(IReadOnlyList<SessionEffect> effects, CancellationToken ct)
     {
         int sessionId;
-        lock (sync) sessionId = State?.SessionId ?? 0;
+        bool debug;
+        lock (sync) (sessionId, debug) = (State?.SessionId ?? 0, State?.Contract.Debug ?? true);
         await using var db = data.Open();
         var now = Engine.Clock.UtcNow;
         foreach (var effect in effects)
@@ -431,6 +510,30 @@ public sealed class SessionHost : IDisposable
                 case PermissionAnswered answered:
                     db.Add(new CumRequest { SessionId = sessionId, TimestampUtc = now, Decision = answered.Granted });
                     break;
+                case OfferMade made:
+                {
+                    var o = made.Offer;
+                    db.Add(new OfferRecord
+                    {
+                        Id = o.Id, DefinitionId = o.TemplateId, SessionId = sessionId, Buys = o.Buys, Kind = o.Kind, Amount = o.Amount, Hold = o.Hold,
+                        Severity = o.Severity, Points = o.Points, Flavor = o.Flavor, Text = Truncate(o.Text, 1000), Status = OfferStatus.Proposed, CreatedAtUtc = now,
+                    });
+                    // The ledger entry an acceptance creates refers to the offer row.
+                    await db.SaveChangesAsync(ct);
+                    break;
+                }
+                case OfferDecided decided:
+                {
+                    var row = await db.Offers.SingleOrDefaultAsync(x => x.Id == decided.Offer.Id, ct);
+                    if (row is null) break;
+                    row.Status = decided.Status;
+                    row.DecidedAtUtc = now;
+                    await db.SaveChangesAsync(ct);
+                    break;
+                }
+                case LedgerOwed owed when !debug:
+                    await LedgerStore.RecordAsync(db, sessionId, owed, now, ct);
+                    break;
                 case SessionEnded ended:
                 {
                     var record = await db.Sessions.SingleOrDefaultAsync(x => x.Id == sessionId, ct);
@@ -440,6 +543,8 @@ public sealed class SessionHost : IDisposable
                     record.Outcome = ended.Outcome;
                     record.Points = (int)Math.Round(points);
                     record.LastInteractionUtc = now;
+                    await db.SaveChangesAsync(ct);
+                    if (ended.State is { } finished) await LedgerStore.SettleAsync(db, finished, now, ct);
                     break;
                 }
             }
@@ -490,13 +595,17 @@ public sealed class SessionHost : IDisposable
     private void Fire(object? token)
     {
         if (token is not long generation) return;
-        Task Apply() => ApplyAsync(s => Engine.Timer(s, generation), CancellationToken.None);
+        // Nobody has been here for a while: the session stops instead of carrying on alone.
+        Task Apply() => ApplyAsync(s => Unattended(s) ? Engine.Interrupt(s, lastSeenUtc) : Engine.Timer(s, generation), CancellationToken.None);
         if (TimerDispatcher is { } dispatch) _ = dispatch(Apply);
         else _ = Apply().ContinueWith(x => logger.LogError(x.Exception, "Session timer failed"), TaskContinuationOptions.OnlyOnFaulted);
     }
 
     /// <summary>A system notice in the chat log.</summary>
     public void Notice(string text) => AddMessage("Manager", text);
+
+    /// <summary>Her words outside a session transition (promises, answers to her questions).</summary>
+    public void Say(string text) => AddMessage("Domme", text);
 
     private void AddMessage(string sender, string text)
     {

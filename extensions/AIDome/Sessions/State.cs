@@ -7,7 +7,7 @@ namespace AIDome.Sessions;
 public enum DommeMood { Neutral, Cruel, Edgy, Teasing, Playful, Relentless }
 
 /// <summary>What kind of instruction a step is, from the domme's point of view.</summary>
-public enum StepCategory { Tease, Stroke, Edge, Rest, Torment, Surprise, Game, Psych, Hold, Finish, FreePlay }
+public enum StepCategory { Tease, Stroke, Edge, Rest, Torment, Surprise, Game, Psych, Hold, Finish, FreePlay, Offer }
 
 /// <summary>A label for what the session is doing right now.</summary>
 public enum SessionPhase { Teasing = 0, Building = 1, Intense = 2, Edging = 3, Resting = 4, Tormenting = 5, Finishing = 6, Ended = 7 }
@@ -33,6 +33,23 @@ public sealed record Directive
     public SessionPhase Phase { get; init; }
     /// <summary>A timer the user does not see counting down (free-play check-ins).</summary>
     public bool HiddenTimer { get; init; }
+}
+
+/// <summary>A punishment ending from the library, snapshotted for a session that owes one.</summary>
+public sealed record EnderInfo
+{
+    public int Id { get; init; }
+    public string Name { get; init; } = "";
+    public string Announcement { get; init; } = "";
+    public string Instruction { get; init; } = "";
+    public int Severity { get; init; }
+    public bool EndsInOrgasm { get; init; } = true;
+
+    public static EnderInfo From(PunishmentEnder e) => new()
+    {
+        Id = e.Id, Name = e.Name, Announcement = e.AnnouncementText, Instruction = e.InstructionText, Severity = e.Severity,
+        EndsInOrgasm = e.EndsInOrgasm,
+    };
 }
 
 public sealed class MoodState
@@ -122,6 +139,33 @@ public sealed class SessionState
     /// <summary>The domme has decided the ending (or granted a request); no further steps are planned.</summary>
     public bool FinishDecided { get; set; }
     public bool PermissionGranted { get; set; }
+    /// <summary>The permitted finish is ruined; <see cref="FinishRuinOwed"/> when that serves an owed ruin.</summary>
+    public bool FinishRuined { get; set; }
+    public bool FinishRuinOwed { get; set; }
+    /// <summary>The finish is an owed punishment ending.</summary>
+    public int? FinishEnderId { get; set; }
+
+    // Obligations: what the user owes, from the ledger and commitments in force, and what was served.
+    /// <summary>No orgasm before this time (<see cref="DateTime.MaxValue"/>: the whole session).</summary>
+    public DateTime? DenialUntilUtc { get; set; }
+    public string? DenialReason { get; set; }
+    public int OwedEdges { get; set; }
+    public int EdgesPaid { get; set; }
+    public bool OwedEdgesAnnounced { get; set; }
+    public int OwedRuins { get; set; }
+    public int RuinsServed { get; set; }
+    public int OwedEndings { get; set; }
+    public int EndingsServed { get; set; }
+    public List<EnderInfo> Enders { get; set; } = [];
+
+    // Deals.
+    public List<OfferTemplate> OfferTemplates { get; set; } = [];
+    public List<int> RecentOfferTemplates { get; set; } = [];
+    public PendingOffer? Offer { get; set; }
+    public Price? Price { get; set; }
+
+    /// <summary>Set when the session stopped without her or the user pausing it (Cove closed, nobody there).</summary>
+    public DateTime? InterruptedAtUtc { get; set; }
 
     [JsonIgnore] public int Mean => Pref(Contract.Preferences.Mean);
     [JsonIgnore] public int Intensity => Pref(Contract.Preferences.Intensity);

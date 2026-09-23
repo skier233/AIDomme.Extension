@@ -23,8 +23,9 @@ extensions/AIDome/
   extension.json                    manifest (id cove.community.aidome)
   AiDomeExtension.cs                entry point: services, migrations, UI manifest, HTTP API
   Tracking/                         app-wide edge/orgasm tracker (Cove tables, likes, undo)
-  Sessions/                         session contract, authorities, engine, planner, games, points
-  Persistence/                      guided-session storage, recovery, commitments
+  Sessions/                         session contract, authorities, engine, planner, games, points,
+                                    offers, and the ledger and promise rules
+  Persistence/                      guided-session storage, recovery, the ledger store
   Services/                         speech, punishments, homework
   ui/                               React page, companion window, settings panel
   dist/                             built bundles (checked in)
@@ -55,11 +56,28 @@ A session starts from a contract that says who decides each concern. The four pr
 | Own content and methods | you | you | domme | domme | domme |
 | Free play | you | you | you | you | domme |
 
-Points, permission odds and her decision to end use the same rules in every mode, so she behaves
-the same whoever holds the controls. Sessions are paused rather than ended; only debug sessions
-can be ended by hand.
+Points, permission odds, the price of her deals and her decision to end use the same rules in
+every mode, so she behaves the same whoever holds the controls. Sessions are paused rather than
+ended; only debug sessions can be ended by hand.
+
+## Promises, deals and the ledger
+
+Before a session you can promise her something: no orgasm, and/or a long, intense, torturous, mean
+or teasing session, for the next session or for some days. She accepts or asks for more, and names
+the stakes. During a session she may offer a deal when you beg, ask for a rest or lose a game:
+edges now, edges owed, denial days, a punishment session or ending, or a ruined orgasm. Her deals
+come from a library you can tune on the Tuning page.
+
+What you owe is kept in a permanent ledger and folded into your next sessions. Breaches are found
+from what the tracker recorded, even when AI Domme was closed. An orgasm that breaks a promise or a
+session, or a session that stopped with nobody there, becomes a question she asks before anything
+else.
 
 ## Upgrading an existing install
+
+Version 0.9.0 adds migration `007_ledger`: the punishment ledger, structured promises, the offer
+library and her follow-up questions. Earlier punishments become ledger entries. Earlier free-form
+offers and commitments are kept under `aidomme_legacy_*` names if there are any.
 
 Version 0.8.0 adds migration `006_session_contracts` (session mode and contract columns; the policy
 table becomes `aidomme_session_contracts`). A session still running or paused under 0.7.0 cannot be

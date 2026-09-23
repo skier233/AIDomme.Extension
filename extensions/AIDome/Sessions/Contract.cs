@@ -40,6 +40,43 @@ public sealed record SessionLimits
     public int[] AllowedMethodIds { get; init; } = [];
 }
 
+/// <summary>What the commitments in force ask of a session's character.</summary>
+public sealed record SessionCharacter
+{
+    public bool Long { get; init; }
+    public bool Intense { get; init; }
+    public bool Torturous { get; init; }
+    public bool Mean { get; init; }
+    public bool Teasing { get; init; }
+
+    public SessionCharacter With(SessionCharacter other) => new()
+    {
+        Long = Long || other.Long, Intense = Intense || other.Intense, Torturous = Torturous || other.Torturous,
+        Mean = Mean || other.Mean, Teasing = Teasing || other.Teasing,
+    };
+}
+
+/// <summary>
+/// What the user owes this session, folded in by the server from the commitments in force and the
+/// punishment ledger. Whatever a client sends here is replaced when the session starts.
+/// </summary>
+public sealed record SessionObligations
+{
+    public Guid[] Commitments { get; init; } = [];
+    public int[] LedgerEntries { get; init; } = [];
+    public SessionCharacter Character { get; init; } = new();
+    /// <summary>No orgasm before this time (<see cref="DateTime.MaxValue"/> for the whole session).</summary>
+    public DateTime? NoOrgasmUntilUtc { get; init; }
+    /// <summary>Her reason, in her words, when an orgasm is off the table.</summary>
+    public string? NoOrgasmReason { get; init; }
+    public int OwedEdges { get; init; }
+    public int OwedRuins { get; init; }
+    /// <summary>This session ends with a punishment ending.</summary>
+    public bool PunishmentEnding { get; init; }
+    /// <summary>This is a punishment session the user owed.</summary>
+    public bool PunishmentSession { get; init; }
+}
+
 /// <summary>
 /// Everything settled before play begins. The engine consults the authority for each concern,
 /// never the mode name, so new combinations need no engine changes. Permission and the ending are
@@ -65,6 +102,8 @@ public sealed record SessionContract
     public bool GamesOnly { get; init; }
     /// <summary>Decided before starting and enforced by the server for the whole session.</summary>
     public bool CanChangeDuringSession { get; init; }
+    /// <summary>Commitments and ledger entries in force, set by the server.</summary>
+    public SessionObligations Obligations { get; init; } = new();
 
     public static SessionContract Preset(SessionMode mode) => mode switch
     {
@@ -112,6 +151,7 @@ public sealed record SessionContract
         return this with
         {
             Mode = DerivedMode(),
+            Obligations = Obligations ?? new(),
             Limits = limits with { Toys = limits.Toys.Distinct().ToArray(), AllowedMethodIds = limits.AllowedMethodIds.Distinct().ToArray() },
         };
     }

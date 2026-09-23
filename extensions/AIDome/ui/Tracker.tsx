@@ -416,6 +416,22 @@ export function TrackerCompanion() {
         },
       },
       {
+        id: "offer-accept",
+        surface: "overlay" as const,
+        action: () => {
+          if (guidedClient.getSnapshot().snapshot?.session?.offer)
+            void guidedClient.control("offer-accept");
+        },
+      },
+      {
+        id: "offer-decline",
+        surface: "overlay" as const,
+        action: () => {
+          if (guidedClient.getSnapshot().snapshot?.session?.offer)
+            void guidedClient.control("offer-decline");
+        },
+      },
+      {
         id: "session-pause",
         surface: "overlay" as const,
         action: () => {

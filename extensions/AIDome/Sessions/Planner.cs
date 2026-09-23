@@ -21,8 +21,14 @@ public interface IPlanner
     Directive Cooldown(SessionState state, int seconds);
     /// <summary>Back to an interrupted timed step for its remaining seconds.</summary>
     Directive Resume(SessionState state, Directive suspended, int remaining);
-    /// <summary>Permission to finish within a window: her own decision, or a granted request.</summary>
-    Directive Finishing(SessionState state, bool requested);
+    /// <summary>Permission to finish within a window: her own decision, or a granted request. Ruined when owed or bought that way.</summary>
+    Directive Finishing(SessionState state, bool requested, bool ruined = false);
+    /// <summary>An owed punishment ending from the library.</summary>
+    Directive PunishmentEnding(SessionState state, EnderInfo ender);
+    /// <summary>A price being paid now: edges (and a hold) before she grants what was bought.</summary>
+    Directive PriceStep(SessionState state, Price price);
+    /// <summary>Waiting for the user to take a mercy offer or their punishment.</summary>
+    Directive OfferDecision(SessionState state, PendingOffer offer);
     /// <summary>Her denial.</summary>
     Directive Denied(SessionState state, string? text = null);
     /// <summary>The standing instruction when the user sets the pace and the edges.</summary>
@@ -182,6 +188,10 @@ public sealed class RulePlanner(IRandom r, Authorities a) : IPlanner
             case StepCategory.Game: wStroke *= 2.0; wEdge *= 1.3; wGame *= 0.1; wSurprise *= 0.3; break;
             case StepCategory.Psych: wStroke *= 1.8; wEdge *= 1.5; wPsych *= 0.2; wSurprise *= 0.3; break;
         }
+
+        var character = s.Contract.Obligations.Character;
+        if (character.Torturous) { wTorment *= 2.0; wTease *= 0.6; wRest *= 0.7; }
+        if (character.Teasing) { wTease *= 2.2; wTorment *= 0.6; }
 
         if (s.StepNumber <= 2 && !punishment) { wStroke *= 3.0; wTease *= 1.5; wEdge *= 0.2; wTorment *= 0.2; wSurprise = 0; wGame = 0; wPsych = 0; }
         else if (s.StepNumber <= 1 && punishment) { wStroke *= 1.5; wTease *= 1.5; wSurprise = 0; wGame = 0; wPsych = 0; }
@@ -381,19 +391,67 @@ public sealed class RulePlanner(IRandom r, Authorities a) : IPlanner
     };
 
     /// <summary>Permission to finish within a window. Proactive (her decision) or granted on request.</summary>
-    public Directive Finishing(SessionState s, bool requested)
+    public Directive Finishing(SessionState s, bool requested, bool ruined = false)
     {
         var m = a.Methods.Choose(s, new(s.Intensity, Basic: true));
         int dur = r.Next(30, 90), speed = a.Pacing.Speed(r, 5, 9);
         var text = requested
             ? $"{DommeText.Pick(DommeText.BegCumGranted)} {Games.Stroke(m)}{(speed > 0 ? $", {(speed >= 8 ? "fast" : "steady")}" : "")}. You have {dur} seconds. Record it when you cum."
             : DommeVoice.ComposeAutoFinishGranted(Speech(s, StepCategory.Stroke, m, speed, dur), m, dur);
+        if (ruined)
+            text = r.Pick([
+                $"You may cum, but it's ruined. {Games.Stroke(m)} to the edge, then let go completely and don't touch it while it happens. You have {dur} seconds. Record it when you cum.",
+                $"Go on then. Ruin it for me: take yourself right to the edge and let go. Hands off while it dribbles out. {dur} seconds. Record it when you cum.",
+            ]);
         return new()
         {
             Kind = InstructionKind.TimedMethod, Category = StepCategory.Finish, Method = m, Speed = speed, DurationOrCount = dur,
             Phase = SessionPhase.Finishing, Text = text,
         };
     }
+
+    public Directive PunishmentEnding(SessionState s, EnderInfo ender)
+    {
+        const int window = 180;
+        string text = $"{ender.Announcement} {ender.Instruction}".Trim();
+        return ender.EndsInOrgasm
+            ? new()
+            {
+                Kind = InstructionKind.TimedMethod, Category = StepCategory.Finish, DurationOrCount = window, Phase = SessionPhase.Finishing,
+                Text = $"You owe me a punishment ending. {text} Record it when you cum.",
+            }
+            : new()
+            {
+                Kind = InstructionKind.Finish, Category = StepCategory.Finish, Phase = SessionPhase.Finishing,
+                Text = $"You owe me a punishment ending. {text}",
+            };
+    }
+
+    public Directive PriceStep(SessionState s, Price price)
+    {
+        string edges = price.EdgesLeft == 1 ? "one more edge" : $"{price.EdgesLeft} more edges";
+        string hold = price.Hold > 0 ? $", then hold the last one for {price.Hold} seconds" : "";
+        if (!a.Edges.DommeSets)
+            return new()
+            {
+                Kind = InstructionKind.FreeText, Category = a.PlansSteps ? StepCategory.Edge : StepCategory.FreePlay, Method = MethodInfo.UserChoice(s.Methods),
+                Phase = SessionPhase.Edging, HiddenTimer = !a.PlansSteps, DurationOrCount = a.PlansSteps ? 0 : SessionEngine.FreePlayCheckSeconds,
+                Text = $"Pay up: {edges}{hold}. Your way, but record every one.",
+            };
+        var m = a.Methods.Choose(s, new(Math.Min(10, s.Intensity + 1), Closeness: true, Basic: true));
+        int speed = a.Pacing.Speed(r, 5, 9);
+        return new()
+        {
+            Kind = InstructionKind.EdgeCount, Category = StepCategory.Edge, Method = m, Speed = speed, DurationOrCount = price.EdgesLeft,
+            Phase = SessionPhase.Edging, Text = $"Pay up. {Games.Stroke(m)}: {edges}{hold}.",
+        };
+    }
+
+    public Directive OfferDecision(SessionState s, PendingOffer offer) => new()
+    {
+        Kind = InstructionKind.FreeText, Category = StepCategory.Offer, DurationOrCount = Offers.ExpirySeconds, Phase = SessionPhase.Resting,
+        Text = $"{r.Pick(["Or...", "Unless...", "I'll give you a way out."])} {offer.Text} Take it, or take your punishment.",
+    };
 
     public Directive Denied(SessionState s, string? text = null) => new()
     {

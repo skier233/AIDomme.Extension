@@ -59,6 +59,8 @@ public static class GuidedRecovery
             """, ct);
         if (pending > 0)
             runtime.Session.Abandon("Guidance stopped because a command was interrupted. Its effects were not replayed. Review the recorded activity before starting another session.");
+        else if (runtime.Session.State is { Active: true, InterruptedAtUtc: not null })
+            runtime.Session.Notice("Session recovered paused after Cove stopped. She'll ask what happened before you continue. No missed timers or narration were replayed.");
         else if (runtime.Session.Active)
             runtime.Session.Notice("Session recovered paused. Review the current step, then resume when you're ready. No missed timers or narration were replayed.");
     }

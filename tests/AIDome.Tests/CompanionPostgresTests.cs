@@ -43,7 +43,6 @@ public sealed partial class TrackerPostgresTests
         builder.Services.AddScoped<TrackerService>();
         builder.Services.AddScoped<GuidedTrackerBridge>();
         builder.Services.AddScoped<GuidedConfiguration>();
-        builder.Services.AddScoped<CommitmentStore>();
         builder.Services.AddSingleton<IAuthorizationService, TrackerTests.TestAuthorization>();
         builder.Services.AddScoped<IUserEngagementService, UserEngagementService>();
         builder.Services.AddSingleton<MetronomeLeases>();
@@ -86,42 +85,6 @@ public sealed partial class TrackerPostgresTests
     };
     private static object StartBody(SessionContract contract) => new { contract };
     private static object StartBody(SessionMode mode = SessionMode.FullGuided, bool debug = false) => StartBody(Contract(mode, debug));
-
-    [PostgresTrackerFact]
-    public async Task Commitments_OnlyExplicitAcceptanceCommits_RetriesAreIdempotent_AndAccountsStayIsolated()
-    {
-        await InstallCompanionAsync(); await using var app = await CompanionAppAsync();
-        using var first = Client(app); using var second = Client(app, 2);
-        object Mutate(Guid eventId, string action, Guid? targetId = null, decimal? amount = null, string? outcome = null, int? degree = null)
-            => new { eventId, action, targetId, amount, outcome, degree };
-        // Offers come from the domme, never from definitions the user writes.
-        foreach (var action in new[] { "save-definition", "delete-definition", "propose" })
-            Assert.Equal(HttpStatusCode.BadRequest, (await first.PostAsJsonAsync("/api/ext/aidome/commitments/mutate", Mutate(Guid.NewGuid(), action, Guid.NewGuid()))).StatusCode);
-        await JsonAsync(await first.GetAsync("/api/ext/aidome/state"));
-        var runtime = await app.Services.GetRequiredService<GuidedRuntimes>().ForUserAsync(1);
-        var offer = await CommitmentStore.ProposeAsync(runtime.Factory, "Hold longer", "Hold every edge for 30 seconds.", "holds", 3, 2, null, default);
-        var proposed = await JsonAsync(await first.GetAsync("/api/ext/aidome/commitments"));
-        Assert.Equal("Proposed", proposed.GetProperty("offers")[0].GetProperty("status").GetString());
-        Assert.Empty(proposed.GetProperty("commitments").EnumerateArray());
-        Assert.Empty((await JsonAsync(await second.GetAsync("/api/ext/aidome/commitments"))).GetProperty("offers").EnumerateArray());
-        Assert.Equal(HttpStatusCode.Conflict, (await second.PostAsJsonAsync("/api/ext/aidome/commitments/mutate", Mutate(Guid.NewGuid(), "accept", offer.Id))).StatusCode);
-
-        var acceptEvent = Guid.NewGuid();
-        var accepted = await Task.WhenAll(Enumerable.Range(0, 4).Select(_ => first.PostAsJsonAsync("/api/ext/aidome/commitments/mutate", Mutate(acceptEvent, "accept", offer.Id))));
-        foreach (var response in accepted) await JsonAsync(response);
-        Assert.Equal(HttpStatusCode.BadRequest, (await first.PostAsJsonAsync("/api/ext/aidome/commitments/mutate", Mutate(acceptEvent, "decline", offer.Id))).StatusCode);
-        Assert.Equal(HttpStatusCode.Conflict, (await first.PostAsJsonAsync("/api/ext/aidome/commitments/mutate", Mutate(Guid.NewGuid(), "accept", offer.Id))).StatusCode);
-        var state = await JsonAsync(await first.GetAsync("/api/ext/aidome/commitments"));
-        var commitment = Assert.Single(state.GetProperty("commitments").EnumerateArray());
-        Assert.NotNull(commitment.GetProperty("dueAtUtc").Deserialize<DateTime?>());
-        var commitmentId = commitment.GetProperty("id").GetGuid();
-        var progressed = await JsonAsync(await first.PostAsJsonAsync("/api/ext/aidome/commitments/mutate", Mutate(Guid.NewGuid(), "progress", commitmentId, amount: 2)));
-        Assert.Equal(2, progressed.GetProperty("commitments")[0].GetProperty("progress").GetDecimal());
-        var reported = await JsonAsync(await first.PostAsJsonAsync("/api/ext/aidome/commitments/mutate", Mutate(Guid.NewGuid(), "report", commitmentId, outcome: "Partial", degree: 60)));
-        Assert.Equal("Partial", reported.GetProperty("commitments")[0].GetProperty("status").GetString());
-        Assert.Equal(60, reported.GetProperty("reports")[0].GetProperty("degree").GetInt32());
-        Assert.Equal(HttpStatusCode.Conflict, (await first.PostAsJsonAsync("/api/ext/aidome/commitments/mutate", Mutate(Guid.NewGuid(), "report", commitmentId, outcome: "Completed", degree: 100))).StatusCode);
-    }
 
     [PostgresTrackerFact]
     public async Task CompanionHttp_NonDebugSessionsCanBePausedButNotEnded()

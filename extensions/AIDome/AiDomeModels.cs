@@ -1,4 +1,5 @@
 using AIDome.Data;
+using AIDome.Persistence;
 using AIDome.Services;
 using AIDome.Sessions;
 
@@ -16,7 +17,8 @@ public sealed record AiDomeStateSnapshot(
     SessionView? Session,
     DateTime? StepEndsAtUtc,
     AiDomeMediaCue? MediaCue,
-    IReadOnlyList<ChatMessage> Messages);
+    IReadOnlyList<ChatMessage> Messages,
+    IReadOnlyList<FollowUpView> FollowUps);
 
 /// <summary>
 /// The domme's media cue: which kind of Cove media to show, and a token that changes when she wants
@@ -30,7 +32,7 @@ public sealed record ModePresetView(SessionMode Mode, string Name, string Descri
 /// <summary>Setup-screen payload.</summary>
 public sealed record AiDomeSetupSnapshot(
     ResolvedDefaults Defaults,
-    IReadOnlyList<PunishmentSummary> ActivePunishments,
+    LedgerView Ledger,
     IReadOnlyList<ModePresetView> Modes,
     IReadOnlyList<ChatMessage> Messages);
 

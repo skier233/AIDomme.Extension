@@ -29,14 +29,14 @@ public sealed class FakeClock : IClock
 
 public sealed class SessionEngineTests
 {
-    private static readonly MethodInfo Palm = new()
+    internal static readonly MethodInfo Palm = new()
     {
         Id = 7, Name = "Palm", Description = "Palm the head", Intensity = 5, Tease = 2, TortLevel = 1, Closeness = 6,
         TimePoints = 0.1, EdgePoints = 3,
     };
     private static readonly MethodInfo Grip = Palm with { Id = 8, Name = "Grip", Description = "Full grip", Closeness = 7, TimePoints = 0.12, EdgePoints = 3.4 };
 
-    private static SessionState NewState(SessionMode mode, Action<SessionContract>? _ = null, SessionContract? contract = null,
+    internal static SessionState NewState(SessionMode mode, Action<SessionContract>? _ = null, SessionContract? contract = null,
         params MethodInfo[] methods)
     {
         var c = (contract ?? SessionContract.Preset(mode) with
@@ -47,7 +47,7 @@ public sealed class SessionEngineTests
     }
 
     /// <summary>Runs the session forward: fires timers and reaches edge targets until the budget or a step limit.</summary>
-    private static void Drive(SessionEngine engine, SessionState s, FakeClock clock, int steps)
+    internal static void Drive(SessionEngine engine, SessionState s, FakeClock clock, int steps)
     {
         for (int i = 0; i < steps && s.Active && !s.FinishDecided; i++)
         {

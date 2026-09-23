@@ -54,7 +54,6 @@ public static class GuidedSchema
             e.HasMany(x => x.Edges).WithOne(x => x.Session).HasForeignKey(x => x.SessionId).OnDelete(DeleteBehavior.Cascade);
             e.HasMany(x => x.Orgasms).WithOne(x => x.Session).HasForeignKey(x => x.SessionId).OnDelete(DeleteBehavior.Cascade);
             e.HasMany(x => x.Instructions).WithOne(x => x.Session).HasForeignKey(x => x.SessionId).OnDelete(DeleteBehavior.Cascade);
-            e.HasMany(x => x.Punishments).WithOne(x => x.Session).HasForeignKey(x => x.SessionId).OnDelete(DeleteBehavior.Cascade);
             e.HasMany(x => x.Games).WithOne(x => x.Session).HasForeignKey(x => x.SessionId).OnDelete(DeleteBehavior.Cascade);
             e.Property(x => x.Mode).HasMaxLength(32);
         });
@@ -71,7 +70,6 @@ public static class GuidedSchema
             e.HasOne(x => x.StimMethod).WithMany().HasForeignKey(x => x.StimMethodId).OnDelete(DeleteBehavior.SetNull);
             e.Property(x => x.Text).HasMaxLength(1024);
         });
-        Owned<PunishmentEntry>(model, "aidomme_punishments", e => e.Property(x => x.Description).HasMaxLength(1024));
         Owned<InfractionEntry>(model, "aidomme_infractions", e =>
         {
             e.HasOne(x => x.Session).WithMany().HasForeignKey(x => x.SessionId).OnDelete(DeleteBehavior.Cascade);
@@ -91,30 +89,58 @@ public static class GuidedSchema
             e.Property(x => x.Kind).HasMaxLength(16);
         });
 
-        Owned<OfferRecord>(model, "aidomme_offers", e =>
+        Definition<OfferDefinition>(model, "aidomme_offer_definitions", e =>
         {
-            e.Property(x => x.Id).ValueGeneratedNever();
-            e.HasOne<SessionRecord>().WithMany().HasForeignKey(x => x.OriginSessionId).OnDelete(DeleteBehavior.SetNull);
-            e.Property(x => x.Name).HasMaxLength(100);
-            e.Property(x => x.Terms).HasMaxLength(2000);
-            e.Property(x => x.Unit).HasMaxLength(40);
-            e.Property(x => x.Status).HasMaxLength(16);
+            e.Property(x => x.Name).HasMaxLength(128);
+            e.Property(x => x.Wording).HasMaxLength(1000);
+            e.Property(x => x.Kind).HasConversion<string>().HasMaxLength(32);
+            e.Property(x => x.Flavor).HasConversion<string>().HasMaxLength(16);
+            e.Property(x => x.Moods).HasMaxLength(128);
         });
         Owned<CommitmentRecord>(model, "aidomme_commitments", e =>
         {
             e.Property(x => x.Id).ValueGeneratedNever();
-            e.HasOne<OfferRecord>().WithMany().HasForeignKey(x => x.OfferId).OnDelete(DeleteBehavior.SetNull);
-            e.Property(x => x.Name).HasMaxLength(100);
-            e.Property(x => x.Terms).HasMaxLength(2000);
-            e.Property(x => x.Unit).HasMaxLength(40);
-            e.Property(x => x.Status).HasMaxLength(16);
+            e.HasOne<SessionRecord>().WithMany().HasForeignKey(x => x.SessionId).OnDelete(DeleteBehavior.SetNull);
+            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(16);
+            e.Property(x => x.Scope).HasConversion<string>().HasMaxLength(16);
+            e.Property(x => x.Note).HasMaxLength(500);
+            e.Property(x => x.Response).HasMaxLength(1000);
+            e.Property(x => x.Resolution).HasMaxLength(1000);
+            e.Ignore(x => x.Terms);
         });
-        Owned<CommitmentReportRecord>(model, "aidomme_commitment_reports", e =>
+        Owned<OfferRecord>(model, "aidomme_offers", e =>
         {
             e.Property(x => x.Id).ValueGeneratedNever();
-            e.HasOne<CommitmentRecord>().WithMany().HasForeignKey(x => x.CommitmentId).OnDelete(DeleteBehavior.Cascade);
-            e.Property(x => x.Outcome).HasMaxLength(16);
-            e.Property(x => x.Note).HasMaxLength(1000);
+            e.HasOne<OfferDefinition>().WithMany().HasForeignKey(x => x.DefinitionId).OnDelete(DeleteBehavior.SetNull);
+            e.HasOne<SessionRecord>().WithMany().HasForeignKey(x => x.SessionId).OnDelete(DeleteBehavior.SetNull);
+            e.Property(x => x.Buys).HasConversion<string>().HasMaxLength(16);
+            e.Property(x => x.Kind).HasConversion<string>().HasMaxLength(32);
+            e.Property(x => x.Flavor).HasConversion<string>().HasMaxLength(16);
+            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(16);
+            e.Property(x => x.Text).HasMaxLength(1000);
+        });
+        Owned<FollowUpRecord>(model, "aidomme_followups", e =>
+        {
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.HasOne<SessionRecord>().WithMany().HasForeignKey(x => x.SessionId).OnDelete(DeleteBehavior.SetNull);
+            e.HasOne<TrackerEvent>().WithMany().HasForeignKey(x => x.EventId).OnDelete(DeleteBehavior.SetNull);
+            e.HasIndex(x => x.EventId).IsUnique();
+            e.Property(x => x.Kind).HasConversion<string>().HasMaxLength(32);
+            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(16);
+            e.Property(x => x.Observed).HasMaxLength(1000);
+            e.Property(x => x.Answer).HasMaxLength(32);
+        });
+        Owned<LedgerEntry>(model, "aidomme_ledger", e =>
+        {
+            e.HasOne<SessionRecord>().WithMany().HasForeignKey(x => x.SessionId).OnDelete(DeleteBehavior.SetNull);
+            e.HasOne<SessionRecord>().WithMany().HasForeignKey(x => x.ServingSessionId).OnDelete(DeleteBehavior.SetNull);
+            e.HasOne<CommitmentRecord>().WithMany().HasForeignKey(x => x.CommitmentId).OnDelete(DeleteBehavior.SetNull);
+            e.HasOne<OfferRecord>().WithMany().HasForeignKey(x => x.OfferId).OnDelete(DeleteBehavior.SetNull);
+            e.HasOne<FollowUpRecord>().WithMany().HasForeignKey(x => x.FollowUpId).OnDelete(DeleteBehavior.SetNull);
+            e.Property(x => x.Kind).HasConversion<string>().HasMaxLength(32);
+            e.Property(x => x.Origin).HasConversion<string>().HasMaxLength(16);
+            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(16);
+            e.Property(x => x.Reason).HasMaxLength(1000);
         });
     }
 
@@ -123,8 +149,8 @@ public static class GuidedSchema
     [
         typeof(StimMethod), typeof(PunishmentEnder), typeof(TuningRatingEntry), typeof(TuningComparisonEntry),
         typeof(SessionRecord), typeof(EdgeEntry), typeof(OrgasmEntry), typeof(CumRequest), typeof(InstructionStep),
-        typeof(PunishmentEntry), typeof(InfractionEntry), typeof(GameChallenge), typeof(GuidedEventReceipt),
-        typeof(OfferRecord), typeof(CommitmentRecord), typeof(CommitmentReportRecord),
+        typeof(InfractionEntry), typeof(GameChallenge), typeof(GuidedEventReceipt),
+        typeof(OfferDefinition), typeof(CommitmentRecord), typeof(OfferRecord), typeof(FollowUpRecord), typeof(LedgerEntry),
     ];
 
     private static void Owned<T>(ModelBuilder model, string table, Action<EntityTypeBuilder<T>>? configure = null)

@@ -72,11 +72,12 @@ public sealed partial class TrackerPostgresTests : IAsyncLifetime
 
     private static string Fixture(string name) => File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", name));
 
-    /// <summary>Applies 002-006 exactly as Cove would on a fresh install.</summary>
+    /// <summary>Applies 002-007 exactly as Cove would on a fresh install.</summary>
     private async Task InstallGuidedAsync()
     {
         await using var db = Context();
-        foreach (var sql in new[] { GuidedMigrations.Superseded, GuidedMigrations.Superseded, GuidedMigrations.Superseded, GuidedMigrations.Load("005_guided_v2"), GuidedMigrations.Load("006_session_contracts") })
+        foreach (var sql in new[] { GuidedMigrations.Superseded, GuidedMigrations.Superseded, GuidedMigrations.Superseded, GuidedMigrations.Load("005_guided_v2"),
+                     GuidedMigrations.Load("006_session_contracts"), GuidedMigrations.Load("007_ledger") })
             await db.Database.ExecuteSqlRawAsync(sql);
     }
 
@@ -108,7 +109,7 @@ public sealed partial class TrackerPostgresTests : IAsyncLifetime
     }
 
     [PostgresTrackerFact]
-    public async Task Migration005_UpgradesLegacyRows_KeepsIdentities_AndDropsLegacyTables()
+    public async Task Migrations005To007_UpgradeLegacyRows_KeepIdentities_AndCarryPunishmentsIntoTheLedger()
     {
         await InstallLegacyGuidedAsync();
         var eventId = Guid.NewGuid(); var offerId = Guid.NewGuid(); var commitmentId = Guid.NewGuid();
@@ -134,6 +135,9 @@ public sealed partial class TrackerPostgresTests : IAsyncLifetime
                 INSERT INTO aidomme_guided_tuningcomparisonentry ("OwnerId", "Id", "Mode", "WinnerKey", "LoserKey", "Strength", "TimestampUtc") VALUES (0, 1, 'Stim', 'method:1', 'method:2', 3, now());
                 INSERT INTO aidomme_guided_sessionrecord ("OwnerId", "Id", "StartedAtUtc", "LastInteractionUtc", "AllowSelfOral", "Intensity") VALUES (1, 5, now(), now(), FALSE, 7);
                 INSERT INTO aidomme_guided_edgeentry ("OwnerId", "Id", "TimestampUtc", "StimMethodId", "HeldDuration", "SessionId") VALUES (1, 9, now(), 2, 12.5, 5);
+                INSERT INTO aidomme_guided_punishmententry ("OwnerId", "Id", "IssuedAtUtc", "SessionId", "Category", "Tier", "Description", "RemainingCount", "DenialEndsAtUtc", "Completed")
+                  VALUES (1, 3, now() - interval '1 day', 5, 0, 4, 'No cumming for 3 days', 0, now() + interval '2 days', FALSE),
+                         (1, 4, now() - interval '2 days', 5, 2, 6, 'Overload session', 2, NULL, FALSE);
                 INSERT INTO aidomme_tracker_events ("Id", "UserId", "SettingId", "Kind", "OccurredAtUtc", "ReceivedAtUtc", "Source", "LikeWeight", "LikeIdsJson") VALUES ({eventId}, 1, gen_random_uuid(), 'edge', now(), now(), 'hotkey', 0, '[]');
                 INSERT INTO aidomme_guided_guidedeventreceipt ("OwnerId", "Id", "EventId", "SessionId", "Kind", "ActivityId", "DeliveredAtUtc") VALUES (1, 4, {eventId}, 5, 'edge', 9, now());
                 INSERT INTO aidomme_guided_event_steps ("OwnerId", "EventId", "StepNumber") VALUES (1, {eventId}, 6);
@@ -144,6 +148,7 @@ public sealed partial class TrackerPostgresTests : IAsyncLifetime
                 """);
             await db.Database.ExecuteSqlRawAsync(GuidedMigrations.Load("005_guided_v2"));
             await db.Database.ExecuteSqlRawAsync(GuidedMigrations.Load("006_session_contracts"));
+            await db.Database.ExecuteSqlRawAsync(GuidedMigrations.Load("007_ledger"));
         }
         await using (var db = Context())
         {
@@ -168,10 +173,19 @@ public sealed partial class TrackerPostgresTests : IAsyncLifetime
                 var receipt = await a.TrackerReceipts.SingleAsync();
                 Assert.Equal((eventId, 6), (receipt.EventId, receipt.StepNumber));
                 Assert.Equal(1, await a.TuningComparisons.CountAsync());
-                var offer = await a.Offers.SingleAsync();
-                Assert.Equal((offerId, "Accepted", (int?)5), (offer.Id, offer.Status, offer.OriginSessionId));
-                var commitment = await a.Commitments.SingleAsync();
-                Assert.Equal((commitmentId, offerId, 1m), (commitment.Id, commitment.OfferId!.Value, commitment.Progress));
+                // Free-form offers and commitments cannot be enforced; they are kept aside, not converted.
+                Assert.Empty(await a.Offers.ToListAsync());
+                Assert.Empty(await a.Commitments.ToListAsync());
+                Assert.Equal(1, await Count($"SELECT COUNT(*)::int AS \"Value\" FROM aidomme_legacy_offers WHERE \"Id\" = '{offerId}'"));
+                Assert.Equal(1, await Count($"SELECT COUNT(*)::int AS \"Value\" FROM aidomme_legacy_commitments WHERE \"Id\" = '{commitmentId}'"));
+                Assert.Equal(0, await Count("SELECT COUNT(*)::int AS \"Value\" FROM pg_tables WHERE tablename IN ('aidomme_punishments', 'aidomme_commitment_operations')"));
+                var owed = await a.Ledger.OrderBy(x => x.CreatedAtUtc).ToListAsync();
+                Assert.Equal(2, owed.Count);
+                Assert.Equal((AIDome.Sessions.LedgerKind.PunishmentSession, 2, AIDome.Sessions.LedgerOrigin.Legacy, AIDome.Sessions.LedgerStatus.Owed),
+                    (owed[0].Kind, owed[0].Remaining, owed[0].Origin, owed[0].Status));
+                Assert.Equal((AIDome.Sessions.LedgerKind.Denial, "No cumming for 3 days", AIDome.Sessions.LedgerStatus.Owed), (owed[1].Kind, owed[1].Reason, owed[1].Status));
+                Assert.NotNull(owed[1].EndsAtUtc);
+                Assert.Equal(10, (await a.OfferDefinitionsAsync()).Count);
             }
             await using (var b = second.Open())
             {

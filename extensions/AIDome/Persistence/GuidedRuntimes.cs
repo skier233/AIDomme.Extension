@@ -135,10 +135,10 @@ public sealed class GuidedRuntime : IAsyncDisposable
         disposed = true;
         if (loaded)
         {
-            // Freeze the countdown before releasing this runtime; recovery restores it paused.
+            // Stop the session before releasing this runtime; recovery restores it paused, and she asks what happened.
             try
             {
-                if (Session.Active && !Session.Paused) await Session.ControlAsync("pause", null, default);
+                await Session.InterruptAsync(default);
                 await SaveAsync(default);
             }
             catch (Exception ex) { logger.LogWarning(ex, "Could not save final paused session state"); }

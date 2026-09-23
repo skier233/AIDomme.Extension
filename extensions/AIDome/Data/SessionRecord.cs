@@ -14,7 +14,11 @@ public enum SessionOutcome
     /// <summary>User came without permission (unauthorized).</summary>
     UnauthorizedOrgasm = 3,
     /// <summary>User ruined the orgasm (came without permission but stopped stimulation).</summary>
-    RuinedOrgasm = 4
+    RuinedOrgasm = 4,
+    /// <summary>The session stopped without a clean end and the user said something interrupted it.</summary>
+    Interrupted = 5,
+    /// <summary>The user said they walked out of the session.</summary>
+    Abandoned = 6,
 }
 
 public sealed class SessionRecord : IUserOwned
@@ -74,6 +78,5 @@ public sealed class SessionRecord : IUserOwned
     public ICollection<EdgeEntry> Edges { get; set; } = new List<EdgeEntry>();
     public ICollection<OrgasmEntry> Orgasms { get; set; } = new List<OrgasmEntry>();
     public ICollection<InstructionStep> Instructions { get; set; } = new List<InstructionStep>();
-    public ICollection<PunishmentEntry> Punishments { get; set; } = new List<PunishmentEntry>();
     public ICollection<GameChallenge> Games { get; set; } = new List<GameChallenge>();
 }

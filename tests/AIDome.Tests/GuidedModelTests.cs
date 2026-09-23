@@ -23,9 +23,12 @@ public sealed class GuidedModelTests
             Assert.NotNull(entity.FindProperty("UserId"));
         }
         Assert.Equal("aidomme_sessions", db.Model.FindEntityType(typeof(SessionRecord))!.GetTableName());
-        var sql = GuidedMigrations.Load("005_guided_v2");
+        var sql = GuidedMigrations.Load("005_guided_v2") + GuidedMigrations.Load("007_ledger");
         foreach (var table in GuidedSchema.EntityTypes.Select(x => db.Model.FindEntityType(x)!.GetTableName()))
             Assert.Contains($"CREATE TABLE {table} (", sql);
+        // Cove applies migrations as raw SQL, where braces are format placeholders.
+        foreach (var name in new[] { "005_guided_v2", "006_session_contracts", "007_ledger" })
+            Assert.DoesNotContain("{", GuidedMigrations.Load(name));
     }
 
     [Fact]

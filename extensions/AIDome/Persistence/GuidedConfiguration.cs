@@ -21,6 +21,7 @@ public sealed class GuidedConfiguration(GuidedRuntimes runtimes)
         {
             Methods = await ViewsAsync(db.Db.Set<StimMethod>(), db.UserId, ct),
             Enders = await ViewsAsync(db.Db.Set<PunishmentEnder>(), db.UserId, ct),
+            Offers = await ViewsAsync(db.Db.Set<OfferDefinition>(), db.UserId, ct),
             Ratings = (await db.TuningRatings.AsNoTracking().OrderBy(x => x.Id).ToListAsync(ct))
                 .Select(x => new DefinitionView<TuningRatingEntry>(x, x.UserId is not null, null)),
             Comparisons = (await db.TuningComparisons.AsNoTracking().OrderBy(x => x.Id).ToListAsync(ct))
@@ -119,5 +120,11 @@ public sealed class GuidedConfiguration(GuidedRuntimes runtimes)
         if (value is PunishmentEnder p && (string.IsNullOrWhiteSpace(p.Name) || p.InstructionText is null || p.AnnouncementText is null || p.Severity is < 0 or > 10
             || p.Anticipation is < 0 or > 10 || p.Humiliation is < 0 or > 10))
             throw new TrackerValidationException("Ender values must use valid scales.");
+        if (value is OfferDefinition o && (string.IsNullOrWhiteSpace(o.Name) || string.IsNullOrWhiteSpace(o.Wording) || !Enum.IsDefined(o.Kind)
+            || !Enum.IsDefined(o.Flavor) || o.MinAmount < 1 || o.MaxAmount < o.MinAmount || o.MaxAmount > 1000 || o.MinHold < 0 || o.MaxHold < o.MinHold
+            || o.MaxHold > 600 || !double.IsFinite(o.BasePoints) || o.BasePoints < 0 || !double.IsFinite(o.PointsPerUnit) || o.PointsPerUnit < 0
+            || !double.IsFinite(o.PointsPerHoldSecond) || o.PointsPerHoldSecond < 0 || o.Moods is null
+            || o.Moods.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Any(x => !Enum.TryParse<AIDome.Sessions.DommeMood>(x, true, out _))))
+            throw new TrackerValidationException("Offer values must name a price, use ranges that make sense, nonnegative points and known moods.");
     }
 }

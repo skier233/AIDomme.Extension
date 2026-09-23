@@ -5,6 +5,7 @@ import {
   remainingSeconds,
   useGuidedSession,
 } from "./GuidedClient";
+import { FollowUps, Obligations, OfferCard } from "./Ledger";
 
 export const EXTENSION_ID = "cove.community.aidome";
 
@@ -139,6 +140,7 @@ export function SessionActions({
         </button>
       )}
       <button
+        disabled={session.interrupted}
         onClick={() =>
           void guidedClient.control(session.isPaused ? "resume" : "pause")
         }
@@ -194,7 +196,13 @@ export function SessionStatus({ session }: { session: any }) {
   const remaining = remainingSeconds(state);
   return (
     <div className="aidomme-status" role="status">
-      <span>{session.isPaused ? "Paused" : "In session"}</span>
+      <span>
+        {session.interrupted
+          ? "Stopped: tell her what happened"
+          : session.isPaused
+            ? "Paused"
+            : "In session"}
+      </span>
       {session.edgesRemaining != null && (
         <span>
           <b>{session.edgesRemaining}</b>{" "}
@@ -217,13 +225,20 @@ export function GuidedPanel() {
   const state = useGuidedSession();
   const session = state.snapshot?.session;
   if (!state.snapshot?.sessionActive || !session)
-    return state.error ? <p role="alert">{state.error}</p> : null;
+    return state.error ? (
+      <p role="alert">{state.error}</p>
+    ) : (
+      <FollowUps compact />
+    );
   const text = session.currentDirective?.text;
   const blocked = state.busy || !!state.pending || session.isPaused;
   return (
     <section className="aidomme-guided-panel" aria-label="Guided session">
+      <FollowUps compact />
       <SessionStatus session={session} />
+      <Obligations session={session} />
       {text && <p className="aidomme-current-command">{text}</p>}
+      <OfferCard session={session} />
       <ChatLog
         messages={(state.snapshot.messages || []).slice(-12)}
         hide={text}
