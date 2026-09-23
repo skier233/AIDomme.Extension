@@ -8,6 +8,7 @@ using Xunit;
 using AIDome.Persistence;
 using AIDome.Data;
 using AIDome.Services;
+using AIDome.Sessions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -71,11 +72,11 @@ public sealed partial class TrackerPostgresTests : IAsyncLifetime
 
     private static string Fixture(string name) => File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", name));
 
-    /// <summary>Applies 002-005 exactly as Cove would on a fresh install.</summary>
+    /// <summary>Applies 002-006 exactly as Cove would on a fresh install.</summary>
     private async Task InstallGuidedAsync()
     {
         await using var db = Context();
-        foreach (var sql in new[] { GuidedMigrations.Superseded, GuidedMigrations.Superseded, GuidedMigrations.Superseded, GuidedMigrations.Load("005_guided_v2") })
+        foreach (var sql in new[] { GuidedMigrations.Superseded, GuidedMigrations.Superseded, GuidedMigrations.Superseded, GuidedMigrations.Load("005_guided_v2"), GuidedMigrations.Load("006_session_contracts") })
             await db.Database.ExecuteSqlRawAsync(sql);
     }
 
@@ -142,6 +143,7 @@ public sealed partial class TrackerPostgresTests : IAsyncLifetime
                 INSERT INTO aidomme_commitment_state ("OwnerId", "Revision", "Payload", "UpdatedAtUtc") VALUES (1, 3, {payload}, now());
                 """);
             await db.Database.ExecuteSqlRawAsync(GuidedMigrations.Load("005_guided_v2"));
+            await db.Database.ExecuteSqlRawAsync(GuidedMigrations.Load("006_session_contracts"));
         }
         await using (var db = Context())
         {
@@ -180,7 +182,7 @@ public sealed partial class TrackerPostgresTests : IAsyncLifetime
                 Assert.Empty(await b.Offers.ToListAsync());
             }
             Assert.Equal(77, await Count("SELECT \"Revision\"::int AS \"Value\" FROM aidomme_runtime_checkpoints WHERE \"UserId\" = 1"));
-            Assert.Equal(1, await Count("SELECT COUNT(*)::int AS \"Value\" FROM aidomme_session_policies"));
+            Assert.Equal(1, await Count("SELECT COUNT(*)::int AS \"Value\" FROM aidomme_session_contracts"));
             Assert.Equal(1, await Count("SELECT COUNT(*)::int AS \"Value\" FROM aidomme_session_controls"));
             // New rows continue after the copied identities.
             await using (var a = first.Open())
@@ -237,13 +239,13 @@ public sealed partial class TrackerPostgresTests : IAsyncLifetime
             Assert.Equal(0, await a.Db.Set<StimMethod>().CountAsync(x => x.UserId == 1));
         }
 
-        await first.Commands.StartSessionAsync(new SessionParameters(3, 3, 3, 3, 3));
-        Assert.True(first.Online.HasActiveSession);
-        Assert.False(second.Online.HasActiveSession);
-        var sessionId = first.Online.GetCurrentState().SessionId;
-        await first.Commands.GenerateDebugHomeworkAsync(new SessionParameters(8, 3, 3, 3, 3) { IsDebugSession = true });
-        Assert.True((await first.Commands.GetSessionStatusAsync()).IsActive);
-        Assert.Equal(sessionId, await first.Interaction.GetCurrentSessionId());
+        var contract = SessionContract.Preset(SessionMode.FullGuided) with { Preferences = new() { Intensity = 3, Length = 3, Denial = 3, Mean = 3 } };
+        await first.Session.StartAsync(contract, default);
+        Assert.True(first.Session.Active);
+        Assert.False(second.Session.Active);
+        var sessionId = first.Session.ActiveSessionId!.Value;
+        Assert.NotEmpty(await first.Session.GenerateHomeworkAsync(contract with { Preferences = contract.Preferences with { Intensity = 8 } }, false, default));
+        Assert.Equal(sessionId, first.Session.ActiveSessionId);
         await using (var b = second.Factory.Open())
         {
             Assert.Empty(await b.Sessions.ToListAsync());
@@ -255,20 +257,21 @@ public sealed partial class TrackerPostgresTests : IAsyncLifetime
         var tracking = new AIDome.Tracking.TrackerService(trackerDb, principal, new TrackerTests.TestAuthorization(), new UserEngagementService(trackerDb, principal), bridge);
         var prefs = await tracking.SettingsAsync(new(false, 0, 1), false, default);
         var request = new AIDome.Tracking.RecordTrackerEvent(Guid.NewGuid(), prefs.SettingId, "edge", DateTime.UtcNow, "hotkey");
+        int stepAtEdge = first.Session.StepNumber;
         await tracking.RecordAsync(request, default);
         await tracking.RecordAsync(request, default);
         var metrics = await first.Factory.ReadTrackerMetricsAsync(DateTime.UtcNow, default);
         Assert.Equal(1, metrics.EdgesSinceLastOrgasm);
         Assert.Null(metrics.LastOrgasmAtUtc);
-        Assert.Equal(1, first.Online.GetCurrentState().EdgesThisSession);
+        Assert.Equal(1, first.Session.View()!.EdgesThisSession);
         await using (var a = first.Factory.Open())
         {
             Assert.Single(await a.Edges.ToListAsync());
             var receipt = await a.TrackerReceipts.SingleAsync();
-            Assert.Equal(first.Online.GetCurrentState().StepNumber, receipt.StepNumber);
+            Assert.Equal(stepAtEdge, receipt.StepNumber);
         }
         await tracking.UndoAsync(request.Id, default);
-        Assert.False(first.Online.HasActiveSession);
+        Assert.False(first.Session.Active);
         await using (var a = first.Factory.Open())
         {
             Assert.Empty(await a.Edges.ToListAsync());
@@ -282,8 +285,8 @@ public sealed partial class TrackerPostgresTests : IAsyncLifetime
         await using (var a = first.Factory.Open()) Assert.Empty(await a.Orgasms.ToListAsync());
 
         // A guided write failure rolls back the tracker event and its likes.
-        await first.Commands.StartSessionAsync(new SessionParameters(3, 3, 3, 3, 3) { IsDebugSession = true });
-        var staleSession = first.Online.GetCurrentState().SessionId;
+        await first.Session.StartAsync(contract with { Debug = true }, default);
+        var staleSession = first.Session.ActiveSessionId!.Value;
         await using (var a = first.Factory.Open())
             await a.Sessions.Where(x => x.Id == staleSession).ExecuteDeleteAsync();
         await tracking.SettingsAsync(new(true, 1, 3), false, default);
@@ -293,8 +296,8 @@ public sealed partial class TrackerPostgresTests : IAsyncLifetime
         Assert.False(await trackerDb.Set<AIDome.Tracking.TrackerEvent>().AnyAsync(x => x.Id == failed.Id));
         Assert.Empty(await trackerDb.Interactions.ToListAsync());
         Assert.Empty(await trackerDb.UserEntityAffinities.ToListAsync());
-        Assert.Equal(0, first.Online.GetCurrentState().EdgesThisSession);
-        first.Online.EndSession();
+        Assert.Equal(0, first.Session.View()!.EdgesThisSession);
+        first.Session.Abandon("test done");
 
         // Deleting the Cove account removes its AI Domme rows.
         await trackerDb.Database.ExecuteSqlRawAsync("DELETE FROM users WHERE \"Id\" = 1");

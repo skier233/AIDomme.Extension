@@ -15,13 +15,13 @@ public enum GameType
     RerollGamble = 3,
     /// <summary>Avoid edge within a time limit under heavy stimulation.</summary>
     ArousalChallenge = 4,
-    /// <summary>Remember and repeat a sequence of numbers.</summary>
+    /// <summary>Retired: the sequence stayed visible in the chat log. Kept for historical rows.</summary>
     MemorySequence = 5,
     /// <summary>Solve a quick math problem under pressure.</summary>
     QuickMath = 6,
     /// <summary>Pick a card — low cards punish, high cards reward.</summary>
     CardDraw = 7,
-    /// <summary>Count edges accurately while distracted — get the count wrong = punished.</summary>
+    /// <summary>Retired: the count was already on screen. Kept for historical rows.</summary>
     EdgeCounter = 8,
     /// <summary>Reach the edge within a time limit or face consequences.</summary>
     RaceToEdge = 9,
@@ -33,6 +33,12 @@ public enum GameType
     DoubleOrNothing = 12,
     /// <summary>Choose between two punishments — neither is good.</summary>
     PickYourPoison = 13,
+    /// <summary>Stroke fast and bail whenever you like; the longer you last the better, but an edge before bailing loses.</summary>
+    Chicken = 14,
+    /// <summary>Bet how many edges you can reach in the time allowed; bigger bets pay more and cost more.</summary>
+    EdgeWager = 15,
+    /// <summary>Pick one of two sealed envelopes (mercy or cruelty) after a hint that may be a lie.</summary>
+    TwoEnvelopes = 16,
 }
 
 /// <summary>

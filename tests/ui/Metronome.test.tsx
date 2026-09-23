@@ -232,3 +232,24 @@ it("reschedules queued notes at a changed tempo without retaining the old rhythm
   expect(engine.running).toBe(true);
   engine.dispose();
 });
+
+function FollowHarness({ bpm }: { bpm: number }) {
+  const metronome = useMetronome(1, bpm);
+  return <>{metronome.controls}</>;
+}
+
+it("follows the domme's tempo without a tempo control, and falls silent when she sets none", async () => {
+  const view = render(<FollowHarness bpm={150} />);
+  expect(screen.queryByLabelText("Tempo (BPM)")).toBeNull();
+  expect(screen.getByText("Her pace: 150 beats per minute.")).toBeTruthy();
+  fireEvent.click(screen.getByText("Follow her pace"));
+  await screen.findByText("Playing");
+  const output = Audio.latest.gains[0];
+  // Two beats at 150 BPM are 0.4 seconds apart.
+  Audio.latest.currentTime = 0.4;
+  await waitFor(() => expect(Audio.latest.notes.length).toBeGreaterThanOrEqual(2));
+  expect(Audio.latest.notes[1].start.mock.calls[0][0] - Audio.latest.notes[0].start.mock.calls[0][0]).toBeCloseTo(0.4, 5);
+  view.rerender(<FollowHarness bpm={0} />);
+  expect(screen.getByText("Silent until she sets a pace.")).toBeTruthy();
+  expect(output.gain.setValueAtTime).toHaveBeenLastCalledWith(0, expect.any(Number));
+});

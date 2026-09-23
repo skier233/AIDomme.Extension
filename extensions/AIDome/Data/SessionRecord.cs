@@ -64,6 +64,12 @@ public sealed class SessionRecord : IUserOwned
     /// <summary>Accumulated points this session (for point economy).</summary>
     public int Points { get; set; }
 
+    /// <summary>The session mode (FullGuided, OwnContent, OwnMethods, FreePlay, Custom, or Homework).</summary>
+    public string? Mode { get; set; }
+
+    /// <summary>The accepted session contract, as JSON.</summary>
+    public string? ContractJson { get; set; }
+
     // ── Navigation ──
     public ICollection<EdgeEntry> Edges { get; set; } = new List<EdgeEntry>();
     public ICollection<OrgasmEntry> Orgasms { get; set; } = new List<OrgasmEntry>();

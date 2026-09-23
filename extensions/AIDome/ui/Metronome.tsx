@@ -30,8 +30,13 @@ async function lease(clientId: string, release = false) {
   return (await response.json()).granted === true;
 }
 
-/** Lives in the app-wide companion even when its portal is hidden or closed. */
-export function useMetronome(userId?: number) {
+/**
+ * Lives in the app-wide companion even when its portal is hidden or closed. When `followBpm` is a
+ * number the domme sets the pace: the metronome plays her tempo, falls silent at 0 (rests, holds,
+ * stops), and the user cannot change the tempo.
+ */
+export function useMetronome(userId?: number, followBpm?: number | null) {
+  const following = typeof followBpm === "number";
   const [preferences, setPreferences] = useState(defaults);
   const [running, setRunning] = useState(false);
   const [starting, setStarting] = useState(false);
@@ -107,10 +112,24 @@ export function useMetronome(userId?: number) {
     };
   }, [key, pause]);
 
+  const effective = (value: Preferences) =>
+    following
+      ? {
+          bpm: followBpm! > 0 ? followBpm! : value.bpm,
+          muted: value.muted || followBpm === 0,
+        }
+      : { bpm: value.bpm, muted: value.muted };
+  useEffect(() => {
+    const e = effective(preferences);
+    audio.current?.configure(e.bpm, preferences.volume, e.muted);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [following, followBpm]);
+
   const change = (patch: Partial<Preferences>) => {
     const value = { ...preferences, ...patch };
     setPreferences(value);
-    audio.current?.configure(value.bpm, value.volume, value.muted);
+    const e = effective(value);
+    audio.current?.configure(e.bpm, value.volume, e.muted);
     if (key)
       try {
         localStorage.setItem(key, JSON.stringify(value));
@@ -200,22 +219,34 @@ export function useMetronome(userId?: number) {
           {starting ? "Connecting…" : running ? "Playing" : "Paused"}
         </small>
       </div>
-      <label>
-        Tempo (BPM)
-        <input
-          aria-label="Tempo (BPM)"
-          type="range"
-          min={20}
-          max={240}
-          step={1}
-          value={preferences.bpm}
-          onChange={(e) => change({ bpm: Number(e.target.value) })}
-        />
-        <output>{preferences.bpm}</output>
-      </label>
+      {following ? (
+        <small>
+          {followBpm! > 0
+            ? `Her pace: ${followBpm} beats per minute.`
+            : "Silent until she sets a pace."}
+        </small>
+      ) : (
+        <label>
+          Tempo (BPM)
+          <input
+            aria-label="Tempo (BPM)"
+            type="range"
+            min={20}
+            max={240}
+            step={1}
+            value={preferences.bpm}
+            onChange={(e) => change({ bpm: Number(e.target.value) })}
+          />
+          <output>{preferences.bpm}</output>
+        </label>
+      )}
       <div className="aidomme-tracker-actions">
         <button disabled={!userId} onClick={() => void toggle()}>
-          {starting || running ? "Pause metronome" : "Start metronome"}
+          {starting || running
+            ? "Pause metronome"
+            : following
+              ? "Follow her pace"
+              : "Start metronome"}
         </button>
         <button
           aria-pressed={preferences.muted}
@@ -238,8 +269,8 @@ export function useMetronome(userId?: number) {
       </label>
       {error && <p role="alert">{error}</p>}
       <small>
-        One beat per stroke. Hide/close keeps playing. Shortcut configured in
-        Cove (default Alt+M). Leaving this tab pauses playback.
+        One beat per stroke. Hiding the companion keeps it playing; leaving
+        this tab pauses it. Shortcut: Alt+M by default.
       </small>
     </section>
   );

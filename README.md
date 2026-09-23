@@ -23,8 +23,9 @@ extensions/AIDome/
   extension.json                    manifest (id cove.community.aidome)
   AiDomeExtension.cs                entry point: services, migrations, UI manifest, HTTP API
   Tracking/                         app-wide edge/orgasm tracker (Cove tables, likes, undo)
+  Sessions/                         session contract, authorities, engine, planner, games, points
   Persistence/                      guided-session storage, recovery, commitments
-  Services/                         session engine, games, punishments, speech
+  Services/                         speech, punishments, homework
   ui/                               React page, companion window, settings panel
   dist/                             built bundles (checked in)
 tests/AIDome.Tests                  xUnit; PostgreSQL integration tests use temporary databases
@@ -43,7 +44,27 @@ dotnet build AIDome.Extension.slnx -c Debug
 ./scripts/stage-local-extensions.ps1   # then restart Cove; "AI Domme" appears in the nav
 ```
 
+## Session modes
+
+A session starts from a contract that says who decides each concern. The four presets:
+
+| Mode | Content | Methods | Pacing | Edges and holds | Permission and ending |
+|---|---|---|---|---|---|
+| Full guided | domme | domme | domme | domme | domme |
+| Own content | you | domme | domme | domme | domme |
+| Own content and methods | you | you | domme | domme | domme |
+| Free play | you | you | you | you | domme |
+
+Points, permission odds and her decision to end use the same rules in every mode, so she behaves
+the same whoever holds the controls. Sessions are paused rather than ended; only debug sessions
+can be ended by hand.
+
 ## Upgrading an existing install
+
+Version 0.8.0 adds migration `006_session_contracts` (session mode and contract columns; the policy
+table becomes `aidomme_session_contracts`). A session still running or paused under 0.7.0 cannot be
+continued afterwards: its chat log is kept and the page says it could not be resumed. Finish it
+before upgrading.
 
 Version 0.7.0 adds migration `005_guided_v2`, which moves AI Domme's guided data onto plain
 per-user tables in Cove's database and drops the previous tables in the same transaction. It was

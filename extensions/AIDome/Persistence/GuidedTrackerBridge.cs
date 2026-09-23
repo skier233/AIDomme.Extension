@@ -1,5 +1,4 @@
 using AIDome.Data;
-using AIDome.Services;
 using AIDome.Tracking;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -16,18 +15,18 @@ public sealed class GuidedTrackerBridge(GuidedRuntimes runtimes, ILogger<GuidedT
     public async Task DrainUnderGateAsync(GuidedRuntime runtime, CancellationToken ct)
     {
         await using var db = runtime.Factory.Open();
-        if (runtime.Online.HasActiveSession && await db.TrackerReceipts.AnyAsync(x => x.SessionId == runtime.Online.GetCurrentState().SessionId && x.VoidedAtUtc != null, ct))
-            runtime.Commands.StopAfterTrackingCorrection();
+        if (runtime.Session.ActiveSessionId is int active && await db.TrackerReceipts.AnyAsync(x => x.SessionId == active && x.VoidedAtUtc != null, ct))
+            await runtime.Session.StopAfterTrackingCorrectionAsync(ct);
         var pending = await db.TrackerReceipts.Where(x => x.DeliveredAtUtc == null && x.VoidedAtUtc == null).OrderBy(x => x.Id).ToListAsync(ct);
         foreach (var receipt in pending)
         {
-            if (runtime.Online.HasActiveSession && !runtime.Online.GetCurrentState().IsPaused && runtime.Online.GetCurrentState().SessionId == receipt.SessionId)
+            if (Consuming(runtime, receipt))
             {
                 try { await ConsumeAsync(runtime, db, receipt, ct); }
                 catch (Exception ex)
                 {
                     logger.LogError(ex, "Guided delivery failed for {EventId}; guidance stopped", receipt.EventId);
-                    runtime.Commands.StopAfterTrackingCorrection();
+                    await runtime.Session.StopAfterTrackingCorrectionAsync(ct);
                     await ClearSuspicionAsync(db, receipt.SessionId, ct);
                 }
             }
@@ -39,34 +38,35 @@ public sealed class GuidedTrackerBridge(GuidedRuntimes runtimes, ILogger<GuidedT
 
     public async Task RecordAsync(DbContext tracker, TrackerEvent item, CancellationToken ct, RecordTrackerEvent? expected = null)
     {
-        if (!runtimes.TryGet(item.UserId, out var runtime) || !runtime!.Online.HasActiveSession) return;
+        if (!runtimes.TryGet(item.UserId, out var runtime) || !runtime!.Session.Active) return;
         await runtime.Gate.WaitAsync(ct);
         try
         {
-            if (!runtime.Online.HasActiveSession || runtime.Online.GetCurrentState().IsPaused) return;
-            var state = runtime.Online.GetCurrentState();
-            if (expected?.GuidedSessionId is int sessionId && sessionId != state.SessionId
-                || expected?.GuidedStepNumber is int stepNumber && stepNumber != state.StepNumber) return;
+            if (runtime.Session.ActiveSessionId is not int sessionId || runtime.Session.Paused) return;
+            int step = runtime.Session.StepNumber;
+            if (expected?.GuidedSessionId is int expectedSession && expectedSession != sessionId
+                || expected?.GuidedStepNumber is int expectedStep && expectedStep != step) return;
             var db = runtime.Factory.Join(tracker);
-            var session = await db.Sessions.SingleOrDefaultAsync(x => x.Id == state.SessionId, ct)
+            var session = await db.Sessions.SingleOrDefaultAsync(x => x.Id == sessionId, ct)
                 ?? throw new TrackerValidationException("The guided session changed. Refresh Cove before recording.");
             session.LastInteractionUtc = item.ReceivedAtUtc;
-            var receipt = new GuidedEventReceipt { EventId = item.Id, Kind = item.Kind, SessionId = state.SessionId, StepNumber = state.StepNumber };
+            var receipt = new GuidedEventReceipt { EventId = item.Id, Kind = item.Kind, SessionId = sessionId, StepNumber = step };
             if (item.Kind == "edge")
             {
-                var parameters = runtime.Commands.GetTrackerEdgeParameters();
-                var edge = db.Add(new EdgeEntry { TimestampUtc = item.OccurredAtUtc, SessionId = state.SessionId,
-                    StimMethodId = state.CurrentDirective?.Method?.Id ?? 1, Speed = parameters.Speed, HeldDuration = parameters.HoldDuration });
+                // The prescribed method and speed at the moment of the edge. Nothing is invented.
+                var (methodId, speed) = runtime.Session.EdgeAttribution();
+                var edge = db.Add(new EdgeEntry { TimestampUtc = item.OccurredAtUtc, SessionId = sessionId,
+                    StimMethodId = methodId, Speed = speed, HeldDuration = TimeSpan.Zero });
                 await db.SaveChangesAsync(ct);
                 receipt.ActivityId = edge.Id;
             }
             else
             {
-                var allowed = state.Phase == SessionPhase.Finishing;
-                var orgasm = db.Add(new OrgasmEntry { TimestampUtc = item.OccurredAtUtc, SessionId = state.SessionId, Allowed = allowed });
+                var allowed = runtime.Session.PermissionStands;
+                var orgasm = db.Add(new OrgasmEntry { TimestampUtc = item.OccurredAtUtc, SessionId = sessionId, Allowed = allowed });
                 if (!allowed)
                 {
-                    var infraction = db.Add(new InfractionEntry { TimestampUtc = item.OccurredAtUtc, SessionId = state.SessionId,
+                    var infraction = db.Add(new InfractionEntry { TimestampUtc = item.OccurredAtUtc, SessionId = sessionId,
                         Type = InfractionType.UnauthorizedOrgasm, Notes = "Recorded by the Cove tracker." });
                     await db.SaveChangesAsync(ct);
                     receipt.InfractionId = infraction.Id;
@@ -89,7 +89,7 @@ public sealed class GuidedTrackerBridge(GuidedRuntimes runtimes, ILogger<GuidedT
             await using var db = runtime.Factory.Open();
             var receipt = await db.TrackerReceipts.SingleOrDefaultAsync(x => x.EventId == item.Id, ct);
             if (receipt is null || receipt.DeliveredAtUtc is not null || receipt.VoidedAtUtc is not null) return;
-            if (runtime.Online.HasActiveSession && !runtime.Online.GetCurrentState().IsPaused && runtime.Online.GetCurrentState().SessionId == receipt.SessionId)
+            if (Consuming(runtime, receipt))
             {
                 try { await ConsumeAsync(runtime, db, receipt, ct); }
                 catch (Exception ex)
@@ -97,7 +97,7 @@ public sealed class GuidedTrackerBridge(GuidedRuntimes runtimes, ILogger<GuidedT
                     // The factual event is committed. Never ask the user to record it again or
                     // replay an uncertain engine transition. Stop automation and keep the receipt.
                     logger.LogError(ex, "Guided delivery failed for tracker event {EventId}; guidance stopped", item.Id);
-                    runtime.Commands.StopAfterTrackingCorrection();
+                    await runtime.Session.StopAfterTrackingCorrectionAsync(ct);
                     await ClearSuspicionAsync(db, receipt.SessionId, ct);
                 }
             }
@@ -144,8 +144,8 @@ public sealed class GuidedTrackerBridge(GuidedRuntimes runtimes, ILogger<GuidedT
         {
             await using var db = runtime.Factory.Open();
             var receipt = await db.TrackerReceipts.SingleOrDefaultAsync(x => x.EventId == item.Id, ct);
-            if (receipt is not null && runtime.Online.HasActiveSession && runtime.Online.GetCurrentState().SessionId == receipt.SessionId)
-                runtime.Commands.StopAfterTrackingCorrection();
+            if (receipt is not null && runtime.Session.ActiveSessionId == receipt.SessionId)
+                await runtime.Session.StopAfterTrackingCorrectionAsync(ct);
             await runtime.SaveAsync(ct);
         }
         finally { runtime.Gate.Release(); }
@@ -159,14 +159,17 @@ public sealed class GuidedTrackerBridge(GuidedRuntimes runtimes, ILogger<GuidedT
 
     private static async Task ConsumeAsync(GuidedRuntime runtime, GuidedData db, GuidedEventReceipt receipt, CancellationToken ct)
     {
-        if (receipt.Kind == "edge" && receipt.StepNumber is int step && step > 0 && step != runtime.Online.GetCurrentState().StepNumber)
+        if (receipt.Kind == "edge" && receipt.StepNumber is int step && step > 0 && step != runtime.Session.StepNumber)
         {
-            runtime.Commands.ObserveEarlierTrackerEdge(receipt.EventId);
+            await runtime.Session.ObserveEarlierEdgeAsync(receipt.EventId, ct);
             return;
         }
         var allowed = receipt.Kind == "orgasm" ? (await db.Orgasms.SingleAsync(x => x.Id == receipt.ActivityId, ct)).Allowed : (bool?)null;
-        await runtime.Commands.ConsumeTrackerEventAsync(receipt.EventId, receipt.Kind, ct, allowed);
+        await runtime.Session.ConsumeTrackerEventAsync(receipt.EventId, receipt.Kind, allowed, ct);
     }
+
+    private static bool Consuming(GuidedRuntime runtime, GuidedEventReceipt receipt)
+        => runtime.Session.ActiveSessionId == receipt.SessionId && !runtime.Session.Paused;
 }
 
 public sealed record GuidedActionRequest(Guid EventId, Guid SettingId, DateTime OccurredAtUtc,

@@ -16,7 +16,7 @@ export async function companionPost(path: string, body: unknown) {
   return response.json();
 }
 
-/** Independent leases for narration and directed media; neither requires the other. */
+/** One narration owner per account across tabs and devices. */
 export class CompanionLease {
   clientId: string | null = null;
   private generation = 0;

@@ -1,3 +1,4 @@
+using AIDome.Sessions;
 namespace AIDome.Services;
 
 /// <summary>
@@ -141,6 +142,14 @@ public static class DommeText
         "Unauthorized orgasm. This session just got a lot worse for you.",
         "You couldn't help yourself? Pathetic. Time for consequences.",
         "You lost control. That's going to cost you dearly.",
+    ];
+
+    public static readonly string[] RetaliationLostGame =
+    [
+        "You lost. Now you pay for it.",
+        "Losers don't get mercy.",
+        "That's what happens when you gamble with me.",
+        "You played and you lost. Take your punishment.",
     ];
 
     public static readonly string[] RetaliationRuinedOrgasm =
@@ -376,6 +385,7 @@ public static class DommeText
         RetaliationReason.Disobedience => Pick(RetaliationDisobedience),
         RetaliationReason.UnauthorizedOrgasm => Pick(RetaliationUnauthorizedOrgasm),
         RetaliationReason.RuinedOrgasm => Pick(RetaliationRuinedOrgasm),
+        RetaliationReason.LostGame => Pick(RetaliationLostGame),
         _ => Pick(RetaliationCumDenied),
     };
 }

@@ -1,0 +1,133 @@
+using System.Text.Json.Serialization;
+using AIDome.Data;
+
+namespace AIDome.Sessions;
+
+/// <summary>The domme's current temperament; it colors what she chooses and how she says it.</summary>
+public enum DommeMood { Neutral, Cruel, Edgy, Teasing, Playful, Relentless }
+
+/// <summary>What kind of instruction a step is, from the domme's point of view.</summary>
+public enum StepCategory { Tease, Stroke, Edge, Rest, Torment, Surprise, Game, Psych, Hold, Finish, FreePlay }
+
+/// <summary>A label for what the session is doing right now.</summary>
+public enum SessionPhase { Teasing = 0, Building = 1, Intense = 2, Edging = 3, Resting = 4, Tormenting = 5, Finishing = 6, Ended = 7 }
+
+/// <summary>Why the domme is being harsher, so her words match.</summary>
+public enum RetaliationReason { BegCumDenied = 0, BegStopDenied = 1, Disobedience = 2, UnauthorizedOrgasm = 3, RuinedOrgasm = 4, LostGame = 5 }
+
+/// <summary>What the user should be doing right now.</summary>
+public sealed record Directive
+{
+    public InstructionKind Kind { get; init; }
+    public StepCategory Category { get; init; }
+    /// <summary>The prescribed method; the user-choice placeholder when the user owns methods; null for rests.</summary>
+    public MethodInfo? Method { get; init; }
+    /// <summary>1–10 when the domme sets the pace, otherwise 0.</summary>
+    public int Speed { get; init; }
+    /// <summary>Metronome beats per minute; 0 means silence (rest, hold, stop, or user-set pace).</summary>
+    public int Tempo { get; init; }
+    /// <summary>Seconds for timed steps; edges for edge-count steps.</summary>
+    public int DurationOrCount { get; init; }
+    public int HoldSeconds { get; init; }
+    public string Text { get; init; } = "";
+    public SessionPhase Phase { get; init; }
+    /// <summary>A timer the user does not see counting down (free-play check-ins).</summary>
+    public bool HiddenTimer { get; init; }
+}
+
+public sealed class MoodState
+{
+    public DommeMood Mood { get; set; }
+    public int StepsRemaining { get; set; }
+    public double Intensity { get; set; }
+}
+
+public sealed class RetaliationState
+{
+    public bool Active { get; set; }
+    public int StepsLeft { get; set; }
+    public RetaliationReason Reason { get; set; }
+}
+
+/// <summary>
+/// Everything the engine knows about one running session. It is plain data: the checkpoint is
+/// this object serialized, so recovery restores exactly what the engine was using.
+/// </summary>
+public sealed class SessionState
+{
+    public int Format { get; set; } = 2;
+    public int SessionId { get; set; }
+    public SessionContract Contract { get; set; } = new();
+    public int ContractRevision { get; set; } = 1;
+    /// <summary>The account's effective method library at start, within the contract's limits.</summary>
+    public List<MethodInfo> Methods { get; set; } = [];
+
+    public DateTime StartedAtUtc { get; set; }
+    public bool Ended { get; set; }
+    public SessionOutcome Outcome { get; set; }
+    public bool Paused { get; set; }
+    public DateTime? PausedAtUtc { get; set; }
+    public double PausedSeconds { get; set; }
+
+    public Directive? Current { get; set; }
+    public int StepNumber { get; set; }
+    public DateTime StepStartedAtUtc { get; set; }
+    public int EdgesThisStep { get; set; }
+    public int EdgesThisSession { get; set; }
+    public int RequestsThisSession { get; set; }
+    public int UnauthorizedOrgasms { get; set; }
+    /// <summary>Hours since the user's last recorded orgasm when the session began; null if never recorded.</summary>
+    public double? HoursSinceLastOrgasmAtStart { get; set; }
+    /// <summary>The last thing the user did (edge, request, answer, resume). Unreported free play stops counting after a while.</summary>
+    public DateTime LastActivityUtc { get; set; }
+
+    // Timer: the host arms one timer for TimerDueUtc; a stale generation is ignored.
+    public long TimerGeneration { get; set; }
+    public DateTime? TimerDueUtc { get; set; }
+    public int PausedTimerSeconds { get; set; }
+
+    // Points are the session clock: the same activity earns the same points in every mode.
+    public double Points { get; set; }
+    public double Budget { get; set; }
+    /// <summary>Start of stimulation not yet converted into points (null while resting or paused).</summary>
+    public DateTime? ActiveSinceUtc { get; set; }
+    public MethodInfo? ActiveMethod { get; set; }
+    public int ActiveSpeed { get; set; }
+
+    public double Arousal { get; set; }
+    public int StepsSinceRest { get; set; }
+    public List<int> RecentIntensities { get; set; } = [];
+    public List<int> RecentMethodIds { get; set; } = [];
+    public bool LubeActive { get; set; }
+    public Directive? PendingLube { get; set; }
+    /// <summary>A timed step interrupted by an edge, resumed after the hold or cooldown.</summary>
+    public Directive? Suspended { get; set; }
+    public int SuspendedRemainingSeconds { get; set; }
+    public bool Holding { get; set; }
+    public StepCategory? PreviousCategory { get; set; }
+    public int? ChainMethodId { get; set; }
+    public int ChainStepsRemaining { get; set; }
+    public bool FalsePromiseActive { get; set; }
+    public int FalsePromiseStepsLeft { get; set; }
+    public MoodState Mood { get; set; } = new();
+    public RetaliationState Retaliation { get; set; } = new();
+
+    public GameState? Game { get; set; }
+    public List<GameType> RecentGames { get; set; } = [];
+    /// <summary>Game stakes the domme still has to apply, in order.</summary>
+    public List<Consequence> PendingConsequences { get; set; } = [];
+    /// <summary>Percentage points added to (or taken from) her next permission decision.</summary>
+    public double PermissionModifier { get; set; }
+
+    /// <summary>The domme has decided the ending (or granted a request); no further steps are planned.</summary>
+    public bool FinishDecided { get; set; }
+    public bool PermissionGranted { get; set; }
+
+    [JsonIgnore] public int Mean => Pref(Contract.Preferences.Mean);
+    [JsonIgnore] public int Intensity => Pref(Contract.Preferences.Intensity);
+    [JsonIgnore] public int Denial => Pref(Contract.Preferences.Denial);
+    [JsonIgnore] public int Length => Pref(Contract.Preferences.Length);
+    [JsonIgnore] public double Progress => Budget <= 0 ? 0 : Points / Budget;
+    [JsonIgnore] public bool Active => SessionId > 0 && !Ended;
+    private static int Pref(int value) => value is >= 1 and <= 10 ? value : 5;
+}

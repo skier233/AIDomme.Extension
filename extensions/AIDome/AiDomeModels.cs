@@ -1,42 +1,41 @@
 using AIDome.Data;
 using AIDome.Services;
+using AIDome.Sessions;
 
 namespace AIDome;
 
 /// <summary>
-/// Full live-session snapshot returned by GET /state and by every mutating action
-/// endpoint. The React frontend polls this while a session is active and derives the
-/// step countdown locally from <see cref="StepEndsAtUtc"/> (no server-side ticking).
+/// The live snapshot returned by GET /state and every session mutation. The client polls it and
+/// derives the countdown locally from <see cref="StepEndsAtUtc"/>.
 /// </summary>
 public sealed record AiDomeStateSnapshot(
     int UserId,
     Guid InstanceId,
     long Revision,
-    int PolicyRevision,
-    SessionPolicy Policy,
     bool SessionActive,
-    DateTime? LastInteractionUtc,
-    int Points,
-    OnlineSessionState? Online,
+    SessionView? Session,
     DateTime? StepEndsAtUtc,
     AiDomeMediaCue? MediaCue,
-    IReadOnlyList<ChatMessage> Messages,
-    IReadOnlyList<CommandActionDefinition> Actions);
+    IReadOnlyList<ChatMessage> Messages);
 
 /// <summary>
-/// The domme's directive to the media player: which kind of Cove media to show and a
-/// monotonically increasing token. The frontend fetches a fresh random item of <see cref="Kind"/>
-/// whenever <see cref="Token"/> changes, so media follows the session without the backend needing
-/// the user's media token. Null = nothing playing.
+/// The domme's media cue: which kind of Cove media to show, and a token that changes when she wants
+/// something new. The page fetches a fresh random item of that kind whenever the token changes.
 /// </summary>
 public sealed record AiDomeMediaCue(string Kind, int Token);
 
-/// <summary>Setup-screen payload, fetched once when no session is active.</summary>
+/// <summary>A mode as offered on the setup screen.</summary>
+public sealed record ModePresetView(SessionMode Mode, string Name, string Description, SessionContract Contract);
+
+/// <summary>Setup-screen payload.</summary>
 public sealed record AiDomeSetupSnapshot(
     ResolvedDefaults Defaults,
     IReadOnlyList<PunishmentSummary> ActivePunishments,
-    PreviousSessionSuspicion? Suspicion,
+    IReadOnlyList<ModePresetView> Modes,
     IReadOnlyList<ChatMessage> Messages);
+
+public sealed record StartSessionRequest(SessionContract Contract);
+public sealed record HomeworkRequest(SessionContract Contract, bool Punishment = false);
 
 /// <summary>User-facing extension settings, persisted in the Cove extension store.</summary>
 public sealed record AiDomeSettings(string TtsBaseUrl, string TtsVoice, int TtsTimeoutSeconds)
@@ -52,8 +51,5 @@ public sealed record AiDomeSettings(string TtsBaseUrl, string TtsVoice, int TtsT
 }
 
 // ── Request bodies ──
-public sealed record AiDomeGameAnswerRequest(int Answer);
 public sealed record AiDomeInfractionRequest(string Type, string? Note = null);
-public sealed record AiDomeCumRequest(bool Decision);
-public sealed record AiDomeConfessionRequest(bool Confessed);
 public sealed record AiDomeTtsRequest(string Text);

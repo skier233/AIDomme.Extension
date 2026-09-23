@@ -103,7 +103,7 @@ export function DefinitionSettings() {
   };
   if (!data) return <p>{error || "Loading definitions…"}</p>;
   return (
-    <div className="setup-card aidomme-definitions">
+    <div className="aidomme-card aidomme-definitions">
       <p>
         Shared defaults are available to every Cove account. Saving creates your
         personal override. Changes apply to newly selected methods; start a new

@@ -9,7 +9,7 @@ import { createPortal } from "react-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { extensionFetch } from "@cove/runtime/api";
 import { useMetronome } from "./Metronome";
-import { guidedClient } from "./GuidedClient";
+import { guidedClient, useGuidedSession } from "./GuidedClient";
 import { GuidedMenu, GuidedPanel } from "./SessionControls";
 import {
   getActiveMedia,
@@ -107,7 +107,17 @@ export function TrackerCompanion() {
   const media = useActiveMedia();
   const bindings = useExtensionKeyboardBindings(ID);
   const queryClient = useQueryClient();
-  const metronome = useMetronome(snapshot?.preferences.userId);
+  const guided = useGuidedSession();
+  const session = guided.snapshot?.session;
+  // When the domme sets the pace, the metronome follows her tempo.
+  const metronome = useMetronome(
+    snapshot?.preferences.userId,
+    session?.contract?.pacing === "Domme" && !session.isPaused
+      ? session.tempo
+      : session?.contract?.pacing === "Domme"
+        ? 0
+        : undefined,
+  );
   useEffect(() => {
     if (snapshot?.preferences.userId)
       return guidedClient.start(snapshot.preferences.userId);
@@ -334,11 +344,9 @@ export function TrackerCompanion() {
         mediaKind: current?.kind,
         mediaId: current?.id,
         positionSeconds: current?.positionSeconds,
-        guidedSessionId: guidance?.sessionActive
-          ? guidance.online.sessionId
-          : 0,
-        guidedStepNumber: guidance?.sessionActive
-          ? guidance.online.stepNumber
+        guidedSessionId: guidance?.session ? guidance.session.sessionId : 0,
+        guidedStepNumber: guidance?.session
+          ? guidance.session.stepNumber
           : undefined,
       };
       const success = await mutate("/events", "POST", body);
@@ -397,14 +405,14 @@ export function TrackerCompanion() {
         id: "session-permission",
         surface: "overlay" as const,
         action: () => {
-          void guidedClient.control("beg-to-cum");
+          void guidedClient.control("request-permission");
         },
       },
       {
         id: "session-stop-request",
         surface: "overlay" as const,
         action: () => {
-          void guidedClient.control("beg-to-stop");
+          void guidedClient.control("request-rest");
         },
       },
       {
@@ -412,7 +420,7 @@ export function TrackerCompanion() {
         surface: "overlay" as const,
         action: () => {
           void guidedClient.control(
-            guidedClient.getSnapshot().snapshot?.online?.isPaused
+            guidedClient.getSnapshot().snapshot?.session?.isPaused
               ? "resume"
               : "pause",
           );
@@ -505,7 +513,7 @@ export function TrackerCompanion() {
             <p>{error || connectionError || "Connecting…"}</p>
           ) : (
             <>
-              <GuidedPanel compact />
+              <GuidedPanel />
               <div className="aidomme-tracker-actions">
                 <button
                   disabled={busy || !!retry}

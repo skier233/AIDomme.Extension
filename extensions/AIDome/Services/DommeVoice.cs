@@ -1,4 +1,5 @@
 ﻿using AIDome.Data;
+using AIDome.Sessions;
 
 namespace AIDome.Services;
 
@@ -21,9 +22,9 @@ public static class DommeVoice
         public bool IsRetaliating { get; init; }
         public RetaliationReason RetaliationReason { get; init; }
         public bool IsPunishment { get; init; }
-        public StimMethod? Method { get; init; }
-        public DirectiveCategory? PreviousCategory { get; init; }
-        public DirectiveCategory Category { get; init; }
+        public MethodInfo? Method { get; init; }
+        public StepCategory? PreviousCategory { get; init; }
+        public StepCategory Category { get; init; }
         public int Speed { get; init; }
         public int Mean { get; init; }
         public int DurationOrCount { get; init; }
@@ -34,8 +35,6 @@ public static class DommeVoice
         public bool IsEdgeCount { get; init; }
     }
 
-    public enum DommeMood { Neutral, Cruel, Edgy, Teasing, Playful, Relentless }
-    public enum DirectiveCategory { Tease, Stroke, Edge, Rest, Torment, Surprise, Game, Psych }
 
     // ────────────────────────────────────────────────────────────
     // Speed / duration / count → natural language
@@ -371,7 +370,7 @@ public static class DommeVoice
         return Pick(stops);
     }
 
-    public static string ComposeSurpriseBurst(SpeechContext ctx, StimMethod method, int duration)
+    public static string ComposeSurpriseBurst(SpeechContext ctx, MethodInfo method, int duration)
     {
         string desc = Desc(method);
         string dur = DurationPhrase(duration);
@@ -384,7 +383,7 @@ public static class DommeVoice
         return Pick(lines);
     }
 
-    public static string ComposeSurpriseSwap(SpeechContext ctx, StimMethod method, int speed, int duration)
+    public static string ComposeSurpriseSwap(SpeechContext ctx, MethodInfo method, int speed, int duration)
     {
         string desc = Desc(method);
         string spd = SpeedAdverb(speed);
@@ -425,7 +424,7 @@ public static class DommeVoice
         return ComposeEdgeHold(ctx, holdSeconds);
     }
 
-    public static string ComposeAutoFinishGranted(SpeechContext ctx, StimMethod method, int duration)
+    public static string ComposeAutoFinishGranted(SpeechContext ctx, MethodInfo method, int duration)
     {
         string desc = Desc(method);
         string dur = DurationPhrase(duration);
@@ -479,7 +478,7 @@ public static class DommeVoice
         return Pick(denied);
     }
 
-    public static string ComposeFalsePromiseReveal(SpeechContext ctx, StimMethod method, int extraDuration)
+    public static string ComposeFalsePromiseReveal(SpeechContext ctx, MethodInfo method, int extraDuration)
     {
         string reveal = DommeText.Pick(DommeText.FalsePromiseReveal);
         string desc = Desc(method);
@@ -487,7 +486,7 @@ public static class DommeVoice
         return $"{reveal} Now — {desc} for {dur}. No stopping.";
     }
 
-    public static string ComposePsychLoyalty(SpeechContext ctx, StimMethod method, int speed, int duration)
+    public static string ComposePsychLoyalty(SpeechContext ctx, MethodInfo method, int speed, int duration)
     {
         string desc = Desc(method);
         string spd = SpeedAdverb(speed);
@@ -515,7 +514,7 @@ public static class DommeVoice
         return Pick(templates);
     }
 
-    public static string ComposePsychDenialTaunt(SpeechContext ctx, StimMethod method, int speed, int duration)
+    public static string ComposePsychDenialTaunt(SpeechContext ctx, MethodInfo method, int speed, int duration)
     {
         string desc = Desc(method);
         string spd = SpeedAdverb(speed);
@@ -546,7 +545,7 @@ public static class DommeVoice
         return $"{taunt} {desc}, {spd}, for {dur}.";
     }
 
-    public static string ComposeResume(SpeechContext ctx, StimMethod method, int speed, int remaining)
+    public static string ComposeResume(SpeechContext ctx, MethodInfo method, int speed, int remaining)
     {
         string desc = Desc(method);
         string spd = SpeedAdverb(speed);
@@ -624,7 +623,7 @@ public static class DommeVoice
 
         return ctx.PreviousCategory.Value switch
         {
-            DirectiveCategory.Rest => PickFrom(ctx.Mood,
+            StepCategory.Rest => PickFrom(ctx.Mood,
                 neutral: ["Break's over.", "Back to work.", "Enough rest.", "Let's continue."],
                 cruel: ["That's enough mercy.", "Back to suffering.", "Rest is over, now it gets worse.", "Done resting."],
                 teasing: ["Miss me?", "Ready for more?", "Hope you enjoyed the break.", "Feeling refreshed? Good. You'll need it."],
@@ -632,7 +631,7 @@ public static class DommeVoice
                 playful: ["Okay break's over!", "Back to the fun.", "Let's continue!", "Refreshed? Good!"],
                 relentless: ["Break's done. Go.", "Back to it.", "No more rest."]),
 
-            DirectiveCategory.Edge => PickFrom(ctx.Mood,
+            StepCategory.Edge => PickFrom(ctx.Mood,
                 neutral: ["Good.", "Now.", "Okay.", "Moving on.", "Next."],
                 cruel: ["Good edge. Now more suffering.", "Still shaking? Too bad.", "Bet that hurt.", "That was just the start."],
                 teasing: ["Mmm, that edge looked intense.", "How does that feel?", "Nice and desperate now.", "Bet you want to cum so badly right now."],
@@ -640,7 +639,7 @@ public static class DommeVoice
                 playful: ["Nice one!", "Good edge!", "Let's keep going.", "Not bad!"],
                 relentless: ["Don't stop.", "Next.", "Keep going.", "No breaks."]),
 
-            DirectiveCategory.Torment => PickFrom(ctx.Mood,
+            StepCategory.Torment => PickFrom(ctx.Mood,
                 neutral: ["Okay.", "Moving on.", "Something different now."],
                 cruel: ["Not done yet.", "You survived that. Barely.", "More."],
                 teasing: ["Wasn't that fun?", "Now something different.", "Let's try this."],
@@ -648,7 +647,7 @@ public static class DommeVoice
                 playful: ["Okay, something different!", "Change of pace."],
                 relentless: ["No slowing down.", "More.", "Next."]),
 
-            DirectiveCategory.Tease => PickFrom(ctx.Mood,
+            StepCategory.Tease => PickFrom(ctx.Mood,
                 neutral: ["Now.", "Keep going.", "Next.", "New instruction."],
                 cruel: ["Enough teasing. Time to work.", "That was the easy part.", "Now it gets real."],
                 teasing: ["Want more?", "Getting desperate yet?", "Let me tease you a bit more.", "How about something different?"],
@@ -656,7 +655,7 @@ public static class DommeVoice
                 playful: ["Okay, new instruction!", "Switching it up.", "Something different now."],
                 relentless: ["Faster now.", "Keep going.", "Don't slow down.", "No breaks."]),
 
-            DirectiveCategory.Surprise => PickFrom(ctx.Mood,
+            StepCategory.Surprise => PickFrom(ctx.Mood,
                 neutral: ["Now.", "Moving on.", "Okay.", "Continuing."],
                 cruel: ["Surprised? Good.", "You didn't expect that, did you?", "More where that came from."],
                 teasing: ["Surprised you, didn't I?", "Different pace now.", "Now then."],
@@ -664,7 +663,7 @@ public static class DommeVoice
                 playful: ["That was fun!", "Okay, back to it.", "Moving on!"],
                 relentless: ["No time to recover.", "More.", "Keep going."]),
 
-            DirectiveCategory.Game => PickFrom(ctx.Mood,
+            StepCategory.Game => PickFrom(ctx.Mood,
                 neutral: ["Game over. Back to work.", "Now.", "Moving on."],
                 cruel: ["Done playing. Now you work.", "Games are over.", "Fun's over."],
                 teasing: ["Fun game. Now back to this.", "Now the real fun.", "Back to the main event."],
@@ -742,9 +741,11 @@ public static class DommeVoice
     // Utility
     // ────────────────────────────────────────────────────────────
 
-    private static string Desc(StimMethod? m)
+    private static string Desc(MethodInfo? m)
     {
         if (m is null) return "Stroke";
+        // The user owns methods: same lines, method-agnostic wording.
+        if (m.IsUserChoice) return "Stroke however you like";
         string d = m.Description.TrimEnd('.', ' ');
         if (!string.IsNullOrWhiteSpace(d)) return d;
         return string.IsNullOrWhiteSpace(m.Name) ? "Stroke" : m.Name;

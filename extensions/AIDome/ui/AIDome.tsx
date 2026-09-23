@@ -4,458 +4,635 @@ import {
   TextInput,
   NumberInput,
   SaveButton,
+  VideoPlayer,
+  navigateToUrl,
 } from "@cove/runtime/components";
 import { extensionFetch } from "@cove/runtime/api";
 export { TrackerCompanion } from "./Tracker";
 import { TrackerCompanion, openTracker } from "./Tracker";
 import { DefinitionSettings } from "./Configuration";
-import { guidedClient, useGuidedSession } from "./GuidedClient";
+import { guidedApi, guidedClient, useGuidedSession } from "./GuidedClient";
 import { CommitmentPanel } from "./Commitments";
 import {
-  defaultPolicy,
-  GuidedPanel,
-  SessionPolicyEditor,
+  ChatLog,
+  GameControls,
+  GuidedMenu,
+  PendingRequest,
+  SessionActions,
+  SessionStatus,
 } from "./SessionControls";
 
-const { useEffect, useRef, useState, useCallback } = React;
-
+const { useEffect, useMemo, useState } = React;
 const API_BASE = "/api/ext/aidome";
 
-// ─────────────────────────── API helpers ───────────────────────────
-async function api(path: string, options: RequestInit = {}): Promise<any> {
-  const response = await extensionFetch(`${API_BASE}${path}`, {
-    ...options,
-    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
-  });
-  const text = await response.text();
-  let data: any = null;
-  if (text) {
-    try {
-      data = JSON.parse(text);
-    } catch {
-      data = text;
-    }
-  }
-  if (!response.ok) {
-    const detail = data?.detail || data?.message || text || response.statusText;
-    throw new Error(detail || "Request failed.");
-  }
-  return data;
-}
-
-const post = (path: string, body?: any) =>
-  api(path, {
-    method: "POST",
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
-
-// ─────────────────────────── formatting ───────────────────────────
-function formatTime(totalSeconds: number): string {
-  const t = Math.max(0, Math.floor(totalSeconds || 0));
-  const m = Math.floor(t / 60);
-  const s = t % 60;
-  return `${m}:${s.toString().padStart(2, "0")}`;
-}
-const formatParam = (v: number) => (v === -1 ? "Auto" : String(v));
-const senderClass = (sender: string) =>
-  sender === "Domme"
-    ? "msg-domme"
-    : sender === "System"
-      ? "msg-system"
-      : sender === "Manager"
-        ? "msg-manager"
-        : "";
-const localTime = (iso: string) => {
-  try {
-    return new Date(iso).toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    });
-  } catch {
-    return "";
-  }
-};
-const localDateTime = (iso: string) => {
-  try {
-    return new Date(iso).toLocaleString();
-  } catch {
-    return "";
-  }
-};
-
-// ─────────────────────────── default params ───────────────────────────
-function defaultParams() {
-  return {
-    policy: { ...defaultPolicy, allowedMethodIds: [] as number[] },
-    intensity: -1,
-    length: -1,
-    denial: -1,
-    kink: -1,
-    mean: -1,
-    onlyGamesMode: false,
-    allowToys: false,
-    allowVibrator: false,
-    allowFleshlight: false,
-    allowAutoblow: false,
-    allowProstate: false,
-    allowAnal: false,
-    allowBondage: false,
-    allowCEI: false,
-    allowSelfOral: false,
-    isDebugSession: false,
+type Authority = "Domme" | "User";
+type Contract = {
+  version: number;
+  mode: string;
+  content: Authority;
+  methods: Authority;
+  pacing: Authority;
+  edges: Authority;
+  games: boolean;
+  preferences: { intensity: number; length: number; denial: number; mean: number };
+  limits: {
+    toys: string[];
+    anal: boolean;
+    bondage: boolean;
+    cei: boolean;
+    selfOral: boolean;
+    allowedMethodIds: number[];
   };
-}
+  punishment: boolean;
+  debug: boolean;
+  gamesOnly: boolean;
+  canChangeDuringSession: boolean;
+};
+
+const TOYS: [string, string][] = [
+  ["HeadVibrator", "Vibrator"],
+  ["Fleshlight", "Fleshlight"],
+  ["Autoblow", "Autoblow"],
+  ["ProstateMassager", "Prostate massager"],
+];
+const PREFERENCES: [keyof Contract["preferences"], string, string][] = [
+  ["intensity", "Intensity", "How hard she pushes."],
+  ["length", "Length", "How long before she decides your ending."],
+  ["denial", "Denial", "How likely she is to say no."],
+  ["mean", "Meanness", "How cruel she allows herself to be."],
+];
 
 // ═══════════════════════════ COMMAND CENTER PAGE ═══════════════════════════
 export function CommandCenterPage() {
   const state = useGuidedSession();
-  const { snapshot, setup, error } = state;
-  const [pending, setPending] = useState(defaultParams());
-  const [confessionDismissed, setConfessionDismissed] = useState(false);
-  const chatRef = useRef<HTMLDivElement | null>(null);
-  const sessionActive = !!snapshot?.sessionActive;
-  const online = snapshot?.online;
-  const messages: any[] = snapshot?.messages ?? setup?.messages ?? [];
-  const startSession = async (punishment: boolean) => {
-    const response = await guidedClient.mutate(
-      punishment ? "/session/start-punishment" : "/session/start",
-      pending,
-    );
-    if (response) openTracker();
-  };
-  const generateHomework = async (punishment: boolean) => {
-    await guidedClient.mutate(
-      punishment ? "/punishment-homework" : "/homework",
-      pending,
-    );
-  };
-  const handleConfession = async (confessed: boolean) => {
-    const result = await guidedClient.mutate("/confession", { confessed });
-    if (result) setConfessionDismissed(true);
-  };
-  useEffect(() => {
-    if (chatRef.current)
-      chatRef.current.scrollTop = chatRef.current.scrollHeight;
-  }, [messages.length]);
-  const setP = (patch: Partial<ReturnType<typeof defaultParams>>) =>
-    setPending((p) => ({ ...p, ...patch }));
-
-  // ─────────────── render ───────────────
+  const session = state.snapshot?.sessionActive
+    ? state.snapshot.session
+    : null;
   return (
     <div className="aidomme-shell">
-      <div className="aidomme-header">
-        <div>
-          <h1 className="brand-title">AI Domme</h1>
-          <button type="button" onClick={openTracker}>
-            Open tracker
-          </button>
-          <p className="brand-sub">
-            {sessionActive
-              ? "Live session in progress"
-              : "Session configuration"}
-          </p>
-        </div>
+      <div className="aidomme-page-header">
+        <h1>AI Domme</h1>
+        <span className="aidomme-muted">
+          {session
+            ? `${modeName(state.setup, session.mode)}${session.isPaused ? " · paused" : ""}`
+            : "Choose how you want to play"}
+        </span>
+        <button type="button" onClick={openTracker}>
+          Open companion
+        </button>
       </div>
-      {error && <div className="aidomme-error">{error}</div>}
-      {sessionActive ? renderSession() : renderSetup()}
+      {state.error && <div className="aidomme-error">{state.error}</div>}
+      {session ? <SessionScreen session={session} /> : <SetupScreen />}
       <CommitmentPanel />
-      {!sessionActive && (
-        <details>
-          <summary>Methods and tuning</summary>
-          <DefinitionSettings />
-        </details>
-      )}
     </div>
   );
-
-  function renderSetup() {
-    const suspicion = !confessionDismissed ? setup?.suspicion : null;
-    const punishments: any[] = setup?.activePunishments ?? [];
-    return (
-      <div className="setup-screen">
-        <div className="setup-card">
-          <div className="setup-section">
-            <h3 className="section-title">Parameters</h3>
-            <p className="section-hint">
-              Set to -1 for auto (based on history)
-            </p>
-            <div className="slider-group">
-              {(["intensity", "length", "denial", "kink", "mean"] as const).map(
-                (key) => (
-                  <div className="slider-row" key={key}>
-                    <label>
-                      <span style={{ textTransform: "capitalize" }}>{key}</span>
-                      <span className="slider-val">
-                        {formatParam((pending as any)[key])}
-                      </span>
-                    </label>
-                    <input
-                      type="range"
-                      min={-1}
-                      max={10}
-                      value={(pending as any)[key]}
-                      onChange={(e) =>
-                        setP({ [key]: Number(e.target.value) } as any)
-                      }
-                    />
-                  </div>
-                ),
-              )}
-            </div>
-          </div>
-
-          <div className="setup-section">
-            <h3 className="section-title">Toys</h3>
-            <div className="toggle-grid">
-              <label className="toggle-item">
-                <input
-                  type="checkbox"
-                  checked={pending.allowToys}
-                  onChange={(e) => setP({ allowToys: e.target.checked })}
-                />
-                <span>Allow Toys</span>
-              </label>
-              {pending.allowToys && (
-                <>
-                  <label className="toggle-item sub">
-                    <input
-                      type="checkbox"
-                      checked={pending.allowVibrator}
-                      onChange={(e) =>
-                        setP({ allowVibrator: e.target.checked })
-                      }
-                    />
-                    <span>Vibrator</span>
-                  </label>
-                  <label className="toggle-item sub">
-                    <input
-                      type="checkbox"
-                      checked={pending.allowFleshlight}
-                      onChange={(e) =>
-                        setP({ allowFleshlight: e.target.checked })
-                      }
-                    />
-                    <span>Fleshlight</span>
-                  </label>
-                  <label className="toggle-item sub">
-                    <input
-                      type="checkbox"
-                      checked={pending.allowAutoblow}
-                      onChange={(e) =>
-                        setP({ allowAutoblow: e.target.checked })
-                      }
-                    />
-                    <span>Autoblow</span>
-                  </label>
-                  <label className="toggle-item sub">
-                    <input
-                      type="checkbox"
-                      checked={pending.allowProstate}
-                      onChange={(e) =>
-                        setP({ allowProstate: e.target.checked })
-                      }
-                    />
-                    <span>Prostate</span>
-                  </label>
-                </>
-              )}
-            </div>
-          </div>
-
-          <div className="setup-section">
-            <h3 className="section-title">Kinks</h3>
-            <div className="toggle-grid">
-              <label className="toggle-item">
-                <input
-                  type="checkbox"
-                  checked={pending.allowAnal}
-                  onChange={(e) => setP({ allowAnal: e.target.checked })}
-                />
-                <span>Anal</span>
-              </label>
-              <label className="toggle-item">
-                <input
-                  type="checkbox"
-                  checked={pending.allowBondage}
-                  onChange={(e) => setP({ allowBondage: e.target.checked })}
-                />
-                <span>Bondage</span>
-              </label>
-              <label className="toggle-item">
-                <input
-                  type="checkbox"
-                  checked={pending.allowCEI}
-                  onChange={(e) => setP({ allowCEI: e.target.checked })}
-                />
-                <span>CEI</span>
-              </label>
-              <label className="toggle-item">
-                <input
-                  type="checkbox"
-                  checked={pending.allowSelfOral}
-                  onChange={(e) => setP({ allowSelfOral: e.target.checked })}
-                />
-                <span>Self-Oral</span>
-              </label>
-            </div>
-          </div>
-
-          <SessionPolicyEditor
-            value={pending.policy}
-            onChange={(policy) => setP({ policy })}
-            disabled={state.busy}
-          />
-          <div className="setup-actions">
-            <button
-              className="btn btn-primary"
-              disabled={state.busy || !!state.pending}
-              onClick={() => startSession(false)}
-            >
-              Start Session
-            </button>
-            <button
-              className="btn btn-danger"
-              disabled={state.busy || !!state.pending}
-              onClick={() => startSession(true)}
-            >
-              Punishment Session
-            </button>
-          </div>
-
-          <div className="setup-section">
-            <div className="toggle-grid">
-              <label className="toggle-item">
-                <input
-                  type="checkbox"
-                  checked={pending.isDebugSession}
-                  onChange={(e) => setP({ isDebugSession: e.target.checked })}
-                />
-                <span>Debug Session</span>
-              </label>
-              <label className="toggle-item">
-                <input
-                  type="checkbox"
-                  checked={pending.onlyGamesMode}
-                  onChange={(e) => setP({ onlyGamesMode: e.target.checked })}
-                />
-                <span>Only Games Mode</span>
-              </label>
-            </div>
-          </div>
-
-          <div className="setup-debug">
-            <button
-              className="btn btn-ghost"
-              onClick={() => generateHomework(false)}
-            >
-              Generate Homework
-            </button>
-            <button
-              className="btn btn-ghost"
-              onClick={() => generateHomework(true)}
-            >
-              Punishment Homework
-            </button>
-          </div>
-        </div>
-
-        {suspicion && (
-          <div className="setup-card confession-card">
-            <h3 className="section-title">Before We Begin...</h3>
-            <p className="confession-text">{suspicion.message}</p>
-            <p className="confession-date">
-              Last session: {localDateTime(suspicion.sessionDate)}
-            </p>
-            <div className="setup-actions">
-              <button
-                className="btn btn-danger"
-                onClick={() => handleConfession(true)}
-              >
-                Yes, I came without permission
-              </button>
-              <button
-                className="btn btn-primary"
-                onClick={() => handleConfession(false)}
-              >
-                No, I didn't
-              </button>
-            </div>
-          </div>
-        )}
-
-        {punishments.length > 0 && (
-          <div className="setup-card">
-            <h3 className="section-title">Active Punishments</h3>
-            <div className="punishment-list">
-              {punishments.map((p) => (
-                <div className="punishment-item" key={p.id}>
-                  <span className="punishment-desc">{p.description}</span>
-                  {p.denialEndsAtUtc && (
-                    <span className="punishment-meta">
-                      Ends: {localDateTime(p.denialEndsAtUtc)}
-                    </span>
-                  )}
-                  {p.remainingCount > 0 && (
-                    <span className="punishment-meta">
-                      Remaining: {p.remainingCount}
-                    </span>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {messages.length > 0 && (
-          <div className="setup-card last-messages">
-            <h3 className="section-title">Recent Messages</h3>
-            <div className="chat-window compact" ref={chatRef}>
-              {messages.slice(-20).map((m) => (
-                <div
-                  className={`chat-line ${senderClass(m.sender)}`}
-                  key={m.id}
-                >
-                  <span className="ts">{localTime(m.timestamp)}</span>
-                  <span className="sender">{m.sender}</span>
-                  <span className="body">{m.content}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  function renderSession() {
-    return (
-      <div className="session-screen">
-        <div className="stats-bar">
-          <div className="stat">
-            <span className="stat-label">Step</span>
-            <span className="stat-value">{online?.stepNumber || 0}</span>
-          </div>
-          <div className="stat">
-            <span className="stat-label">Edges</span>
-            <span className="stat-value">{online?.edgesThisSession || 0}</span>
-          </div>
-          <div className="stat">
-            <span className="stat-label">Points</span>
-            <span className="stat-value">{online?.points || 0}</span>
-          </div>
-          <div className="stat">
-            <span className="stat-label">Time</span>
-            <span className="stat-value">
-              {formatTime(online?.elapsedSeconds || 0)}
-            </span>
-          </div>
-        </div>
-        <GuidedPanel />
-      </div>
-    );
-  }
 }
+
+function modeName(setup: any, mode: string) {
+  return (
+    setup?.modes?.find((m: any) => m.mode === mode)?.name ??
+    (mode === "Custom" ? "Custom session" : mode)
+  );
+}
+
+// ─────────────────────────── Setup ───────────────────────────
+function SetupScreen() {
+  const state = useGuidedSession();
+  const setup = state.setup;
+  const [mode, setMode] = useState("FullGuided");
+  const [contract, setContract] = useState<Contract | null>(null);
+  const [methods, setMethods] = useState<any[]>([]);
+  useEffect(() => {
+    if (!contract && setup?.modes?.length)
+      setContract(fresh(setup.modes[0].contract));
+  }, [setup, contract]);
+  useEffect(() => {
+    let alive = true;
+    guidedApi("/configuration")
+      .then((data) => {
+        if (alive) setMethods(data.methods.map((item: any) => item.value));
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+  if (!setup || !contract) return <p className="aidomme-muted">Loading…</p>;
+
+  const patch = (data: Partial<Contract>) =>
+    setContract({ ...contract, ...data });
+  const choose = (preset: any) => {
+    setMode(preset.mode);
+    // Keep what the user already set; take the authorities from the preset.
+    setContract({
+      ...contract,
+      mode: preset.mode,
+      content: preset.contract.content,
+      methods: preset.contract.methods,
+      pacing: preset.contract.pacing,
+      edges: preset.contract.edges,
+      games: preset.contract.games,
+    });
+  };
+  const defaults = setup.defaults;
+  const start = async () => {
+    const response = await guidedClient.mutate("/session/start", {
+      contract,
+    });
+    if (response?.sessionActive) openTracker();
+  };
+
+  return (
+    <>
+      <section className="aidomme-card">
+        <h2>How do you want to play?</h2>
+        <div className="aidomme-modes" role="group" aria-label="Session mode">
+          {setup.modes.map((preset: any) => (
+            <button
+              key={preset.mode}
+              type="button"
+              className="aidomme-mode"
+              aria-pressed={mode === preset.mode}
+              onClick={() => choose(preset)}
+            >
+              <strong>{preset.name}</strong>
+              <span>{preset.description}</span>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section className="aidomme-card">
+        <h2>Tonight</h2>
+        <div className="aidomme-fields">
+          {PREFERENCES.map(([key, label, hint]) => {
+            const value = contract.preferences[key];
+            return (
+              <label className="aidomme-slider" key={key} title={hint}>
+                <span>{label}</span>
+                <output>
+                  {value < 1 ? `Her choice (${defaults[key]})` : value}
+                </output>
+                <input
+                  type="range"
+                  min={0}
+                  max={10}
+                  value={value < 1 ? 0 : value}
+                  aria-label={label}
+                  onChange={(e) => {
+                    const v = Number(e.target.value);
+                    patch({
+                      preferences: {
+                        ...contract.preferences,
+                        [key]: v === 0 ? -1 : v,
+                      },
+                    });
+                  }}
+                />
+              </label>
+            );
+          })}
+        </div>
+        <LimitsEditor contract={contract} onChange={setContract} methods={methods} />
+        <label className="aidomme-check">
+          <input
+            type="checkbox"
+            checked={contract.games}
+            disabled={contract.pacing !== "Domme"}
+            onChange={(e) => patch({ games: e.target.checked })}
+          />
+          Games{contract.pacing !== "Domme" && " (only when she sets the pace)"}
+        </label>
+        <label className="aidomme-check">
+          <input
+            type="checkbox"
+            checked={contract.canChangeDuringSession}
+            onChange={(e) =>
+              patch({ canChangeDuringSession: e.target.checked })
+            }
+          />
+          Allow changing these settings once we've started
+        </label>
+        <details>
+          <summary>Advanced</summary>
+          <AuthorityEditor contract={contract} onChange={setContract} />
+          <label className="aidomme-check">
+            <input
+              type="checkbox"
+              checked={contract.punishment}
+              onChange={(e) => patch({ punishment: e.target.checked })}
+            />
+            Punishment session (harsher, and harder to earn)
+          </label>
+          <label className="aidomme-check">
+            <input
+              type="checkbox"
+              checked={contract.debug}
+              onChange={(e) =>
+                patch({
+                  debug: e.target.checked,
+                  gamesOnly: e.target.checked && contract.gamesOnly,
+                })
+              }
+            />
+            Debug session (can be ended; doesn't count)
+          </label>
+          {contract.debug && (
+            <label className="aidomme-check">
+              <input
+                type="checkbox"
+                checked={contract.gamesOnly}
+                disabled={!contract.games}
+                onChange={(e) => patch({ gamesOnly: e.target.checked })}
+              />
+              Games only
+            </label>
+          )}
+          <div className="aidomme-actions">
+            <button
+              type="button"
+              disabled={state.busy}
+              onClick={() =>
+                void guidedClient.mutate("/homework", { contract })
+              }
+            >
+              Generate homework
+            </button>
+            <button
+              type="button"
+              disabled={state.busy}
+              onClick={() =>
+                void guidedClient.mutate("/homework", {
+                  contract,
+                  punishment: true,
+                })
+              }
+            >
+              Punishment homework
+            </button>
+          </div>
+        </details>
+        <div className="aidomme-actions">
+          <button
+            type="button"
+            className="is-primary"
+            disabled={state.busy || !!state.pending}
+            onClick={() => void start()}
+          >
+            Begin
+          </button>
+        </div>
+      </section>
+
+      {setup.activePunishments?.length > 0 && (
+        <section className="aidomme-card">
+          <h2>You still owe her</h2>
+          <ul className="aidomme-list">
+            {setup.activePunishments.map((p: any) => (
+              <li key={p.id}>
+                {p.description}
+                {p.denialEndsAtUtc &&
+                  ` · until ${new Date(p.denialEndsAtUtc).toLocaleString()}`}
+                {p.remainingCount > 0 && ` · ${p.remainingCount} left`}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {setup.messages?.length > 0 && (
+        <section className="aidomme-card">
+          <h3>Last time</h3>
+          <ChatLog messages={setup.messages.slice(-12)} className="is-compact" />
+        </section>
+      )}
+    </>
+  );
+}
+
+function fresh(preset: Contract): Contract {
+  return {
+    ...preset,
+    preferences: { intensity: -1, length: -1, denial: -1, mean: -1 },
+    limits: {
+      toys: [],
+      anal: false,
+      bondage: false,
+      cei: false,
+      selfOral: false,
+      allowedMethodIds: [],
+    },
+    punishment: false,
+    debug: false,
+    gamesOnly: false,
+    canChangeDuringSession: false,
+  };
+}
+
+function LimitsEditor({
+  contract,
+  onChange,
+  methods,
+}: {
+  contract: Contract;
+  onChange: (c: Contract) => void;
+  methods: any[];
+}) {
+  const limits = contract.limits;
+  const set = (data: Partial<Contract["limits"]>) =>
+    onChange({ ...contract, limits: { ...limits, ...data } });
+  const toggleToy = (toy: string, on: boolean) =>
+    set({
+      toys: on ? [...limits.toys, toy] : limits.toys.filter((t) => t !== toy),
+    });
+  const eligible = useMemo(
+    () =>
+      methods.filter(
+        (m) => m.toyCategory === "None" || limits.toys.includes(m.toyCategory),
+      ),
+    [methods, limits.toys],
+  );
+  return (
+    <>
+      <h3 style={{ marginTop: "0.8rem" }}>Toys she may use</h3>
+      <div className="aidomme-chips">
+        {TOYS.map(([toy, label]) => (
+          <label className="aidomme-check" key={toy}>
+            <input
+              type="checkbox"
+              checked={limits.toys.includes(toy)}
+              onChange={(e) => toggleToy(toy, e.target.checked)}
+            />
+            {label}
+          </label>
+        ))}
+      </div>
+      <h3 style={{ marginTop: "0.6rem" }}>Also allowed</h3>
+      <div className="aidomme-chips">
+        {(
+          [
+            ["anal", "Anal"],
+            ["bondage", "Bondage"],
+            ["cei", "CEI"],
+            ["selfOral", "Self-oral"],
+          ] as const
+        ).map(([key, label]) => (
+          <label className="aidomme-check" key={key}>
+            <input
+              type="checkbox"
+              checked={limits[key]}
+              onChange={(e) => set({ [key]: e.target.checked })}
+            />
+            {label}
+          </label>
+        ))}
+      </div>
+      {contract.methods === "Domme" && eligible.length > 0 && (
+        <details>
+          <summary>
+            Methods she may choose (
+            {limits.allowedMethodIds.length || "all"})
+          </summary>
+          <div className="aidomme-method-choices">
+            {eligible.map((method) => (
+              <label className="aidomme-check" key={method.id}>
+                <input
+                  type="checkbox"
+                  checked={limits.allowedMethodIds.includes(method.id)}
+                  onChange={(e) =>
+                    set({
+                      allowedMethodIds: e.target.checked
+                        ? [...limits.allowedMethodIds, method.id]
+                        : limits.allowedMethodIds.filter(
+                            (id) => id !== method.id,
+                          ),
+                    })
+                  }
+                />
+                {method.name}
+              </label>
+            ))}
+          </div>
+          <small className="aidomme-muted">
+            Leave all unchecked to let her use every method your toys allow.
+          </small>
+        </details>
+      )}
+    </>
+  );
+}
+
+function AuthorityEditor({
+  contract,
+  onChange,
+}: {
+  contract: Contract;
+  onChange: (c: Contract) => void;
+}) {
+  const concerns: [keyof Contract, string][] = [
+    ["content", "What you watch"],
+    ["methods", "How you touch yourself"],
+    ["pacing", "Pace and rests"],
+    ["edges", "Edges and holds"],
+  ];
+  return (
+    <div className="aidomme-authority">
+      {concerns.map(([key, label]) => (
+        <label key={key}>
+          {label}
+          <select
+            value={contract[key] as string}
+            onChange={(e) => {
+              const next = { ...contract, [key]: e.target.value } as Contract;
+              if (next.pacing !== "Domme") next.games = false;
+              onChange(next);
+            }}
+          >
+            <option value="Domme">She decides</option>
+            <option value="User">You decide</option>
+          </select>
+        </label>
+      ))}
+      <small className="aidomme-muted" style={{ gridColumn: "1 / -1" }}>
+        She always decides whether, and when, you cum.
+      </small>
+    </div>
+  );
+}
+
+// ─────────────────────────── Running session ───────────────────────────
+function SessionScreen({ session }: { session: any }) {
+  const state = useGuidedSession();
+  const text = session.currentDirective?.text;
+  const blocked = state.busy || !!state.pending || session.isPaused;
+  const [editing, setEditing] = useState(false);
+  return (
+    <>
+      <MediaWindow session={session} />
+      <section className="aidomme-card">
+        <SessionStatus session={session} />
+        {text && <p className="aidomme-current-command">{text}</p>}
+        <GameControls
+          game={session.game}
+          disabled={blocked}
+          submit={(answer) => void guidedClient.control("game-answer", answer)}
+        />
+        <SessionActions session={session} withTracking />
+        <PendingRequest />
+      </section>
+      <section className="aidomme-card">
+        <ChatLog messages={state.snapshot.messages || []} hide={text} />
+      </section>
+      <section className="aidomme-card">
+        <details>
+          <summary>More</summary>
+          <GuidedMenu />
+          <p className="aidomme-muted">Report something she should know about:</p>
+          <div className="aidomme-actions">
+            <button
+              disabled={blocked}
+              onClick={() =>
+                void guidedClient.mutate("/session/infraction", {
+                  type: "Disobedience",
+                })
+              }
+            >
+              I disobeyed
+            </button>
+            <button
+              disabled={blocked}
+              onClick={() =>
+                void guidedClient.mutate("/session/infraction", {
+                  type: "RuinedOrgasm",
+                })
+              }
+            >
+              I ruined it
+            </button>
+          </div>
+          {session.contract.canChangeDuringSession ? (
+            <>
+              <button onClick={() => setEditing(!editing)}>
+                {editing ? "Close settings" : "Change session settings"}
+              </button>
+              {editing && (
+                <ContractChange
+                  session={session}
+                  done={() => setEditing(false)}
+                />
+              )}
+            </>
+          ) : (
+            <p className="aidomme-muted">
+              Session settings were locked when you began.
+            </p>
+          )}
+        </details>
+      </section>
+    </>
+  );
+}
+
+function ContractChange({ session, done }: { session: any; done: () => void }) {
+  const state = useGuidedSession();
+  const [draft, setDraft] = useState<Contract>(session.contract);
+  const [methods, setMethods] = useState<any[]>([]);
+  useEffect(() => {
+    guidedApi("/configuration")
+      .then((data) => setMethods(data.methods.map((item: any) => item.value)))
+      .catch(() => {});
+  }, []);
+  return (
+    <div>
+      <AuthorityEditor contract={draft} onChange={setDraft} />
+      <LimitsEditor contract={draft} onChange={setDraft} methods={methods} />
+      <label className="aidomme-check">
+        <input
+          type="checkbox"
+          checked={draft.games}
+          disabled={draft.pacing !== "Domme"}
+          onChange={(e) => setDraft({ ...draft, games: e.target.checked })}
+        />
+        Games
+      </label>
+      <div className="aidomme-actions">
+        <button
+          className="is-primary"
+          disabled={state.busy || !!state.pending}
+          onClick={async () => {
+            const response = await guidedClient.mutate(
+              "/session/contract",
+              {
+                sessionId: session.sessionId,
+                revision: session.contractRevision,
+                contract: draft,
+              },
+              "PUT",
+            );
+            if (response) done();
+          }}
+        >
+          Save
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** What she chose for you to look at, or a note that the content is yours to choose. */
+function MediaWindow({ session }: { session: any }) {
+  const state = useGuidedSession();
+  if (session.contract.content !== "Domme")
+    return (
+      <div className="aidomme-media is-note">
+        <span>
+          You choose what to watch. Browse Cove; the companion comes with you
+          and your edges are credited to what's on screen.
+        </span>
+        <button type="button" onClick={() => navigateToUrl("/videos")}>
+          Browse videos
+        </button>
+      </div>
+    );
+  const media = state.media;
+  if (!media)
+    return (
+      <div className="aidomme-media is-note">
+        {state.mediaStatus || "She's choosing something for you…"}
+      </div>
+    );
+  if (media.kind === "video")
+    return (
+      <div className="aidomme-media">
+        <VideoPlayer
+          key={media.id}
+          streamUrl={`/api/stream/video/${media.id}`}
+          format={media.format ?? "mp4"}
+          videoCodec={media.videoCodec}
+          audioCodec={media.audioCodec}
+          duration={media.duration ?? 0}
+          videoId={media.id}
+          autostart
+          showAbLoop={false}
+          trackingEnabled={false}
+          extensionSurface="detail"
+          keyboardShortcutsEnabled={false}
+        />
+      </div>
+    );
+  if (media.kind === "image")
+    return (
+      <div className="aidomme-media">
+        <img src={`/api/stream/image/${media.id}`} alt={media.title || ""} />
+      </div>
+    );
+  return (
+    <div className="aidomme-media">
+      <audio key={media.id} src={`/api/audios/${media.id}/stream`} autoPlay controls />
+    </div>
+  );
+}
+
 // ═══════════════════════════ SETTINGS PANEL ═══════════════════════════
 export function AiDomeSettingsPanel() {
   const [settings, setSettings] = useState<any | null>(null);
@@ -463,7 +640,7 @@ export function AiDomeSettingsPanel() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    api("/settings")
+    guidedApi("/settings")
       .then(setSettings)
       .catch((e) => setStatus(e?.message || "Could not load settings."));
   }, []);
@@ -473,11 +650,7 @@ export function AiDomeSettingsPanel() {
     setBusy(true);
     setStatus(null);
     try {
-      const saved = await api("/settings", {
-        method: "PUT",
-        body: JSON.stringify(settings),
-      });
-      setSettings(saved);
+      setSettings(await guidedApi("/settings", settings, "PUT"));
       setStatus("Saved.");
     } catch (e: any) {
       setStatus(e?.message || "Could not save.");
@@ -493,20 +666,17 @@ export function AiDomeSettingsPanel() {
       const res = await extensionFetch(`${API_BASE}/tts`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          text: "AI Domme voice test. Connection confirmed.",
-        }),
+        body: JSON.stringify({ text: "AI Domme voice test. Connection confirmed." }),
       });
       if (!res.ok) {
         setStatus(
           res.status === 503
-            ? "TTS server unreachable — check the URL."
+            ? "TTS server unreachable. Check the URL."
             : `TTS test failed (${res.status}).`,
         );
         return;
       }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
+      const url = URL.createObjectURL(await res.blob());
       const audio = new Audio(url);
       audio.onended = () => URL.revokeObjectURL(url);
       await audio.play().catch(() => {});
@@ -518,21 +688,19 @@ export function AiDomeSettingsPanel() {
     }
   };
 
-  if (!settings) {
+  if (!settings)
     return (
       <div className="aidomme-settings-panel">
         <p className="panel-status">{status || "Loading…"}</p>
       </div>
     );
-  }
 
   return (
     <div className="aidomme-settings-panel">
       <p className="panel-intro">
-        Optional Orpheus-FastAPI text-to-speech for spoken directives. Leave the
-        URL blank to disable voice.
+        Optional Orpheus-FastAPI text-to-speech for spoken instructions. Leave
+        the URL blank to disable voice.
       </p>
-
       <Field label="TTS server URL">
         <TextInput
           value={settings.ttsBaseUrl ?? ""}
@@ -540,7 +708,6 @@ export function AiDomeSettingsPanel() {
           placeholder="http://localhost:5005"
         />
       </Field>
-
       <Field label="Voice">
         <TextInput
           value={settings.ttsVoice ?? ""}
@@ -548,7 +715,6 @@ export function AiDomeSettingsPanel() {
           placeholder="mia"
         />
       </Field>
-
       <Field label="Request timeout (seconds)">
         <NumberInput
           value={settings.ttsTimeoutSeconds ?? 30}
@@ -558,7 +724,6 @@ export function AiDomeSettingsPanel() {
           min={1}
         />
       </Field>
-
       <div className="panel-actions">
         <SaveButton loading={busy} onClick={save} />
         <button className="btn btn-ghost" disabled={busy} onClick={testVoice}>
@@ -570,24 +735,15 @@ export function AiDomeSettingsPanel() {
   );
 }
 
-// ═══════════════════════════ TUNING LAB PAGE ═══════════════════════════
+// ═══════════════════════════ TUNING PAGE ═══════════════════════════
 export function TuningLabPage() {
   return (
     <div className="aidomme-shell">
-      <div className="aidomme-header">
-        <div>
-          <h1 className="brand-title">Tuning Lab</h1>
-          <p className="brand-sub">Personal methods and calibration</p>
-        </div>
-      </div>
-      <div className="setup-screen">
-        <div className="setup-card">
-          <p className="section-hint">
-            Edit your method and punishment definitions, restore shared
-            defaults, or optimize method multipliers using preserved
-            calibration.
-          </p>
-        </div>
+      <div className="aidomme-page-header">
+        <h1>AI Domme tuning</h1>
+        <span className="aidomme-muted">
+          Your methods, punishment endings and calibration
+        </span>
       </div>
       <DefinitionSettings />
     </div>

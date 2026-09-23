@@ -1,9 +1,8 @@
 import { useSyncExternalStore } from "react";
 import { extensionFetch } from "@cove/runtime/api";
-import { getActiveMedia, navigateToUrl } from "@cove/runtime/components";
+import { getActiveMedia } from "@cove/runtime/components";
 import { pauseMetronome } from "./Metronome";
 import { CompanionNarrator } from "./Narrator";
-import { CompanionLease } from "./CompanionLease";
 
 export async function guidedApi(
   path: string,
@@ -37,6 +36,17 @@ export async function guidedApi(
   return data;
 }
 
+/** A piece of Cove media the domme picked for the page's media window. */
+export type DirectedMedia = {
+  kind: "video" | "image" | "audio";
+  id: number;
+  title?: string;
+  format?: string;
+  videoCodec?: string;
+  audioCodec?: string;
+  duration?: number;
+};
+
 type ClientState = {
   snapshot: any;
   setup: any;
@@ -45,7 +55,7 @@ type ClientState = {
   pending: any;
   voiceEnabled: boolean;
   voiceStatus: string;
-  directing: boolean;
+  media: DirectedMedia | null;
   mediaStatus: string;
   now: number;
 };
@@ -57,12 +67,14 @@ const initial = (): ClientState => ({
   pending: null,
   voiceEnabled: false,
   voiceStatus: "",
-  directing: false,
+  media: null,
   mediaStatus: "",
   now: Date.now(),
 });
 
-/** One app-wide owner; React page/panel are subscribers, never polling or audio owners. */
+const plural = { video: "videos", image: "images", audio: "audios" } as const;
+
+/** One app-wide owner; the page and the companion are subscribers, never pollers or audio owners. */
 export class GuidedClient {
   private state = initial();
   private listeners = new Set<() => void>();
@@ -76,9 +88,6 @@ export class GuidedClient {
   private narrator = new CompanionNarrator(
     (status) => this.publish({ voiceStatus: status }),
     () => this.publish({ voiceEnabled: false }),
-  );
-  private mediaOwner = new CompanionLease("media", (reason) =>
-    this.publish({ directing: false, mediaStatus: reason }),
   );
   private tick: ReturnType<typeof setInterval> | null = null;
   subscribe = (listener: () => void) => {
@@ -119,7 +128,6 @@ export class GuidedClient {
     if (this.tick) clearInterval(this.tick);
     this.tick = null;
     this.narrator.stop();
-    this.mediaOwner.stop();
     this.seen.clear();
     this.mediaToken = "";
     this.userId = undefined;
@@ -180,55 +188,76 @@ export class GuidedClient {
         !this.seen.has(message.id) && message.sender === "Domme",
     );
     this.seen = new Set(messages.map((message: any) => message.id));
-    if (!snapshot.sessionActive || snapshot.online?.isPaused) {
+    const session = snapshot.session;
+    if (!snapshot.sessionActive || session?.isPaused) {
       this.narrator.stop();
       this.publish({ voiceEnabled: false });
-    }
-    if (
-      !snapshot.sessionActive ||
-      snapshot.online?.isPaused ||
-      snapshot.policy?.media !== "Engine"
-    ) {
-      this.mediaOwner.stop();
-      this.publish({ directing: false });
     } else if (!first && this.state.voiceEnabled && fresh.length)
       this.narrator.enqueue(fresh.at(-1));
     this.publish({ snapshot, error: "", now: Date.now() });
+
+    // The domme picks the content only when the contract gives it to her.
+    const cue = snapshot.mediaCue;
     if (
-      snapshot.policy?.media === "Engine" &&
-      snapshot.sessionActive &&
-      !snapshot.online?.isPaused &&
-      snapshot.mediaCue
+      !snapshot.sessionActive ||
+      session?.contract?.content !== "Domme" ||
+      !cue
     ) {
-      const token = `${snapshot.instanceId}:${snapshot.online.sessionId}:${snapshot.mediaCue.token}`;
-      if (token !== this.mediaToken) {
-        this.mediaToken = token;
-        // Media navigation shares narration ownership; other tabs keep their browsing position.
-        if (this.mediaOwner.owns)
-          void this.directMedia(snapshot.mediaCue.kind, this.generation, token);
-      }
+      if (this.state.media) this.publish({ media: null, mediaStatus: "" });
+      this.mediaToken = "";
+      return;
+    }
+    const token = `${snapshot.instanceId}:${session.sessionId}:${cue.token}`;
+    if (token !== this.mediaToken) {
+      this.mediaToken = token;
+      void this.pickMedia(cue.kind, this.generation, token);
     }
   }
-  private async directMedia(kind: string, generation: number, token: string) {
-    if (!["video", "image", "audio"].includes(kind)) return;
+  private async pickMedia(kind: string, generation: number, token: string) {
+    if (!(kind in plural)) return;
+    const collection = plural[kind as keyof typeof plural];
     try {
       const response = await extensionFetch(
-        `/api/${kind === "video" ? "videos" : kind === "image" ? "images" : "audios"}?perPage=1&sort=random&seed=${Math.floor(Math.random() * 1e9)}`,
+        `/api/${collection}?perPage=1&sort=random&seed=${Math.floor(Math.random() * 1e9)}`,
       );
       if (!response.ok)
         throw new Error(`Media selection failed (${response.status}).`);
-      const data = await response.json(),
-        item = data?.items?.[0] ?? data?.data?.[0];
-      if (
-        generation === this.generation &&
-        token === this.mediaToken &&
-        this.mediaOwner.owns &&
-        item?.id > 0
-      )
-        navigateToUrl(`/${kind}/${item.id}`);
+      const data = await response.json();
+      const item = data?.items?.[0] ?? data?.data?.[0];
+      if (!(item?.id > 0)) {
+        if (generation === this.generation)
+          this.publish({
+            media: null,
+            mediaStatus: `There are no ${collection} in your library for her to choose.`,
+          });
+        return;
+      }
+      let media: DirectedMedia = {
+        kind: kind as DirectedMedia["kind"],
+        id: item.id,
+        title: item.title,
+      };
+      if (kind === "video") {
+        const detail = await extensionFetch(`/api/videos/${item.id}`);
+        if (!detail.ok)
+          throw new Error(`Media selection failed (${detail.status}).`);
+        const video = await detail.json();
+        const file = video?.files?.[0];
+        if (!file) throw new Error("That video has no playable file.");
+        media = {
+          ...media,
+          title: video.title,
+          format: file.format,
+          videoCodec: file.videoCodec,
+          audioCodec: file.audioCodec,
+          duration: file.duration,
+        };
+      }
+      if (generation === this.generation && token === this.mediaToken)
+        this.publish({ media, mediaStatus: "" });
     } catch (e) {
       if (generation === this.generation)
-        this.publish({ error: (e as Error).message });
+        this.publish({ mediaStatus: (e as Error).message });
     }
   }
   async mutate(path: string, body?: any, method = "POST") {
@@ -240,13 +269,6 @@ export class GuidedClient {
       const response = await guidedApi(path, body, method);
       if (generation === this.generation) {
         if (response?.userId) this.apply(response);
-        if (
-          (path.startsWith("/session/start") || path === "/session/policy") &&
-          response?.sessionActive &&
-          response?.policy?.media === "Engine" &&
-          !response?.online?.isPaused
-        )
-          await this.setDirectedMedia(true);
         if (!response?.sessionActive) void this.refresh();
       }
       return response;
@@ -257,22 +279,22 @@ export class GuidedClient {
       if (generation === this.generation) this.publish({ busy: false });
     }
   }
+  /** Session controls: pause, resume, end (debug), done, request-permission, request-rest, game-answer. */
   async control(action: string, answer?: number, retry = false) {
+    const session = this.state.snapshot?.session;
     if (action === "pause" || action === "end") {
       pauseMetronome();
       this.narrator.stop();
-      this.mediaOwner.stop();
-      this.publish({ voiceEnabled: false, directing: false });
-    }
-    const snapshot = this.state.snapshot;
-    if ((action === "pause" || action === "end") && snapshot?.sessionActive) {
+      this.publish({ voiceEnabled: false });
+      if (!session) return;
+      // Pause and End stay available while another request is pending.
       const generation = this.generation;
       this.mutation++;
       try {
         const response = await guidedApi("/session/control", {
           eventId: crypto.randomUUID(),
-          sessionId: snapshot.online.sessionId,
-          stepNumber: snapshot.online.stepNumber,
+          sessionId: session.sessionId,
+          stepNumber: session.stepNumber,
           action,
         });
         if (generation === this.generation) this.apply(response);
@@ -282,7 +304,7 @@ export class GuidedClient {
       }
       return;
     }
-    if (!snapshot?.sessionActive || this.state.busy) return;
+    if (!session || this.state.busy) return;
     if (this.state.pending && !retry) {
       this.publish({
         error: "Resolve the pending request before another session action.",
@@ -293,8 +315,8 @@ export class GuidedClient {
       path: "/session/control",
       body: {
         eventId: crypto.randomUUID(),
-        sessionId: snapshot.online.sessionId,
-        stepNumber: snapshot.online.stepNumber,
+        sessionId: session.sessionId,
+        stepNumber: session.stepNumber,
         action,
         answer,
       },
@@ -307,7 +329,7 @@ export class GuidedClient {
     if (!this.userId || this.state.busy || (this.state.pending && !retry))
       return;
     const observed = getActiveMedia();
-    const guidance = this.state.snapshot;
+    const session = this.state.snapshot?.session;
     const occurredAtUtc = new Date().toISOString();
     const generation = this.generation;
     if (!this.state.pending) {
@@ -334,12 +356,8 @@ export class GuidedClient {
               mediaKind: observed?.kind,
               mediaId: observed?.id,
               positionSeconds: observed?.positionSeconds,
-              guidedSessionId: guidance?.sessionActive
-                ? guidance.online.sessionId
-                : 0,
-              guidedStepNumber: guidance?.sessionActive
-                ? guidance.online.stepNumber
-                : undefined,
+              guidedSessionId: session ? session.sessionId : 0,
+              guidedStepNumber: session ? session.stepNumber : undefined,
             },
           },
         });
@@ -385,10 +403,8 @@ export class GuidedClient {
       this.publish({ voiceEnabled: false });
       return;
     }
-    if (
-      !this.state.snapshot?.sessionActive ||
-      this.state.snapshot.online?.isPaused
-    ) {
+    const session = this.state.snapshot?.session;
+    if (!session || session.isPaused) {
       this.publish({
         voiceStatus: "Start or resume a session before enabling narration.",
       });
@@ -401,44 +417,11 @@ export class GuidedClient {
       return;
     }
     this.publish({ voiceEnabled: enabledAudio });
-    if (
-      enabledAudio &&
-      this.state.snapshot?.sessionActive &&
-      !this.state.snapshot.online?.isPaused
-    ) {
+    if (enabledAudio && !this.state.snapshot?.session?.isPaused) {
       const latest = this.state.snapshot.messages
         ?.filter((message: any) => message.sender === "Domme")
         .at(-1);
       if (latest) this.narrator.enqueue(latest);
-    }
-  }
-  async setDirectedMedia(enabled: boolean) {
-    if (!enabled) {
-      this.mediaOwner.stop();
-      this.publish({ directing: false });
-      return;
-    }
-    if (
-      !this.state.snapshot?.sessionActive ||
-      this.state.snapshot.online?.isPaused ||
-      this.state.snapshot.policy?.media !== "Engine"
-    )
-      return;
-    const generation = this.generation;
-    const granted = await this.mediaOwner.start();
-    if (generation !== this.generation) {
-      this.mediaOwner.stop();
-      return;
-    }
-    this.publish({
-      directing: granted,
-      mediaStatus: granted
-        ? "Directed media enabled in this browser."
-        : this.state.mediaStatus,
-    });
-    if (granted) {
-      this.mediaToken = "";
-      this.apply(this.state.snapshot);
     }
   }
 }
@@ -451,15 +434,16 @@ export function useGuidedSession() {
     guidedClient.getSnapshot,
   );
 }
+/** Seconds left in the current instruction, or -1 when it has no visible countdown. */
 export function remainingSeconds(state: ClientState) {
-  const online = state.snapshot?.online;
-  if (!online || online.isFinished) return -1;
-  return !online.isPaused && state.snapshot.stepEndsAtUtc
+  const session = state.snapshot?.session;
+  if (!session || session.remainingSeconds < 0) return -1;
+  return !session.isPaused && state.snapshot.stepEndsAtUtc
     ? Math.max(
         0,
         Math.ceil(
           (Date.parse(state.snapshot.stepEndsAtUtc) - state.now) / 1000,
         ),
       )
-    : online.remainingSeconds;
+    : session.remainingSeconds;
 }

@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using AIDome.Services;
+using AIDome.Sessions;
 using Cove.Core.Auth;
 using Cove.Plugins;
 using Microsoft.Extensions.Logging;
@@ -57,17 +58,13 @@ public sealed class GuidedRuntimes(IExtensionServiceScopeFactory scopes, ICurren
 public sealed class GuidedRuntime : IAsyncDisposable
 {
     public GuidedDataFactory Factory { get; }
-    public InteractionManager Interaction { get; }
-    public GameEngine Games { get; }
-    public OnlineSessionEngine Online { get; }
+    public SessionHost Session { get; }
     public OfflineInstructionEngine Instructions { get; }
-    public CommandCenterService Commands { get; }
     public MediaDirector Media { get; } = new();
     /// <summary>Serializes every change to this account's live session: requests, tracker delivery and timers.</summary>
     public SemaphoreSlim Gate { get; } = new(1, 1);
     public Guid InstanceId { get; } = Guid.NewGuid();
     public long Revision { get; set; }
-    public int PolicyRevision { get; set; }
     public HashSet<Guid> Operations { get; } = [];
     internal string? LastSavedPayload { get; set; }
     internal DateTime LastSavedAtUtc { get; set; }
@@ -76,23 +73,19 @@ public sealed class GuidedRuntime : IAsyncDisposable
     private bool loaded;
     private bool disposed;
 
-    private GuidedRuntime(GuidedDataFactory factory, ILoggerFactory logs)
+    private GuidedRuntime(GuidedDataFactory factory, ILoggerFactory logs, IRandom? random, IClock? clock)
     {
         Factory = factory;
         logger = logs.CreateLogger<GuidedRuntime>();
-        Games = new(factory, logs.CreateLogger<GameEngine>());
-        Online = new(factory, logs.CreateLogger<OnlineSessionEngine>(), Games) { TimerDispatcher = DispatchTimerAsync };
-        Interaction = new(factory, () => Online.HasActiveSession ? Online.GetCurrentState().SessionId : null);
         Instructions = new(factory, logs.CreateLogger<OfflineInstructionEngine>());
-        Commands = new(logs.CreateLogger<CommandCenterService>(), Interaction, factory, Online, Instructions, Games);
+        Session = new(factory, Instructions, logs.CreateLogger<SessionHost>(), random, clock) { TimerDispatcher = DispatchTimerAsync };
     }
 
-    public static async Task<GuidedRuntime> CreateAsync(GuidedDataFactory factory, ILoggerFactory logs)
+    public static async Task<GuidedRuntime> CreateAsync(GuidedDataFactory factory, ILoggerFactory logs, IRandom? random = null, IClock? clock = null)
     {
-        var runtime = new GuidedRuntime(factory, logs);
+        var runtime = new GuidedRuntime(factory, logs, random, clock);
         try
         {
-            await runtime.Commands.StartAsync(default);
             await GuidedRecovery.LoadAsync(runtime, default);
             runtime.loaded = true;
             return runtime;
@@ -115,8 +108,8 @@ public sealed class GuidedRuntime : IAsyncDisposable
         finally { persistence.Release(); }
     }
 
-    /// <summary>Runs an engine timer transition under the account gate, then checkpoints it.</summary>
-    private async Task DispatchTimerAsync(Action advance)
+    /// <summary>Runs a session timer transition under the account gate, then checkpoints it.</summary>
+    private async Task DispatchTimerAsync(Func<Task> advance)
     {
         try
         {
@@ -124,15 +117,15 @@ public sealed class GuidedRuntime : IAsyncDisposable
             try
             {
                 if (disposed) return;
-                advance();
+                await advance();
                 await SaveAsync(default);
             }
             finally { Gate.Release(); }
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Could not apply or checkpoint the guided timer");
-            Online.Pause();
+            logger.LogError(ex, "Could not apply or checkpoint the session timer");
+            try { await Session.ControlAsync("pause", null, default); } catch { /* best effort */ }
         }
     }
 
@@ -140,14 +133,16 @@ public sealed class GuidedRuntime : IAsyncDisposable
     {
         if (disposed) return;
         disposed = true;
-        Online.Pause();
         if (loaded)
         {
-            // Preserve the final frozen countdown before releasing this runtime.
-            try { await SaveAsync(default); }
-            catch (Exception ex) { logger.LogWarning(ex, "Could not save final paused companion state"); }
+            // Freeze the countdown before releasing this runtime; recovery restores it paused.
+            try
+            {
+                if (Session.Active && !Session.Paused) await Session.ControlAsync("pause", null, default);
+                await SaveAsync(default);
+            }
+            catch (Exception ex) { logger.LogWarning(ex, "Could not save final paused session state"); }
         }
-        Online.EndSession();
-        Commands.Dispose();
+        Session.Dispose();
     }
 }

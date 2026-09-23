@@ -2,6 +2,7 @@ import React from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import {
   cleanup,
+  fireEvent,
   render,
   screen,
   waitFor,
@@ -10,10 +11,7 @@ import {
   GuidedClient,
   guidedClient,
 } from "../../extensions/AIDome/ui/GuidedClient";
-import {
-  GuidedPanel,
-  defaultPolicy,
-} from "../../extensions/AIDome/ui/SessionControls";
+import { GuidedPanel } from "../../extensions/AIDome/ui/SessionControls";
 import { CommandCenterPage } from "../../extensions/AIDome/ui/AIDome";
 import { CompanionNarrator } from "../../extensions/AIDome/ui/Narrator";
 
@@ -33,6 +31,7 @@ vi.mock("@cove/runtime/components", () => ({
   TextInput: () => null,
   NumberInput: () => null,
   SaveButton: () => null,
+  VideoPlayer: ({ videoId }: any) => <div>Player for video {videoId}</div>,
 }));
 let snapshot: any;
 let clients: GuidedClient[];
@@ -81,27 +80,57 @@ function client() {
 async function loaded(value: GuidedClient) {
   await waitFor(() => expect(value.getSnapshot().snapshot?.userId).toBe(1));
 }
+const contract = (content = "Domme", pacing = "Domme") => ({
+  version: 1,
+  mode: "FullGuided",
+  content,
+  methods: "Domme",
+  pacing,
+  edges: pacing,
+  games: true,
+  preferences: { intensity: 5, length: 5, denial: 5, mean: 5 },
+  limits: { toys: [], anal: false, bondage: false, cei: false, selfOral: false, allowedMethodIds: [] },
+  punishment: false,
+  debug: false,
+  gamesOnly: false,
+  canChangeDuringSession: false,
+});
+const setup = {
+  defaults: { intensity: 5, length: 5, denial: 5, mean: 5 },
+  activePunishments: [],
+  messages: [],
+  modes: [
+    { mode: "FullGuided", name: "Fully guided", description: "She decides everything.", contract: contract() },
+    { mode: "OwnMethods", name: "Your hands, her pace", description: "You choose how.", contract: { ...contract("User"), mode: "OwnMethods", methods: "User" } },
+  ],
+};
 beforeEach(() => {
   snapshot = {
     userId: 1,
     instanceId: "server",
     revision: 1,
-    policyRevision: 1,
-    policy: { ...defaultPolicy },
     sessionActive: true,
-    online: {
+    session: {
       sessionId: 10,
       stepNumber: 1,
       edgesThisSession: 2,
       isPaused: false,
+      isDebugSession: false,
+      mode: "FullGuided",
+      contract: contract("User"),
+      contractRevision: 1,
       currentDirective: { text: "Current instruction", kind: "TimedMethod" },
       remainingSeconds: 60,
+      canRequestPermission: true,
+      canRequestRest: true,
+      canComplete: false,
+      tempo: 90,
+      game: null,
     },
     stepEndsAtUtc: new Date(Date.now() + 60000).toISOString(),
     messages: [
       { id: "message1", sender: "Domme", content: "Current instruction" },
     ],
-    actions: [{ id: "beg-to-cum", label: "Request permission" }],
     mediaCue: null,
   };
   clients = [];
@@ -114,12 +143,16 @@ beforeEach(() => {
   vi.stubGlobal("AudioContext", Audio);
   runtime.fetch.mockImplementation(async (path: string) => {
     if (path === "/api/ext/aidome/state") return Response.json(snapshot);
+    if (path === "/api/ext/aidome/setup") return Response.json(setup);
+    if (path === "/api/ext/aidome/configuration") return Response.json({ methods: [] });
     if (path.endsWith("release")) return new Response(null, { status: 204 });
     if (path.includes("/companion/")) return Response.json({ granted: true });
     if (path.endsWith("/tracker/state"))
       return Response.json({ preferences: { settingId: "setting" } });
     if (path.includes("/api/videos?"))
       return Response.json({ items: [{ id: 8 }] });
+    if (path === "/api/videos/8")
+      return Response.json({ id: 8, title: "Chosen", files: [{ format: "mp4", duration: 90 }] });
     if (path.endsWith("/tts")) return new Response(new Uint8Array([1, 2]));
     return Response.json({ ...snapshot, revision: 2 });
   });
@@ -138,7 +171,7 @@ it("shares one polling owner between the full page and floating view and keeps i
   const view = render(
     <>
       <CommandCenterPage />
-      <GuidedPanel compact />
+      <GuidedPanel />
     </>,
   );
   expect(
@@ -149,13 +182,13 @@ it("shares one polling owner between the full page and floating view and keeps i
       ([path]) => path === "/api/ext/aidome/state",
     ),
   ).toHaveLength(1);
-  view.rerender(<GuidedPanel compact />);
+  view.rerender(<GuidedPanel />);
   expect(screen.getByText("Current instruction")).toBeTruthy();
   snapshot = {
     ...snapshot,
     revision: 2,
-    online: {
-      ...snapshot.online,
+    session: {
+      ...snapshot.session,
       currentDirective: { text: "Next instruction" },
     },
   };
@@ -179,7 +212,7 @@ it("drops a stale poll that finishes after a session mutation", async () => {
           Response.json({
             ...snapshot,
             revision: 3,
-            online: { ...snapshot.online, isPaused: true },
+            session: { ...snapshot.session, isPaused: true },
           }),
         ),
   );
@@ -187,7 +220,7 @@ it("drops a stale poll that finishes after a session mutation", async () => {
   await value.control("pause");
   old.resolve(Response.json({ ...snapshot, revision: 2 }));
   await polling;
-  expect(value.getSnapshot().snapshot.online.isPaused).toBe(true);
+  expect(value.getSnapshot().snapshot.session.isPaused).toBe(true);
 });
 
 it("preserves the original event ID and media when a tracking request is retried after navigation", async () => {
@@ -212,6 +245,7 @@ it("preserves the original event ID and media when a tracking request is retried
   await value.retry();
   expect(requests[1]).toEqual(requests[0]);
   expect(requests[1].mediaId).toBe(5);
+  expect(requests[1].guidedSessionId).toBe(10);
   expect(value.getSnapshot().pending).toBeNull();
 });
 
@@ -230,26 +264,23 @@ it("drops the previous account's in-flight snapshot when the account changes", a
   expect(value.getSnapshot().snapshot.userId).toBe(2);
 });
 
-it("directs native Cove media independently of narration and does not navigate in browsing mode", async () => {
+it("shows the domme's content in the page, and never picks content the user owns", async () => {
   const value = client();
   await loaded(value);
-  expect(runtime.navigate).not.toHaveBeenCalled();
+  snapshot = { ...snapshot, revision: 2, mediaCue: { kind: "video", token: 1 } };
+  await value.refresh();
+  expect(runtime.fetch.mock.calls.some(([path]) => path.includes("sort=random"))).toBe(false);
+  expect(value.getSnapshot().media).toBeNull();
   snapshot = {
     ...snapshot,
-    revision: 2,
-    policy: { ...defaultPolicy, media: "Engine" },
-    mediaCue: { kind: "video", token: 1 },
+    revision: 3,
+    session: { ...snapshot.session, contract: contract("Domme") },
   };
   await value.refresh();
-  await value.setDirectedMedia(true);
-  await waitFor(() =>
-    expect(runtime.navigate).toHaveBeenCalledWith("/video/8"),
-  );
+  await waitFor(() => expect(value.getSnapshot().media?.id).toBe(8));
+  expect(value.getSnapshot().media?.format).toBe("mp4");
+  expect(runtime.navigate).not.toHaveBeenCalled();
   expect(Audio.contexts).toHaveLength(0);
-  expect(value.getSnapshot().voiceEnabled).toBe(false);
-  expect(
-    runtime.fetch.mock.calls.some(([path]) => path.includes("sort=random")),
-  ).toBe(true);
 });
 
 it("keeps pause available while a command response is pending and rejects its stale snapshot", async () => {
@@ -257,23 +288,23 @@ it("keeps pause available while a command response is pending and rejects its st
   await loaded(value);
   const pending = deferred();
   runtime.fetch.mockImplementation((path: string, options: any) => {
-    if (JSON.parse(options?.body || "{}").action === "beg-to-cum")
+    if (JSON.parse(options?.body || "{}").action === "request-permission")
       return pending.promise;
     return Promise.resolve(
       Response.json({
         ...snapshot,
         revision: 3,
-        online: { ...snapshot.online, isPaused: true },
+        session: { ...snapshot.session, isPaused: true },
       }),
     );
   });
-  const command = value.control("beg-to-cum");
+  const command = value.control("request-permission");
   expect(value.getSnapshot().busy).toBe(true);
   await value.control("pause");
-  expect(value.getSnapshot().snapshot.online.isPaused).toBe(true);
+  expect(value.getSnapshot().snapshot.session.isPaused).toBe(true);
   pending.resolve(Response.json({ ...snapshot, revision: 2 }));
   await command;
-  expect(value.getSnapshot().snapshot.online.isPaused).toBe(true);
+  expect(value.getSnapshot().snapshot.session.isPaused).toBe(true);
 });
 
 it("cancels late TTS responses and cannot restart narration after disable", async () => {
@@ -338,14 +369,58 @@ it("does not request speech for an already claimed message", async () => {
 it("offers pause but not end outside debug sessions", async () => {
   guidedClient.start(1);
   await loaded(guidedClient);
-  render(<GuidedPanel compact />);
+  render(<GuidedPanel />);
   expect(screen.getByRole("button", { name: "Pause" })).toBeTruthy();
   expect(screen.queryByRole("button", { name: "End (debug)" })).toBeNull();
   snapshot = {
     ...snapshot,
     revision: 2,
-    online: { ...snapshot.online, isDebugSession: true },
+    session: { ...snapshot.session, isDebugSession: true },
   };
   await guidedClient.refresh();
   await screen.findByRole("button", { name: "End (debug)" });
+});
+
+it("shows only the controls the user holds, and answers games with the choices the server offers", async () => {
+  guidedClient.start(1);
+  await loaded(guidedClient);
+  snapshot = {
+    ...snapshot,
+    revision: 2,
+    session: {
+      ...snapshot.session,
+      canRequestRest: false,
+      game: { type: "TwoEnvelopes", name: "Two envelopes", input: "Choices", choices: [{ label: "Envelope 1", value: 1 }, { label: "Envelope 2", value: 2 }] },
+    },
+  };
+  await guidedClient.refresh();
+  render(<GuidedPanel />);
+  expect(screen.getByRole("button", { name: "Ask to cum" })).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Beg for a rest" })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Envelope 2" }));
+  await waitFor(() =>
+    expect(
+      runtime.fetch.mock.calls.some(
+        ([path, options]) => path.endsWith("/session/control") && JSON.parse(options.body).answer === 2,
+      ),
+    ).toBe(true),
+  );
+  const body = JSON.parse(runtime.fetch.mock.calls.find(([path]) => path.endsWith("/session/control"))![1].body);
+  expect(body).toMatchObject({ action: "game-answer", sessionId: 10, stepNumber: 1 });
+});
+
+it("starts a session with the chosen mode's authorities and the user's preferences", async () => {
+  snapshot = { ...snapshot, sessionActive: false, session: null };
+  guidedClient.start(1);
+  await waitFor(() => expect(guidedClient.getSnapshot().setup).not.toBeNull());
+  render(<CommandCenterPage />);
+  fireEvent.click(await screen.findByRole("button", { name: /Your hands, her pace/ }));
+  fireEvent.change(screen.getByRole("slider", { name: "Meanness" }), { target: { value: "8" } });
+  fireEvent.click(screen.getByRole("button", { name: "Begin" }));
+  await waitFor(() =>
+    expect(runtime.fetch.mock.calls.some(([path]) => path.endsWith("/session/start"))).toBe(true),
+  );
+  const body = JSON.parse(runtime.fetch.mock.calls.find(([path]) => path.endsWith("/session/start"))![1].body);
+  expect(body.contract).toMatchObject({ content: "User", methods: "User", pacing: "Domme", edges: "Domme" });
+  expect(body.contract.preferences).toMatchObject({ mean: 8, intensity: -1 });
 });

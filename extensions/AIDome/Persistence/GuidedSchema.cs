@@ -56,6 +56,7 @@ public static class GuidedSchema
             e.HasMany(x => x.Instructions).WithOne(x => x.Session).HasForeignKey(x => x.SessionId).OnDelete(DeleteBehavior.Cascade);
             e.HasMany(x => x.Punishments).WithOne(x => x.Session).HasForeignKey(x => x.SessionId).OnDelete(DeleteBehavior.Cascade);
             e.HasMany(x => x.Games).WithOne(x => x.Session).HasForeignKey(x => x.SessionId).OnDelete(DeleteBehavior.Cascade);
+            e.Property(x => x.Mode).HasMaxLength(32);
         });
         Owned<EdgeEntry>(model, "aidomme_edges", e =>
         {

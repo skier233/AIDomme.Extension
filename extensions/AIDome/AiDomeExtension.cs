@@ -5,6 +5,7 @@ using AIDome.Data;
 using AIDome.Services;
 using AIDome.Tracking;
 using AIDome.Persistence;
+using AIDome.Sessions;
 using Cove.Data;
 
 using Cove.Plugins;
@@ -41,7 +42,7 @@ public sealed class AiDomeExtension : FullExtensionBase
 
     public override string Id => "cove.community.aidome";
     public override string Name => "AI Domme";
-    public override string Version => "0.7.0";
+    public override string Version => "0.8.0";
     public override string Description => "A rule-driven domme for guided edging sessions on your Cove library, with an app-wide edge tracker, orgasm permission, games and persistent commitments.";
     public override string Author => "Cove Community";
     public override string Url => "https://github.com/yourcove/AIDome.Extension";
@@ -65,12 +66,6 @@ public sealed class AiDomeExtension : FullExtensionBase
         services.AddScoped<TrackerService>();
         services.AddSingleton<MetronomeLeases>();
         services.AddSingleton<NarrationLeases>();
-        services.AddSingleton<MediaLeases>();
-        services.AddScoped<ICommandCenterService>(sp =>
-        {
-            var runtimes = sp.GetRequiredService<GuidedRuntimes>();
-            return new BorrowedCommandCenter(() => runtimes.Current.Commands);
-        });
 
         // TTS: editable settings (loaded from the store in InitializeAsync) + per-call HttpClient.
         services.TryAddSingleton<TtsOptions>();
@@ -104,10 +99,10 @@ public sealed class AiDomeExtension : FullExtensionBase
             .AddKeyboardAction("tracker-orgasm", "Record orgasm", ["Alt+O"], [new("global"), new("overlay")], group: "AI Domme")
             .AddKeyboardAction("tracker-toggle", "Show / hide tracker", ["Alt+D"], [new("global"), new("overlay")], group: "AI Domme")
             .AddKeyboardAction("metronome-toggle", "Start / pause metronome", ["Alt+M"], [new("global"), new("overlay")], group: "AI Domme")
-            .AddKeyboardAction("session-complete", "Complete ready / finish step", ["Alt+C"], [new("global"), new("overlay")], group: "AI Domme")
-            .AddKeyboardAction("session-permission", "Request orgasm permission", ["Alt+B"], [new("global"), new("overlay")], group: "AI Domme")
-            .AddKeyboardAction("session-stop-request", "Request a rest", ["Alt+S"], [new("global"), new("overlay")], group: "AI Domme")
-            .AddKeyboardAction("session-pause", "Pause / resume guided session", ["Alt+P"], [new("global"), new("overlay")], group: "AI Domme")
+            .AddKeyboardAction("session-complete", "Ready / acknowledge", ["Alt+C"], [new("global"), new("overlay")], group: "AI Domme")
+            .AddKeyboardAction("session-permission", "Ask permission to cum", ["Alt+B"], [new("global"), new("overlay")], group: "AI Domme")
+            .AddKeyboardAction("session-stop-request", "Beg for a rest", ["Alt+S"], [new("global"), new("overlay")], group: "AI Domme")
+            .AddKeyboardAction("session-pause", "Pause / resume session", ["Alt+P"], [new("global"), new("overlay")], group: "AI Domme")
             .Build();
 
     public override void ConfigureModel(ModelBuilder modelBuilder)
@@ -123,6 +118,7 @@ public sealed class AiDomeExtension : FullExtensionBase
         Migration("003_companion", GuidedMigrations.Superseded);
         Migration("004_commitments", GuidedMigrations.Superseded);
         Migration("005_guided_v2", GuidedMigrations.Load("005_guided_v2"));
+        Migration("006_session_contracts", GuidedMigrations.Load("006_session_contracts"));
     }
 
     public override void MapEndpoints(IEndpointRouteBuilder endpoints)
@@ -137,7 +133,6 @@ public sealed class AiDomeExtension : FullExtensionBase
             var runtime = await invocation.HttpContext.RequestServices.GetRequiredService<GuidedRuntimes>().EnsureCurrentAsync(invocation.HttpContext.RequestAborted);
             // Tracker delivery owns the runtime gate. Other guided requests serialize by account.
             if (path.StartsWith("/api/ext/aidome/tracker/", StringComparison.OrdinalIgnoreCase)
-                || path.StartsWith("/api/ext/aidome/session/action/", StringComparison.OrdinalIgnoreCase)
                 || path.EndsWith("/tts", StringComparison.OrdinalIgnoreCase)
                 || path.EndsWith("/settings", StringComparison.OrdinalIgnoreCase))
                 return await next(invocation);
@@ -190,60 +185,37 @@ public sealed class AiDomeExtension : FullExtensionBase
 
         // ── Live state ──
         // Polls only refresh the saved countdown occasionally; state changes are saved when they happen.
-        group.MapGet("/state", async (ICommandCenterService cc, CancellationToken ct) =>
-            JsonResult(await BuildSnapshotAsync(cc, ct, persist: false)));
+        group.MapGet("/state", async (CancellationToken ct) => JsonResult(await BuildSnapshotAsync(ct, persist: false)));
 
-        group.MapGet("/setup", async (ICommandCenterService cc, CancellationToken ct) =>
+        group.MapGet("/setup", async (CancellationToken ct) =>
         {
-            var defaults = await cc.GetResolvedDefaultsAsync(ct);
-            var punishments = await cc.GetActivePunishmentSummariesAsync(ct);
-            var suspicion = await cc.CheckPreviousSessionAsync(ct);
-            return JsonResult(new AiDomeSetupSnapshot(defaults, punishments, suspicion, cc.GetLatestMessages()));
+            var session = _runtimes!.Current.Session;
+            var defaults = await session.ResolvedDefaultsAsync(ct);
+            var punishments = await session.ActivePunishmentsAsync(ct);
+            return JsonResult(new AiDomeSetupSnapshot(defaults, punishments, ModePresets, session.Messages()));
         });
 
-        group.MapGet("/history", async (ICommandCenterService cc, int? count, CancellationToken ct) =>
-            JsonResult(await cc.GetSessionHistoryAsync(count ?? 10, ct)));
+        group.MapGet("/history", async (int? count, CancellationToken ct) =>
+            JsonResult(await _runtimes!.Current.Session.HistoryAsync(count ?? 10, ct)));
 
         // ── Session lifecycle ──
-        group.MapPost("/session/start", async (SessionParameters parameters, ICommandCenterService cc, CancellationToken ct) =>
-        {
-            parameters.Policy.Validate();
-            if (_runtimes!.Current.Online.HasActiveSession) return Results.Conflict(new { message = "End the current session before starting another." });
-            await cc.StartSessionAsync(parameters, ct);
-            _runtimes!.Current.PolicyRevision = 1;
-            _runtimes.Current.Operations.Clear();
-            return JsonResult(await BuildSnapshotAsync(cc, ct));
-        });
-
-        group.MapPost("/session/start-punishment", async (SessionParameters parameters, ICommandCenterService cc, CancellationToken ct) =>
-        {
-            parameters.Policy.Validate();
-            if (_runtimes!.Current.Online.HasActiveSession) return Results.Conflict(new { message = "End the current session before starting another." });
-            await cc.StartPunishmentSessionAsync(parameters, ct);
-            _runtimes!.Current.PolicyRevision = 1;
-            _runtimes.Current.Operations.Clear();
-            return JsonResult(await BuildSnapshotAsync(cc, ct));
-        });
-
-        group.MapPost("/session/end", async (ICommandCenterService cc, CancellationToken ct) =>
-        {
-            if (PauseOnly(_runtimes!.Current)) return PauseOnlyConflict();
-            await cc.EndSessionAsync(ct);
-            return JsonResult(await BuildSnapshotAsync(cc, ct));
-        });
-
-        group.MapPut("/session/policy", async (SessionPolicyRequest request, CancellationToken ct) =>
+        group.MapPost("/session/start", async (StartSessionRequest request, CancellationToken ct) =>
         {
             var runtime = _runtimes!.Current;
-            var state = runtime.Online.GetCurrentState();
-            if (!runtime.Online.HasActiveSession || state.SessionId != request.SessionId || runtime.PolicyRevision != request.Revision)
-                return Results.Conflict(new { message = "Session settings changed elsewhere. Refresh before saving." });
-            await runtime.Online.SetPolicyAsync(request.Policy, true, ct);
-            runtime.PolicyRevision++;
-            runtime.Commands.CompanionNotice("Session settings updated. The previous prompt/challenge was replaced without treating it as a failure.");
-            runtime.Commands.CompanionDirective();
-            return JsonResult(await BuildSnapshotAsync(runtime.Commands, ct));
+            if (request.Contract is null) return Results.BadRequest(new { message = "A session contract is required." });
+            if (runtime.Session.Active) return Results.Conflict(new { message = "The current session isn't over yet." });
+            await runtime.Session.StartAsync(request.Contract, ct);
+            runtime.Operations.Clear();
+            return JsonResult(await BuildSnapshotAsync(ct));
         });
+
+        group.MapPut("/session/contract", async (SessionContractRequest request, CancellationToken ct) =>
+        {
+            if (request.Contract is null) return Results.BadRequest(new { message = "A session contract is required." });
+            await _runtimes!.Current.Session.ChangeContractAsync(request.SessionId, request.Revision, request.Contract, ct);
+            return JsonResult(await BuildSnapshotAsync(ct));
+        });
+
         group.MapPost("/session/control", async (SessionControlRequest request, CancellationToken ct) =>
         {
             var runtime = _runtimes!.Current;
@@ -256,50 +228,49 @@ public sealed class AiDomeExtension : FullExtensionBase
             {
                 if (JsonSerializer.Deserialize<SessionControlRequest>(receipt.Payload, GuidedRecovery.Json) != request)
                     return Results.BadRequest(new { message = "The command ID belongs to different inputs." });
-                if (receipt.Status == "Applied" || runtime.Operations.Contains(request.EventId)) return JsonResult(await BuildSnapshotAsync(runtime.Commands, ct));
-                runtime.Online.EndSession();
-                runtime.Commands.CompanionNotice("Guidance stopped after an interrupted command. Its uncertain effects will not be repeated. Review the current state before starting another session.");
+                if (receipt.Status == "Applied" || runtime.Operations.Contains(request.EventId)) return JsonResult(await BuildSnapshotAsync(ct));
+                runtime.Session.Abandon("Guidance stopped after an interrupted command. Its uncertain effects will not be repeated. Review the current state before starting another session.");
                 await runtime.SaveAsync(ct);
                 return Results.Conflict(new { message = "This command was interrupted; it was not replayed. Review state and dismiss the request." });
             }
-            var state = runtime.Online.GetCurrentState();
-            if (!runtime.Online.HasActiveSession || request.SessionId != state.SessionId)
+            var session = runtime.Session.View();
+            if (session is null || request.SessionId != session.SessionId)
                 return Results.Conflict(new { message = "The session changed. Refresh before acting." });
-            if (request.Action is not ("pause" or "resume" or "end") && (state.IsPaused || request.StepNumber != state.StepNumber))
-                return Results.Conflict(new { message = "The step changed or is paused. Review the current instruction." });
-            if (request.Action is not ("pause" or "resume" or "end" or "game-answer" or "done" or "beg-to-cum" or "beg-to-stop"))
+            var action = request.Action switch { "beg-to-cum" => "request-permission", "beg-to-stop" => "request-rest", var other => other };
+            if (action is not ("pause" or "resume" or "end" or "game-answer" or "done" or "request-permission" or "request-rest"))
                 return Results.BadRequest(new { message = "Unknown session control." });
-            if (request.Action == "end" && PauseOnly(runtime)) return PauseOnlyConflict();
-            if (request.Action == "done" && !state.IsLubePause && state.CurrentDirective?.Kind != AIDome.Data.InstructionKind.Finish)
-                return Results.Conflict(new { message = "This step advances through its timer, edge target or challenge result." });
-            if (request.Action == "game-answer" && request.Answer is null) return Results.BadRequest(new { message = "An answer is required." });
+            // Step-specific controls must still refer to the instruction the user saw.
+            if (action is "done" or "game-answer" && (session.IsPaused || request.StepNumber != session.StepNumber))
+                return Results.Conflict(new { message = "The step changed or is paused. Review the current instruction." });
+            if (action == "end" && !session.IsDebugSession) return PauseOnlyConflict();
+            if (action == "game-answer" && request.Answer is null) return Results.BadRequest(new { message = "An answer is required." });
             await runtime.SaveAsync(ct);
             var payload = JsonSerializer.Serialize(request, GuidedRecovery.Json);
             await commandDb.Database.ExecuteSqlInterpolatedAsync($"""
                 INSERT INTO aidomme_session_controls ("UserId", "EventId", "Payload", "Status") VALUES ({commandDb.UserId}, {request.EventId}, {payload}, 'Pending')
                 """, ct);
-            switch (request.Action)
-            {
-                case "pause": runtime.Online.Pause(); runtime.Commands.CompanionNotice("Session paused."); break;
-                case "resume": runtime.Online.Resume(); runtime.Commands.CompanionNotice("Session resumed."); break;
-                case "end": await runtime.Commands.EndSessionAsync(ct); break;
-                case "game-answer":
-                    if (request.Answer is null) return Results.BadRequest(new { message = "An answer is required." });
-                    await runtime.Commands.SubmitGameAnswerAsync(request.Answer.Value, ct); break;
-                case "done": case "beg-to-cum": case "beg-to-stop": await runtime.Commands.TriggerActionAsync(request.Action, ct); break;
-                default: return Results.BadRequest(new { message = "Unknown session control." });
-            }
+            await runtime.Session.ControlAsync(action, request.Answer, ct);
             runtime.Operations.Add(request.EventId);
-            return JsonResult(await BuildSnapshotAsync(runtime.Commands, ct));
+            return JsonResult(await BuildSnapshotAsync(ct));
         });
+
+        group.MapPost("/session/infraction", async (AiDomeInfractionRequest body, CancellationToken ct) =>
+        {
+            if (!Enum.TryParse<InfractionType>(body.Type, ignoreCase: true, out var type))
+                return Results.BadRequest(new { message = $"Unknown infraction type '{body.Type}'." });
+            await _runtimes!.Current.Session.ReportInfractionAsync(type, body.Note, ct);
+            return JsonResult(await BuildSnapshotAsync(ct));
+        });
+
+        // ── Offline homework ──
+        group.MapPost("/homework", async (HomeworkRequest request, CancellationToken ct) =>
+        {
+            if (request.Contract is null) return Results.BadRequest(new { message = "A session contract is required." });
+            return JsonResult(await _runtimes!.Current.Session.GenerateHomeworkAsync(request.Contract, request.Punishment, ct));
+        });
+
         group.MapPost("/companion/audio/lease", (MetronomeLeaseRequest request, NarrationLeases leases, Cove.Core.Auth.ICurrentPrincipalAccessor principal) =>
             Results.Json(new { granted = leases.Acquire(principal.Current!.UserId!.Value, request.ClientId) }));
-        group.MapPost("/companion/media/lease", (MetronomeLeaseRequest request, MediaLeases leases, Cove.Core.Auth.ICurrentPrincipalAccessor principal) =>
-            Results.Json(new { granted = leases.Acquire(principal.Current!.UserId!.Value, request.ClientId) }));
-        group.MapPost("/companion/media/release", (MetronomeLeaseRequest request, MediaLeases leases, Cove.Core.Auth.ICurrentPrincipalAccessor principal) =>
-        {
-            leases.Release(principal.Current!.UserId!.Value, request.ClientId); return Results.NoContent();
-        });
         group.MapPost("/companion/audio/release", (MetronomeLeaseRequest request, NarrationLeases leases, Cove.Core.Auth.ICurrentPrincipalAccessor principal) =>
         {
             leases.Release(principal.Current!.UserId!.Value, request.ClientId); return Results.NoContent();
@@ -307,8 +278,7 @@ public sealed class AiDomeExtension : FullExtensionBase
         group.MapPost("/companion/audio/claim", async (NarrationClaimRequest request, NarrationLeases leases, CancellationToken ct) =>
         {
             var runtime = _runtimes!.Current;
-            var state = runtime.Online.GetCurrentState();
-            if (!runtime.Online.HasActiveSession || state.IsPaused || !runtime.Commands.GetLatestMessages().Any(x => x.Id == request.MessageId && x.Sender == "Domme")
+            if (!runtime.Session.Active || runtime.Session.Paused || !runtime.Session.Messages().Any(x => x.Id == request.MessageId && x.Sender == "Domme")
                 || !leases.Acquire(runtime.Factory.UserId, request.ClientId)) return Results.Json(new { granted = false });
             await using var db = runtime.Factory.Open();
             var now = DateTime.UtcNow;
@@ -318,66 +288,6 @@ public sealed class AiDomeExtension : FullExtensionBase
                 """, ct);
             return Results.Json(new { granted = claimed == 1 });
         });
-
-        // ── In-session actions ──
-        group.MapPost("/session/action/{actionId}", async (string actionId, GuidedActionRequest? body, GuidedRuntimes runtimes, TrackerService tracking, CancellationToken ct) =>
-        {
-            var runtime = runtimes.Current;
-            actionId = actionId.ToLowerInvariant();
-            if (actionId is "edged" or "orgasm")
-            {
-                var snapshot = await tracking.SnapshotAsync(ct);
-                var request = new RecordTrackerEvent(body?.EventId ?? Guid.NewGuid(), body?.SettingId ?? snapshot.Preferences.SettingId,
-                    actionId == "edged" ? "edge" : "orgasm", body?.OccurredAtUtc ?? DateTime.UtcNow, body?.Source ?? "button",
-                    body?.MediaKind, body?.MediaId, body?.PositionSeconds);
-                try { await tracking.RecordAsync(request, ct); }
-                catch (TrackerValidationException ex) { return Results.BadRequest(new { message = ex.Message }); }
-            }
-            else
-            {
-                await runtime.Gate.WaitAsync(ct);
-                try
-                {
-                    await runtimes.Current.Commands.TriggerActionAsync(actionId, ct);
-                }
-                finally { runtime.Gate.Release(); }
-            }
-            return JsonResult(await BuildSnapshotAsync(runtime.Commands, ct));
-        });
-
-        group.MapPost("/session/game/answer", async (AiDomeGameAnswerRequest body, ICommandCenterService cc, CancellationToken ct) =>
-        {
-            await cc.SubmitGameAnswerAsync(body.Answer, ct);
-            return JsonResult(await BuildSnapshotAsync(cc, ct));
-        });
-
-        group.MapPost("/session/infraction", async (AiDomeInfractionRequest body, ICommandCenterService cc, CancellationToken ct) =>
-        {
-            if (!Enum.TryParse<InfractionType>(body.Type, ignoreCase: true, out var type))
-                return Results.BadRequest(new { message = $"Unknown infraction type '{body.Type}'." });
-            await cc.ReportInfractionAsync(type, body.Note, ct);
-            return JsonResult(await BuildSnapshotAsync(cc, ct));
-        });
-
-        group.MapPost("/session/cum-request", async (AiDomeCumRequest body, ICommandCenterService cc, CancellationToken ct) =>
-        {
-            await cc.RecordCumRequestAsync(body.Decision, ct);
-            return JsonResult(await BuildSnapshotAsync(cc, ct));
-        });
-
-        // ── Confession (abandoned previous session) ──
-        group.MapPost("/confession", async (AiDomeConfessionRequest body, ICommandCenterService cc, CancellationToken ct) =>
-        {
-            await cc.HandleConfessionAsync(body.Confessed, ct);
-            return JsonResult(await BuildSnapshotAsync(cc, ct));
-        });
-
-        // ── Offline homework generation ──
-        group.MapPost("/homework", async (SessionParameters parameters, ICommandCenterService cc, CancellationToken ct) =>
-            JsonResult(await cc.GenerateDebugHomeworkAsync(parameters, ct)));
-
-        group.MapPost("/punishment-homework", async (SessionParameters parameters, ICommandCenterService cc, CancellationToken ct) =>
-            JsonResult(await cc.GenerateDebugPunishmentHomeworkAsync(parameters, ct)));
 
         // ── Settings ──
         group.MapGet("/settings", async (CancellationToken ct) => JsonResult(await LoadSettingsAsync(ct)));
@@ -406,35 +316,29 @@ public sealed class AiDomeExtension : FullExtensionBase
         });
     }
 
-    private async Task<AiDomeStateSnapshot> BuildSnapshotAsync(ICommandCenterService cc, CancellationToken ct, bool persist = true)
+    private async Task<AiDomeStateSnapshot> BuildSnapshotAsync(CancellationToken ct, bool persist = true)
     {
         var runtime = _runtimes!.Current;
         await runtime.SaveAsync(ct, force: persist);
-        var status = await cc.GetSessionStatusAsync(ct);
-        var online = cc.GetOnlineState();
-        var active = status.IsActive && online is not null;
-        DateTime? stepEndsAt = online is { RemainingSeconds: >= 0, IsPaused: false }
-            ? DateTime.UtcNow.AddSeconds(online.RemainingSeconds)
-            : null;
-
-        var mediaCue = runtime.Online.Policy.Media == "Engine" && online?.IsPaused != true
-            ? runtime.Media.Advance(online?.SessionId, active) : null;
-
-        return new AiDomeStateSnapshot(
-            UserId: runtime.Factory.UserId,
-            InstanceId: runtime.InstanceId,
-            Revision: runtime.Revision,
-            PolicyRevision: runtime.PolicyRevision,
-            Policy: runtime.Online.Policy,
-            SessionActive: active,
-            LastInteractionUtc: status.LastInteractionUtc,
-            Points: cc.GetCurrentPoints(),
-            Online: online,
-            StepEndsAtUtc: stepEndsAt,
-            MediaCue: mediaCue,
-            Messages: cc.GetLatestMessages(),
-            Actions: cc.GetCurrentActions());
+        var session = runtime.Session.View();
+        // She only picks what to watch when the contract gives her the content.
+        var mediaCue = session is { IsPaused: false, Contract.Content: Authority.Domme }
+            ? runtime.Media.Advance(session.SessionId, true) : runtime.Media.Advance(null, false);
+        return new AiDomeStateSnapshot(runtime.Factory.UserId, runtime.InstanceId, runtime.Revision, session is not null,
+            session, runtime.Session.StepEndsAtUtc(), mediaCue, runtime.Session.Messages());
     }
+
+    private static readonly IReadOnlyList<ModePresetView> ModePresets =
+    [
+        new(SessionMode.FullGuided, "Fully guided", "She picks what you watch, how you touch yourself, the pace, your edges, games and how it ends.",
+            SessionContract.Preset(SessionMode.FullGuided)),
+        new(SessionMode.OwnContent, "Your content, her rules", "You browse your own content. She decides everything else.",
+            SessionContract.Preset(SessionMode.OwnContent)),
+        new(SessionMode.OwnMethods, "Your hands, her pace", "You choose the content and how you touch yourself. She sets the pace, edges, holds and the ending.",
+            SessionContract.Preset(SessionMode.OwnMethods)),
+        new(SessionMode.FreePlay, "Free play, her ending", "Do as you like and record your edges. She decides when, and whether, you cum.",
+            SessionContract.Preset(SessionMode.FreePlay)),
+    ];
 
     private async Task<AiDomeSettings> LoadSettingsAsync(CancellationToken ct)
     {
@@ -451,8 +355,6 @@ public sealed class AiDomeExtension : FullExtensionBase
     private static IResult JsonResult<T>(T value) => Results.Json(value, JsonOpts);
 
     // Outside debug sessions the user can pause but not end; the domme decides when it is over.
-    private static bool PauseOnly(GuidedRuntime runtime)
-        => runtime.Online.HasActiveSession && !runtime.Online.GetCurrentState().IsDebugSession;
     private static IResult PauseOnlyConflict()
         => Results.Conflict(new { message = "This session can be paused, not ended. The domme decides when it is over." });
 

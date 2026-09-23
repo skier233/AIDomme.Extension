@@ -96,6 +96,57 @@ Goal: no extension-owned DbContext, literal migrations, plain user scoping, quer
 
 ## Phase 2 — Session contract and per-concern authority (10–15 days)
 
+**Status: done 2026-09-22 (version 0.8.0).** The old engine (`OnlineSessionEngine`, `GameEngine`,
+`InteractionManager`, `SessionPolicy`, `SessionDirective`, the command center) is deleted; the new
+core lives in `extensions/AIDome/Sessions/`. What landed, and where it differs from the plan:
+
+- **Contract** (`Contract.cs`): mode, one authority each for content, methods, pacing and edges,
+  games on/off, preferences, limits (toys, kinks, allowed-method filter), punishment, debug and
+  `CanChangeDuringSession`. Presets for the four modes; any other combination is `Custom`, derived
+  from the authorities. Stored on the session row (`Mode`, `ContractJson`) and as numbered
+  revisions in `aidomme_session_contracts` (migration `006_session_contracts`). Commitments and
+  ledger entries are not in it yet: they arrive with the ledger in Phase 3.
+- **Authorities** (`Authorities.cs`): content, methods, pacing, edges, games and permission. There is
+  no separate `IEndingAuthority` yet; permission decides the ending until Phase 4 makes all
+  endings reachable.
+- **Engine** (`Engine.cs`, `State.cs`): a deterministic reducer over serializable `SessionState`,
+  with `IRandom` and `IClock` injected. It returns the domme's lines, notices and effects;
+  `SessionHost` owns the lock, the single timer, persistence and the chat log. The checkpoint is
+  now format 2 (the state itself), so a restart resumes exactly where it was. A session saved by
+  0.7.0 keeps its chat log but cannot continue; the page says so. The rule planner sits behind `IPlanner` and is injectable.
+- **Same domme in every mode** (`Points.cs`, `DommePermission`): an edge, a second of stimulation
+  and a held edge are worth the same points whoever sets the pace. Context varies them a little:
+  the method when she knows it (the average of the allowed pool when the user picks), stroke speed,
+  and later edges in a session (up to +30%). Permission, and her own decision to end at the budget,
+  use one formula in every mode, including free play check-ins. It covers denial preference,
+  edges, progress, hours since the last orgasm, mood, retaliation, punishment and repeated
+  requests.
+- **Mode 3** follows decision 4's default: her instructions are method-agnostic ("edge twice,
+  however you like"). The planner already takes the method from the method authority, so (b) can
+  be added later without engine changes.
+- **Metronome**: every directive carries a tempo (speed 1–10 → BPM, 0 for rest, hold or stop). When
+  she sets the pace the metronome follows it and its controls are locked; otherwise it stays
+  hidden by default.
+- **Games** (`Games.cs`): state machines that return typed consequences, and the engine applies
+  them (extra edges, holds, points, permission odds, retaliation, rewards), so announced stakes
+  now happen. Edge games only run when she owns edges. Retired: Edge Counter (the count was on
+  screen) and Memory Sequence (the sequence stayed in the chat log). New: Chicken, Edge Wager and
+  Two Envelopes.
+- **Page redesign**: setup is pick a mode, adjust the fields it exposes, and start. The running
+  session has the media window at the top, a status strip (instruction time left, edges remaining,
+  session time, mood), the chat log, and a few buttons with hotkeys. Edge and Orgasm use the
+  global tracker hotkeys; Ready, Ask permission, Beg for a rest and Pause/Resume have their own.
+  End is only offered in debug sessions. The companion shows only the controls the contract lets
+  the user use.
+- **Tests**: `SessionEngineTests` covers each mode and authority with a fake clock and seeded
+  random, plus same points and same permission rules across modes, games applying their stakes, the
+  free play check-in, pause, and the checkpoint round trip. The integration fixture applies migrations 002–006. Migrations 005 and 006 were run
+  against a copy of the real install's tables.
+
+Known limits carried forward: images the domme directs on the page are not credited in likes
+(only Cove's `VideoPlayer` publishes the active media); speech still uses `Random.Shared` and the
+old text pools (Phase 4); the planner is still per-step category weighting (Phase 4 phase planner).
+
 Goal: the four modes exist, as presets over independent authorities, on a rewritten engine core.
 
 1. **Typed `SessionContract`** replacing `SessionPolicy` and `SessionParameters`:
@@ -211,7 +262,7 @@ Answered 2026-09-22:
 5. **Unauthorized orgasms are self-reported** as accidental or intentional, in that session or the
    next time the user opens AI Domme.
 
-Still open:
+Still open (Phase 2 shipped the default):
 
 4. **Mode 3 (user picks their own methods): does the domme need to know which method the user is
    using?** She does not need it to run edges, holds and timing. Knowing it would let her react
