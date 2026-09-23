@@ -7,6 +7,7 @@ using Xunit;
 
 namespace AIDome.Tests;
 
+[Collection("CoveModel")]
 public sealed class TrackerModelTests
 {
     [Fact]

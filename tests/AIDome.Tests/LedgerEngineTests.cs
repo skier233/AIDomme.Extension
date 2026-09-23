@@ -1,5 +1,6 @@
 using AIDome.Data;
 using AIDome.Sessions;
+using AIDome.Speech;
 using Xunit;
 
 namespace AIDome.Tests;
@@ -51,12 +52,12 @@ public sealed class LedgerEngineTests
         {
             var clock = new FakeClock();
             var engine = new SessionEngine(new FixedRandom(0.01), clock);
-            var s = State(mode, new() { NoOrgasmUntilUtc = DateTime.MaxValue, NoOrgasmReason = "No. You promised me no orgasm this session." });
+            var s = State(mode, new() { NoOrgasmUntilUtc = DateTime.MaxValue, NoOrgasmReason = "Promise" });
             var begin = engine.Begin(s);
-            Assert.Contains(begin.Domme, x => x.Contains("You promised"));
+            Assert.Contains(begin.Say, u => u.Act == SpeechAct.Obligations && u.Has("no-orgasm-tonight") && u.Has("why:Promise"));
             s.Points = s.Budget * 0.9;
             var asked = engine.RequestPermission(s);
-            Assert.Contains("No. You promised me no orgasm this session.", asked.Domme);
+            Assert.Contains(asked.Say, u => u.Act == SpeechAct.Blocked && u.Has("why:Promise") && u.Has("this-session"));
             Assert.Equal(0, Assert.IsType<PermissionAnswered>(Assert.Single(asked.Effects)).Chance);
             Assert.False(s.PermissionGranted);
             s.Points = s.Budget;
@@ -73,13 +74,13 @@ public sealed class LedgerEngineTests
         var clock = new FakeClock();
         var engine = new SessionEngine(new FixedRandom(0.01), clock);
         var s = State(SessionMode.FullGuided, new() { OwedEdges = 3 });
-        Assert.Contains(engine.Begin(s).Domme, x => x.Contains("3 edges"));
-        Assert.Contains(engine.RequestPermission(s).Domme, x => x.Contains("3 edges first"));
+        Assert.Contains(engine.Begin(s).Say, u => u.Act == SpeechAct.Obligations && u.Slots["owed"] == "3 edges");
+        Assert.Contains(engine.RequestPermission(s).Say, u => u.Act == SpeechAct.Blocked && u.Has("why:OwedEdges") && u.Slots["owed"] == "3 edges");
         engine.Edge(s);
         engine.Edge(s);
         var last = engine.Edge(s);
         Assert.Equal((0, 3), (s.OwedEdges, s.EdgesPaid));
-        Assert.Contains("That's your debt paid.", last.Domme);
+        Assert.Contains(last.Say, u => u.Act == SpeechAct.DebtPaid);
 
         // Free play: at the budget she names the debt once and waits for the edges.
         var free = State(SessionMode.FreePlay, new() { OwedEdges = 2 });
@@ -87,7 +88,7 @@ public sealed class LedgerEngineTests
         free.Points = free.Budget;
         clock.Advance(SessionEngine.FreePlayCheckSeconds);
         var named = engine.Timer(free, free.TimerGeneration);
-        Assert.Contains(named.Domme, x => x.Contains("Record them"));
+        Assert.Contains(named.Say, u => u.Act == SpeechAct.Obligations && u.Has("collect-edges") && u.Has("record"));
         Assert.False(free.FinishDecided);
         engine.Edge(free);
         Assert.False(free.FinishDecided);
@@ -109,7 +110,7 @@ public sealed class LedgerEngineTests
             var asked = engine.RequestPermission(s);
             var offer = Assert.Single(asked.Effects.OfType<OfferMade>()).Offer;
             amounts.Add(offer.Amount);
-            Assert.Contains(asked.Domme, x => x.Contains(offer.Text));
+            Assert.Contains(asked.Say, u => u.Act == SpeechAct.OfferMade && u.Slots["offer"] == offer.Text);
             Assert.Equal(OfferStatus.Accepted, Assert.Single(engine.AcceptOffer(s).Effects.OfType<OfferDecided>()).Status);
             Assert.Equal(offer.Amount, s.Price!.EdgesLeft);
             Assert.NotNull(engine.RequestPermission(s).Rejected);
@@ -123,6 +124,23 @@ public sealed class LedgerEngineTests
             Assert.Equal(StepCategory.Finish, s.Current!.Category);
         }
         Assert.Single(amounts.Distinct());
+    }
+
+    [Fact]
+    public void ADealStruckMidHold_EndsTheHold_SoHeCanPay()
+    {
+        var clock = new FakeClock();
+        var engine = new SessionEngine(new FixedRandom(0.1), clock);
+        var s = State(SessionMode.FullGuided, offers: EarnIt);
+        engine.Begin(s);
+        s.Points = s.Budget * 0.3;
+        s.Holding = true;
+        engine.RequestPermission(s);
+        engine.AcceptOffer(s);
+        Assert.False(s.Holding);
+        int left = s.Price!.EdgesLeft;
+        engine.Edge(s);
+        Assert.Equal(left - 1, s.Price?.EdgesLeft ?? 0);
     }
 
     [Fact]
@@ -170,7 +188,7 @@ public sealed class LedgerEngineTests
         var (engine, s, clock) = Setup();
         var accepted = engine.AcceptOffer(s);
         Assert.Single(accepted.Effects.OfType<LedgerOwed>());
-        Assert.Contains(accepted.Domme, x => x.Contains("off the hook"));
+        Assert.Contains(accepted.Say, u => u.Act == SpeechAct.MercyGranted);
         Assert.Empty(s.PendingConsequences);
 
         (engine, s, clock) = Setup();
@@ -221,7 +239,10 @@ public sealed class LedgerEngineTests
         ToEnding(engine, s, clock);
         Assert.True(s.PermissionGranted);
         Assert.True(s.FinishRuined);
-        Assert.Contains("ruin", s.Current!.Text, StringComparison.OrdinalIgnoreCase);
+        // Her words for it say so.
+        var line = RuleNarrator.Default.Render(Utterance.Instruct(s.Current!, SpeechAct.Finish, "her-decision", "ruined"),
+            Simulation.Context(s, null, new FixedRandom(0.5), clock.UtcNow))!;
+        Assert.Contains("let go completely", line.Text);
         engine.Orgasm(s, allowed: true);
         Assert.Equal((0, 1), (s.OwedRuins, s.RuinsServed));
     }
@@ -253,7 +274,9 @@ public sealed class LedgerEngineTests
         Assert.True(distrust.Countered);
         Assert.Equal(6, distrust.Terms.Days);
         Assert.Contains(distrust.Stakes, x => x.Kind == LedgerKind.Denial && x.Amount >= 3);
-        Assert.Contains("Break it and you owe me", distrust.Words);
+        Assert.Equal(SpeechAct.PromiseAnswer, distrust.Say.Act);
+        Assert.True(distrust.Say.Has("distrust") && distrust.Say.Has("countered"));
+        Assert.Equal(Stake.Describe(distrust.Stakes), distrust.Say.Slots["stakes"]);
 
         var trusted = CommitmentRules.Respond(new() { NoOrgasm = true }, 1, 0, new FixedRandom(0.99));
         Assert.False(trusted.Countered);

@@ -1,6 +1,7 @@
 using System.Text.Json;
 using AIDome.Data;
 using AIDome.Sessions;
+using AIDome.Speech;
 using AIDome.Tracking;
 using Microsoft.EntityFrameworkCore;
 
@@ -94,6 +95,7 @@ public sealed class LedgerStore(GuidedDataFactory data, SessionHost host)
     {
         if (host.Active) throw new InvalidOperationException("Make your promises before a session starts.");
         var terms = (proposed ?? throw new ArgumentException("Terms are required.")).Validate();
+        await host.PrepareIdleAsync(ct);
         await using var db = data.Open();
         var now = Now;
         if (await db.Commitments.CountAsync(x => x.Status == CommitmentStatus.Active, ct) >= MaxActiveCommitments)
@@ -112,16 +114,16 @@ public sealed class LedgerStore(GuidedDataFactory data, SessionHost host)
         {
             Id = Guid.NewGuid(), Status = CommitmentStatus.Pending, Scope = t.Scope, Days = t.Days, NoOrgasm = t.NoOrgasm, Long = t.Long,
             Intense = t.Intense, Torturous = t.Torturous, Mean = t.Mean, Teasing = t.Teasing, Note = t.Note,
-            Stakes = JsonSerializer.Serialize(response.Stakes, Json), Response = response.Words, Countered = response.Countered,
+            Stakes = JsonSerializer.Serialize(response.Stakes, Json), Response = Truncate(host.Speak(response.Say), 1000), Countered = response.Countered,
             Proposed = response.Countered ? JsonSerializer.Serialize(terms, Json) : null, CreatedAtUtc = now,
         });
         await db.SaveChangesAsync(ct);
-        host.Say(response.Words);
     }
 
     public async Task DecideAsync(Guid id, bool accept, CancellationToken ct)
     {
         if (host.Active) throw new InvalidOperationException("Settle promises before a session starts.");
+        await host.PrepareIdleAsync(ct);
         await using var db = data.Open();
         var c = await db.Commitments.SingleOrDefaultAsync(x => x.Id == id && x.Status == CommitmentStatus.Pending, ct)
             ?? throw new InvalidOperationException("That promise is no longer waiting for an answer.");
@@ -141,9 +143,7 @@ public sealed class LedgerStore(GuidedDataFactory data, SessionHost host)
             c.Resolution = "You didn't accept her terms.";
         }
         await db.SaveChangesAsync(ct);
-        host.Say(accept
-            ? host.Engine.Random.Pick(["Then it's a promise. Don't make me regret believing you.", "Good. I'm holding you to every word."])
-            : host.Engine.Random.Pick(["Then don't promise me things you won't keep.", "Hm. All talk."]));
+        host.Speak(Utterance.Of(accept ? SpeechAct.PromiseAccepted : SpeechAct.PromiseDeclined).With("promise", c.Terms.Describe()));
     }
 
     // ── Session start and end ──
@@ -171,13 +171,12 @@ public sealed class LedgerStore(GuidedDataFactory data, SessionHost host)
             if (c.Scope == CommitmentScope.Session) c.SessionId = sessionId;
             character = character.With(c.Terms.Character);
             if (!c.NoOrgasm) continue;
-            if (c.Scope == CommitmentScope.Session) Deny(DateTime.MaxValue, "No. You promised me no orgasm this session.");
-            else Deny(c.EndsAtUtc!.Value, $"No. You promised me no orgasm for {DaysLeft(c.EndsAtUtc.Value, now)}.");
+            Deny(c.Scope == CommitmentScope.Session ? DateTime.MaxValue : c.EndsAtUtc!.Value, nameof(Block.Promise));
         }
 
         var owed = await db.Ledger.Where(x => x.Status == LedgerStatus.Owed || x.Status == LedgerStatus.Serving).OrderBy(x => x.CreatedAtUtc).ToListAsync(ct);
         foreach (var e in owed.Where(x => x.Kind == LedgerKind.Denial && x.EndsAtUtc > now))
-            Deny(e.EndsAtUtc!.Value, $"No. You're serving your denial: {DaysLeft(e.EndsAtUtc.Value, now)} left.");
+            Deny(e.EndsAtUtc!.Value, nameof(Block.Denial));
         var serving = new List<LedgerEntry>();
         var session = owed.FirstOrDefault(x => x.Kind == LedgerKind.PunishmentSession && x.Remaining > 0);
         if (session is not null) serving.Add(session);
@@ -421,6 +420,7 @@ public sealed class LedgerStore(GuidedDataFactory data, SessionHost host)
 
     public async Task AnswerAsync(Guid id, string answer, CancellationToken ct)
     {
+        if (!host.Active) await host.PrepareIdleAsync(ct);
         await using var db = data.Open();
         var f = await db.FollowUps.SingleOrDefaultAsync(x => x.Id == id && x.Status == FollowUpStatus.Open, ct)
             ?? throw new InvalidOperationException("That question has already been answered.");
@@ -431,7 +431,7 @@ public sealed class LedgerStore(GuidedDataFactory data, SessionHost host)
         f.Status = FollowUpStatus.Answered;
         f.Answer = answer;
         f.AnsweredAtUtc = now;
-        var lines = new List<string>();
+        var lines = new List<Utterance>();
         SessionOutcome? end = null;
         bool resume = false;
 
@@ -445,12 +445,12 @@ public sealed class LedgerStore(GuidedDataFactory data, SessionHost host)
                     if (now - f.OccurredAtUtc > ResumableFor)
                     {
                         end = SessionOutcome.Interrupted;
-                        lines.Add("Fine. It's been too long to pick up where we left off. We'll start fresh next time.");
+                        lines.Add(Utterance.Of(SpeechAct.FollowUpAnswer, "interrupted", "too-late"));
                     }
                     else
                     {
                         resume = true;
-                        lines.Add("Fine. I'll believe you. Resume when you're ready.");
+                        lines.Add(Utterance.Of(SpeechAct.FollowUpAnswer, "interrupted", "resume"));
                     }
                     break;
                 case "quit":
@@ -461,7 +461,8 @@ public sealed class LedgerStore(GuidedDataFactory data, SessionHost host)
                         "You walked out of a session you promised her.", intentional: true, now, ct);
                     foreach (var stake in stakes)
                         db.Add(Entry(stake, LedgerOrigin.Rule, $"You walked out of session {f.SessionId}.", now, f.SessionId, followUpId: f.Id));
-                    lines.Add($"You just left. Walking out on me costs you {Stake.Describe(Stake.Merge(stakes.Concat(broken)))}.");
+                    lines.Add(Utterance.Of(SpeechAct.FollowUpAnswer, "quit", broken.Count > 0 ? "broke-promise" : "no-promise")
+                        .With("stakes", Stake.Describe(Stake.Merge(stakes.Concat(broken)))));
                     break;
                 }
                 default:
@@ -488,7 +489,7 @@ public sealed class LedgerStore(GuidedDataFactory data, SessionHost host)
             }
         }
         await db.SaveChangesAsync(ct);
-        foreach (var line in lines) host.Say(line);
+        foreach (var line in lines) host.Speak(line);
         if (f.Kind == FollowUpKind.InterruptedSession && host.ActiveSessionId == f.SessionId)
         {
             if (end is SessionOutcome outcome) await host.EndAsync(outcome, ct);
@@ -499,7 +500,7 @@ public sealed class LedgerStore(GuidedDataFactory data, SessionHost host)
     private static Guid[] CommitmentsOf(FollowUpRecord f) => JsonSerializer.Deserialize<Guid[]>(f.Commitments, Json) ?? [];
 
     /// <summary>The consequences of an orgasm without permission: a broken promise's stakes, or the standing rules.</summary>
-    private static async Task<string> OrgasmAsync(GuidedData db, FollowUpRecord f, bool intentional, int mean, DateTime now, CancellationToken ct)
+    private static async Task<Utterance> OrgasmAsync(GuidedData db, FollowUpRecord f, bool intentional, int mean, DateTime now, CancellationToken ct)
     {
         var how = intentional ? "on purpose, by your own account" : "an accident, by your own account";
         var broken = await BreakAsync(db, f, CommitmentsOf(f), c => c.NoOrgasm, $"An orgasm without permission ({how}).", intentional, now, ct);
@@ -510,10 +511,8 @@ public sealed class LedgerStore(GuidedDataFactory data, SessionHost host)
             foreach (var stake in stakes)
                 db.Add(Entry(stake, LedgerOrigin.Rule, $"You came without permission ({how}).", now, f.SessionId, followUpId: f.Id));
         }
-        string owed = Stake.Describe(stakes);
-        return intentional
-            ? $"On purpose. You'll regret that. You owe me {owed}."
-            : broken.Count > 0 ? $"An accident. You still broke your promise, and you still pay: {owed}." : $"An accident. I'll believe you. You still owe me {owed}.";
+        return Utterance.Of(SpeechAct.FollowUpAnswer, "orgasm", intentional ? "intent" : "accident", broken.Count > 0 ? "broke-promise" : "no-promise")
+            .With("stakes", Stake.Describe(stakes));
     }
 
     /// <summary>Marks the promises this breaks as broken and writes their stakes to the ledger.</summary>
@@ -536,11 +535,7 @@ public sealed class LedgerStore(GuidedDataFactory data, SessionHost host)
         return Stake.Merge(all);
     }
 
-    private static string DaysLeft(DateTime end, DateTime now)
-    {
-        var left = end - now;
-        return left.TotalHours < 24 ? Stake.Plural(Math.Max(1, (int)Math.Ceiling(left.TotalHours)), "more hour") : Stake.Plural((int)Math.Ceiling(left.TotalDays), "more day");
-    }
+    private static string Truncate(string? value, int length) => value is null ? "" : value.Length <= length ? value : value[..length];
 }
 
 internal static class CommitmentRecordExtensions

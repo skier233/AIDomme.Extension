@@ -1,8 +1,9 @@
 # AI Domme — Cove extension
 
 A rule-driven domme for guided edging sessions on your Cove library, with an app-wide edge tracker,
-orgasm permission, games and persistent commitments. No language model is involved; speech comes
-from scripted rules and text pools and can be narrated through an optional local TTS server.
+orgasm permission, games and persistent commitments. No language model is involved: she plans each
+session from a catalogue of segments, and a rule-based narrator speaks for her from line modules
+that can be narrated through an optional local TTS server.
 
 > Adult content. For personal, authorized use only.
 
@@ -12,6 +13,7 @@ from scripted rules and text pools and can be narrated through an optional local
 - [docs/NOW.md](docs/NOW.md) is the ordered work list and the open decisions.
 - [docs/CURRENT-STATE-ASSESSMENT.md](docs/CURRENT-STATE-ASSESSMENT.md) is the 2026-09-22 review of
   the code inherited from the previous iteration.
+- [docs/PHASE-4.md](docs/PHASE-4.md) is the design of her plan and her voice, and what landed.
 
 ## Layout
 
@@ -24,13 +26,17 @@ extensions/AIDome/
   AiDomeExtension.cs                entry point: services, migrations, UI manifest, HTTP API
   Tracking/                         app-wide edge/orgasm tracker (Cove tables, likes, undo)
   Sessions/                         session contract, authorities, engine, planner, games, points,
-                                    offers, and the ledger and promise rules
-  Persistence/                      guided-session storage, recovery, the ledger store
-  Services/                         speech, punishments, homework
+                                    offers, the ledger and promise rules, what she knows, simulation
+  Sessions/Plan/                    segment catalogue (segments.json), plan engine, ending lean
+  Speech/                           utterances, grammar, narrator, voice scheduler
+  Speech/Lines/                     her line modules (JSON, embedded)
+  Persistence/                      guided-session storage, recovery, ledger, recall, on-screen media
+  Services/                         TTS and method point calibration
   ui/                               React page, companion window, settings panel
   dist/                             built bundles (checked in)
 tests/AIDome.Tests                  xUnit; PostgreSQL integration tests use temporary databases
 tests/ui                            Vitest component tests
+.claude/skills/aidomme-lines        Claude skill for drafting her lines and segment types
 ```
 
 ## Build, stage and run
@@ -73,7 +79,27 @@ from what the tracker recorded, even when AI Domme was closed. An orgasm that br
 session, or a session that stopped with nobody there, becomes a question she asks before anything
 else.
 
+## Her plan and her voice
+
+Each session she plans a series of segments (edging, a slow build, torment, a game, a false
+finish...) and revises the plan as you behave: begging, failing a challenge or cumming without
+permission all change what comes next. She leans toward an ending early and may hint at it, or lie
+about it. Free play has no segments, only her verdict.
+
+Her persona is set once on the Tuning page: harshness, humiliation, mind games, talkativeness, what
+she calls you, and how much she varies from session to session. The same page sets how often she
+uses each kind of segment and how long it runs. Session settings decide how strict a session is;
+the persona decides how she talks.
+
+She has two streams of speech: orders, on time, and chatter in the quiet between them (remarks,
+teasing, stories, comments on what is on screen). Stock lines don't repeat within a session; stories
+are tracked across sessions so they stay rare. A debug session shows her plan and how it changed.
+
 ## Upgrading an existing install
+
+Version 0.10.0 adds migration `008_voice`: her persona and plan settings, the plan kept with each
+session, and a record of which of her lines have been used. It only adds tables and a column. It was
+run against a copy of the real install's tables.
 
 Version 0.9.0 adds migration `007_ledger`: the punishment ledger, structured promises, the offer
 library and her follow-up questions. Earlier punishments become ledger entries. Earlier free-form
@@ -113,3 +139,10 @@ $env:AIDOMME_TEST_POSTGRES="Host=127.0.0.1;Port=5430;Username=postgres;Database=
 
 Each test creates a uniquely named `aidomme_*_test_*` database, applies the real migrations, and
 drops it afterwards. Tests never read or modify the `cove` database.
+
+Simulated sessions (every mode, with users who obey, beg, fail, slip or only edge) can be written
+out as readable transcripts, with her plan and each revision:
+
+```powershell
+$env:AIDOMME_TRANSCRIPTS="$env:TEMP\aidomme-transcripts"; dotnet test tests/AIDome.Tests --filter "FullyQualifiedName~TranscriptTests"
+```

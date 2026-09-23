@@ -1,0 +1,149 @@
+// Chatter: what she says when she isn't giving orders. Tone comes from her persona (harshness,
+// humiliation, manipulation) and mood, not from how severe the session is. Interjections comment
+// on what he is doing right now. Stories are told across several quiet moments and stay rare.
+{
+  "modules": [
+    // ── General ──
+    { "id": "chat.general", "act": "Chatter", "variants": [
+      "I love having you like this.",
+      "Every stroke tonight is mine, not yours. Remember that.",
+      "You're doing exactly what I want. Doesn't that feel good?",
+      "I could do this all night. I might.",
+      "You look so desperate. It suits you.",
+      "Do you know how much I enjoy this?"
+    ] },
+    { "id": "chat.warm", "act": "Chatter", "when": ["harsh<=3"], "variants": ["You're doing so well for me.", "I like how obedient you are tonight.", "Good [name]. Keep going just like that."] },
+    { "id": "chat.harsh", "act": "Chatter", "when": ["harsh>=7"], "variants": ["You exist for my entertainment tonight. Nothing else.", "Don't mistake this for affection.", "I don't care how it feels for you. I care how it looks to me."] },
+    { "id": "chat.cruel", "act": "Chatter", "when": ["mood=Cruel|Relentless"], "variants": ["I could keep you like this for hours. I might.", "The more you ache, the better my night gets.", "Don't expect mercy. I'm not feeling merciful."] },
+    { "id": "chat.playful", "act": "Chatter", "when": ["mood=Playful"], "variants": ["This is fun. For me, anyway.", "You're so easy to play with.", "I wonder what I'll make you do next. So do you."] },
+    { "id": "chat.teasing", "act": "Chatter", "when": ["mood=Teasing"], "variants": ["Close, aren't you? Shame.", "Mmm. I can tell you want more. You're not getting it.", "I love it when you're this frustrated."] },
+
+    // ── Mind games ──
+    { "id": "chat.mind.undecided", "act": "Chatter", "when": ["manipulation>=5", "!promise.noorgasm"], "variants": [
+      "I wonder if I'll let you cum tonight. I haven't decided. Or maybe I have.",
+      "Do you think you've been good enough? I'm keeping score.",
+      "Maybe tonight's your night. Maybe it isn't. You won't know until I tell you."
+    ] },
+    { "id": "chat.mind.owned", "act": "Chatter", "when": ["manipulation>=4"], "variants": [
+      "You don't decide anything tonight. Isn't that a relief?",
+      "What would you give up for one orgasm? Don't answer. I already know.",
+      "You'd stop right now if I told you to. You know you would."
+    ] },
+    { "id": "chat.mind.doubt", "act": "Chatter", "when": ["manipulation>=7"], "cooldown": "Occasional", "variants": ["Every time you think you know what I'm going to do, I do something else. Remember that."] },
+
+    // ── Humiliation ──
+    { "id": "chat.humiliation", "act": "Chatter", "when": ["humiliation>=6"], "variants": [
+      "Look at you. Hard and desperate, doing whatever a screen tells you.",
+      "Such an obedient little [name].",
+      "If anyone could see you right now.",
+      "You're pathetic. I like that about you."
+    ] },
+    { "id": "chat.humiliation.edges", "act": "Chatter", "when": ["humiliation>=6", "edges>=6"], "variants": ["[Edges] edges and you're still here, begging with your whole body. Pathetic."] },
+
+    // ── What happened tonight ──
+    { "id": "chat.edges", "act": "Chatter", "when": ["edges>=8"], "variants": ["[Edges] edges tonight. Imagine how that'll feel when I make you stop.", "That's [edges] edges. Every one of them is still in there, waiting."] },
+    { "id": "chat.begs", "act": "Chatter", "when": ["begs>=2"], "variants": ["You've asked me [begs] times tonight. I've enjoyed saying no every time.", "All that asking. Did it help? No. It never does."] },
+    { "id": "chat.lost-game", "act": "Chatter", "when": ["games.lost>=1"], "variants": ["You lost my game earlier. I'm still enjoying that."] },
+    { "id": "chat.failed", "act": "Chatter", "when": ["challenges.failed>=1"], "variants": ["You failed my little test. I haven't forgotten.", "No self-control. We'll work on that."] },
+    { "id": "chat.promise", "act": "Chatter", "when": ["promise.noorgasm"], "variants": ["Remember your promise. No matter how good this gets.", "It must be hard, knowing you promised me no orgasm. Good."] },
+    { "id": "chat.owed", "act": "Chatter", "when": ["owed.edges>=1"], "variants": ["You still owe me [owed.edges] edges. I'm counting."] },
+    { "id": "chat.annoyed", "act": "Chatter", "when": ["annoyance>=0.5"], "variants": ["You've annoyed me tonight. Keep that in mind.", "I'd be nicer if you'd behaved. Too late now."] },
+    { "id": "chat.late", "act": "Chatter", "when": ["progress>=0.7", "!finish.decided"], "variants": ["We're getting close to the end. I've been thinking about how it ends.", "Not long now. I know what happens next. You don't."] },
+
+    // ── Memory of earlier sessions ──
+    { "id": "chat.streak", "act": "Chatter", "when": ["denial.streak>=2"], "cooldown": "Occasional", "variants": ["[Denial.streak] sessions without cumming. And you keep coming back to me."] },
+    { "id": "chat.last-denied", "act": "Chatter", "when": ["last.outcome=Denied"], "cooldown": "Occasional", "variants": ["Last time I sent you away aching. Remember how that felt?"] },
+    { "id": "chat.last-allowed", "act": "Chatter", "when": ["last.outcome=AllowedOrgasm"], "cooldown": "Occasional", "variants": ["You got to cum last time. Don't assume that makes it likely tonight."] },
+    { "id": "chat.orgasm-days", "act": "Chatter", "when": ["orgasm.days>=3"], "cooldown": "Occasional", "variants": ["[Orgasm.days] days since you last came. How does that feel right now?"] },
+    { "id": "chat.since-orgasm", "act": "Chatter", "when": ["edges.sinceorgasm>=20"], "cooldown": "Occasional", "variants": ["[Edges.sinceorgasm] edges since you last came. I've been counting."] },
+    { "id": "chat.favorite", "act": "Chatter", "when": ["favorite", "sessions>=3"], "cooldown": "Occasional", "variants": ["I know what gets you there. [Favorite]. I'm saving it."] },
+    { "id": "chat.walkout", "act": "Chatter", "when": ["walkouts>=1"], "cooldown": "Occasional", "variants": ["Don't even think about walking out on me again."] },
+
+    // ── What's on screen ──
+    { "id": "chat.screen.performer", "act": "Chatter", "when": ["performer"], "variants": [
+      "Look at [performer]. Imagine them watching you right now.",
+      "[Performer] is having more fun than you are.",
+      "Keep your eyes on [performer]. Don't look away."
+    ] },
+    { "id": "chat.screen.now", "act": "Chatter", "when": ["screen.now", "tag"], "variants": ["Mmm. [Tag]. Watch this part closely.", "Look what's happening now. Don't you dare look away."] },
+    { "id": "chat.screen.title", "act": "Chatter", "when": ["title", "!performer"], "cooldown": "Occasional", "variants": ["Interesting choice of video tonight."] },
+
+    // ── Hands off ──
+    { "id": "chat.resting", "act": "Chatter", "when": ["step.category=Rest"], "variants": ["Feel it throb. That's me.", "Don't touch. Not even a little.", "Enjoy the rest. It won't last.", "Hands at your sides. I'll know."] },
+
+    // ── Free play ──
+    { "id": "chat.freeplay", "act": "Chatter", "when": ["mode=FreePlay"], "variants": ["I'm watching every edge you record.", "Take your time. The longer you go, the better I like it.", "Your hands, my rules. Don't forget that."] },
+
+    // ── Interjections: about what he is doing right now ──
+    { "id": "interject.pace", "act": "Interject", "when": ["speed>=1"], "variants": ["Don't slow down.", "Keep that pace.", "Stay on the beat.", "Don't you dare stop."] },
+    { "id": "interject.fast", "act": "Interject", "when": ["speed>=8"], "variants": ["Faster. I didn't say you could take it easy.", "Harder. You can take more than that."] },
+    { "id": "interject.slow", "act": "Interject", "when": ["speed<=2", "speed>=1"], "variants": ["Slower. Feel every stroke.", "Don't cheat. One stroke per beat.", "Slower than that."] },
+    { "id": "interject.torture", "act": "Interject", "when": ["step.category=Torment"], "variants": ["It hurts, doesn't it? Good.", "Keep going. Every second.", "I love watching you squirm."] },
+    { "id": "interject.edging", "act": "Interject", "when": ["step.kind=EdgeCount"], "variants": ["Careful. Don't go over.", "Right up to the edge, not over it.", "Getting close? Good."] },
+    { "id": "interject.no-edge", "act": "Interject", "when": ["segment=no-edge"], "weight": 3, "variants": ["Getting close? Don't.", "Control yourself.", "Don't you dare edge."] },
+    { "id": "interject.max-edges", "act": "Interject", "when": ["segment=max-edges"], "weight": 3, "variants": ["More. Come on.", "Is that all you've got?"] },
+    { "id": "interject.user-pace", "act": "Interject", "when": ["user.pace"], "variants": ["Keep going.", "Don't stop now."] },
+
+    // ── Stories: told across quiet moments, rare, and never twice in a row ──
+    { "id": "story.the-beggar", "act": "Chatter", "cooldown": "Rare", "spacing": 14, "lines": [
+      "Let me tell you about someone else I used to play with.",
+      "He begged. Every session, the moment it got hard, he begged.",
+      "So I made a rule: every time he asked, I added ten minutes.",
+      "He learned to stay quiet. You're learning too."
+    ] },
+    { "id": "story.after-you-leave", "act": "Chatter", "cooldown": "Occasional", "spacing": 12, "lines": [
+      "Do you know what I'll do when you leave tonight?",
+      "Nothing. I won't think about you at all.",
+      "But you'll think about me. In bed, in the shower, tomorrow at work.",
+      "That's the difference between us."
+    ] },
+    { "id": "story.counting", "act": "Chatter", "cooldown": "Rare", "when": ["edges.sinceorgasm>=10"], "spacing": 12, "lines": [
+      "I've been keeping count, you know.",
+      "[Edges.sinceorgasm] edges since you last came.",
+      "Every one of them brought you right to the edge, and every one of them I took away.",
+      "I wonder how many more you can take before you break."
+    ] },
+    { "id": "story.secret", "act": "Chatter", "cooldown": "Rare", "when": ["manipulation>=6", "!promise.noorgasm"], "spacing": 13, "lines": [
+      "I'll tell you a secret.",
+      "I already know how tonight ends. I decided before we started.",
+      "Or maybe I'm lying.",
+      "You won't know until the very end. Keep stroking."
+    ] },
+    { "id": "story.bedtime", "act": "Chatter", "cooldown": "Occasional", "when": ["mood=Teasing|Playful|Neutral"], "spacing": 12, "lines": [
+      "Tonight, when you're lying in bed, you're going to feel it.",
+      "That dull ache. That throb when you think about this.",
+      "You'll want to touch. You'll think about sneaking one.",
+      "And you won't, because you know I'd find out."
+    ] },
+    { "id": "story.watching", "act": "Chatter", "cooldown": "Rare", "when": ["step.category=Rest|Tease"], "spacing": 14, "lines": [
+      "If I were there with you, I wouldn't even touch you.",
+      "I'd sit across the room and watch.",
+      "I'd make you do all of this yourself, slowly, while I sipped my drink.",
+      "And whenever you got close, I'd just say stop. And you would."
+    ] },
+    { "id": "story.first-session", "act": "Chatter", "cooldown": "Once", "when": ["sessions>=10"], "spacing": 13, "lines": [
+      "Do you remember your first session with me?",
+      "You thought you knew what denial was.",
+      "Look at you now. [Sessions] sessions later, and you still come back for more.",
+      "I did that."
+    ] },
+    { "id": "story.screen-voice", "act": "Chatter", "cooldown": "Rare", "when": ["humiliation>=7"], "spacing": 13, "lines": [
+      "You know what's funny?",
+      "A grown man, rock hard, doing exactly what a voice on a screen tells him.",
+      "Speeding up when I say. Stopping when I say.",
+      "And thanking me for it, deep down. Aren't you?"
+    ] },
+    { "id": "story.the-rule", "act": "Chatter", "cooldown": "Rare", "when": ["harsh>=5"], "spacing": 14, "lines": [
+      "I have one rule, and I'll only say it once.",
+      "Your pleasure is a privilege, not a right.",
+      "Every time you forget that, I'll remind you. Slowly.",
+      "Tonight is one of those reminders."
+    ] },
+    { "id": "story.the-edge", "act": "Chatter", "cooldown": "Occasional", "when": ["step.category=Rest"], "spacing": 12, "lines": [
+      "Close your eyes for a second.",
+      "Remember that last edge. How close you were.",
+      "One more stroke and you'd have been gone. And I took it away.",
+      "Open your eyes. I'm going to do it again."
+    ] }
+  ]
+}

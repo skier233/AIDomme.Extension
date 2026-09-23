@@ -36,6 +36,26 @@ export async function guidedApi(
   return data;
 }
 
+/**
+ * What is on screen, for her to talk about: "?media=video:12:345.6" (kind, id, seconds), or "" when
+ * nothing she can see is playing.
+ */
+export function screenQuery(): string {
+  let observed: ReturnType<typeof getActiveMedia> | undefined;
+  try {
+    observed = getActiveMedia();
+  } catch {
+    return "";
+  }
+  if (!observed || !(observed.id > 0)) return "";
+  if (observed.kind !== "video" && observed.kind !== "image") return "";
+  const position =
+    typeof observed.positionSeconds === "number" && isFinite(observed.positionSeconds)
+      ? `:${observed.positionSeconds.toFixed(1)}`
+      : "";
+  return `?media=${observed.kind}:${observed.id}${position}`;
+}
+
 /** A piece of Cove media the domme picked for the page's media window. */
 export type DirectedMedia = {
   kind: "video" | "image" | "audio";
@@ -141,8 +161,9 @@ export class GuidedClient {
     const controller = new AbortController();
     this.controller = controller;
     try {
+      // During a session each poll says what is on screen.
       const snapshot = await guidedApi(
-        "/state",
+        `/state${this.state.snapshot?.sessionActive ? screenQuery() : ""}`,
         undefined,
         "GET",
         controller.signal,

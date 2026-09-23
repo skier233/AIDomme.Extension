@@ -154,10 +154,13 @@ public sealed class DommePermission : IPermissionAuthority
 {
     public static readonly DommePermission Instance = new();
 
-    public double Chance(SessionState s, bool requested)
+    public double Chance(SessionState s, bool requested) => Chance(s, requested, s.Progress, s.EdgesThisSession);
+
+    /// <summary>The same rules at a projected point in the session (her lean when the plan is made).</summary>
+    public double Chance(SessionState s, bool requested, double atProgress, int edges)
     {
-        double chance = Math.Clamp(90 - s.Denial * 8.5, 5, 85) + Math.Min(20, s.EdgesThisSession * 0.8);
-        double progress = Math.Clamp(s.Progress, 0, 1);
+        double chance = Math.Clamp(90 - s.Denial * 8.5, 5, 85) + Math.Min(20, edges * 0.8);
+        double progress = Math.Clamp(atProgress, 0, 1);
         chance *= progress >= 1 ? 1 : 0.1 + 0.9 * progress * progress;
         double? hours = s.HoursSinceLastOrgasmAtStart is double h ? h + (s.LastActivityUtc - s.StartedAtUtc).TotalHours : null;
         chance *= hours switch { null => 1, < 12 => 0.7, < 24 => 0.85, > 72 => 1.15, _ => 1 };

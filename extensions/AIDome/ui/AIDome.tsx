@@ -11,6 +11,7 @@ import { extensionFetch } from "@cove/runtime/api";
 export { TrackerCompanion } from "./Tracker";
 import { TrackerCompanion, openTracker } from "./Tracker";
 import { DefinitionSettings } from "./Configuration";
+import { HerSettings, PlanDebug } from "./Persona";
 import { guidedApi, guidedClient, useGuidedSession } from "./GuidedClient";
 import { FollowUps, LedgerPanel, Obligations, OfferCard, PromiseForm } from "./Ledger";
 import {
@@ -483,6 +484,11 @@ function SessionScreen({ session }: { session: any }) {
       <section className="aidomme-card">
         <ChatLog messages={state.snapshot.messages || []} hide={text} />
       </section>
+      {session.plan && (
+        <section className="aidomme-card">
+          <PlanDebug plan={session.plan} />
+        </section>
+      )}
       <section className="aidomme-card">
         <details>
           <summary>More</summary>
@@ -742,9 +748,10 @@ export function TuningLabPage() {
       <div className="aidomme-page-header">
         <h1>AI Domme tuning</h1>
         <span className="aidomme-muted">
-          Your methods, punishment endings and calibration
+          Her persona, what she plans, your methods, punishment endings and calibration
         </span>
       </div>
+      <HerSettings />
       <DefinitionSettings />
     </div>
   );

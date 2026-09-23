@@ -42,6 +42,8 @@ public sealed class SessionEngineTests
         var c = (contract ?? SessionContract.Preset(mode) with
         {
             Preferences = new() { Intensity = 5, Length = 5, Denial = 5, Mean = 5 },
+            // Games are tested on their own; here the plan never opens with one.
+            Games = false,
         }).Validate();
         return new SessionState { SessionId = 1, Contract = c, Methods = methods.Length > 0 ? methods.ToList() : [Palm, Grip] };
     }
@@ -87,7 +89,7 @@ public sealed class SessionEngineTests
         var engine = new SessionEngine(new SeededRandom(3), clock);
         var s = NewState(SessionMode.FullGuided);
         var t = engine.Begin(s);
-        Assert.NotEmpty(t.Domme);
+        Assert.NotEmpty(t.Say);
         Assert.Equal(1, s.StepNumber);
         Assert.NotNull(s.Current!.Method);
         Assert.False(s.Current.Method!.IsUserChoice);
@@ -302,7 +304,7 @@ public sealed class SessionEngineTests
         var engine = new SessionEngine(random, clock);
         var s = NewState(SessionMode.FullGuided);
         engine.Begin(s);
-        var planner = new RulePlanner(random, Authorities.For(s.Contract, random));
+        var planner = new SegmentPlanner(random, Authorities.For(s.Contract, random));
         var (game, first) = Games.Start(GameType.EdgeRush, planner.GameContext(s, Palm, clock.UtcNow));
         s.Game = game;
         s.Current = first.Next;
@@ -320,7 +322,7 @@ public sealed class SessionEngineTests
         var clock = new FakeClock();
         var random = new FixedRandom(0.0);
         var s = NewState(SessionMode.FullGuided);
-        var planner = new RulePlanner(random, Authorities.For(s.Contract, random));
+        var planner = new SegmentPlanner(random, Authorities.For(s.Contract, random));
         var (game, _) = Games.Start(GameType.Chicken, planner.GameContext(s, Palm, clock.UtcNow));
         clock.Advance(35);
         var bailed = Games.OnAnswer(game, 1, planner.GameContext(s, Palm, clock.UtcNow))!.Result!;
@@ -337,7 +339,7 @@ public sealed class SessionEngineTests
         var random = new SeededRandom(5);
         var s = NewState(SessionMode.FullGuided);
         s.Arousal = 90;
-        var planner = new RulePlanner(random, Authorities.For(s.Contract, random));
+        var planner = new SegmentPlanner(random, Authorities.For(s.Contract, random));
         for (int i = 0; i < 500; i++)
         {
             var type = Games.Choose(planner.GameContext(s, Palm, DateTime.UtcNow), [], anyGame: i % 2 == 0);
@@ -384,7 +386,7 @@ public sealed class SessionEngineTests
         engine.Pause(s);
         Assert.Equal(remaining, s.PausedTimerSeconds);
         clock.Advance(600);
-        Assert.Empty(engine.Timer(s, generation).Domme);
+        Assert.Empty(engine.Timer(s, generation).Say);
         engine.Resume(s);
         Assert.Equal(clock.UtcNow.AddSeconds(remaining), s.TimerDueUtc);
         Assert.NotEqual(generation, s.TimerGeneration);

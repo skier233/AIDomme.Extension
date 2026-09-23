@@ -1,7 +1,8 @@
 # Phase 4 — Session logic and speech: design
 
-Status: **signed off 2026-09-23; in implementation.** The decision log at the end records what was
-settled in each round.
+Status: **signed off 2026-09-23; first implementation landed 2026-09-23 (0.10.0).** §14 records what
+landed and where it differs from the design. The decision log (§13) records what was settled in
+each round.
 
 "Speech" throughout means the domme's sentences and language, never TTS.
 
@@ -402,3 +403,49 @@ done wrong, becomes the bottleneck.
   per-segment rules; persona dials vary per session around the user's settings, partly random and
   partly from memory; on-screen context starts with the current video segment's tags and
   performers; choosing videos by tags and recommendation hooks are out of scope.
+- 2026-09-23 — Implementation choices (not new design): a plan must include tags the session asks
+  for, as data (`requires` in the catalogue: a punishment session includes a torture segment); a
+  segment's share of the budget is at least what its minimum steps cost; torment needs her to
+  choose the grip.
+
+## 14. What landed (0.10.0)
+
+**Decide.** `Sessions/Plan/segments.json` holds the segment types and the mood lenses; the plan
+engine (`PlanEngine`) reads only their properties. It makes the plan, and revises it at segment
+boundaries (the points clock, annoyance, a change of mind, foreshadowing) and on events (a rest
+beg, pestering, a failed challenge, an orgasm without permission, a contract change). Every
+revision is logged. `EndingAuthority` draws the ending lean once and refreshes it; the engine
+checks the lean when the budget is spent. Homework runs the same engine through `Simulation`.
+
+**Know.** `Knowledge.Facts` gathers what she knows for the narrator: mood and its cause, tonight's
+persona, the session so far, the plan, recall from earlier sessions (`RecallStore`) and what is on
+screen (`ScreenResolver`: the current video segment's tags and performers, from the page's poll).
+`SessionPersona.For` varies each dial around the user's setting and away from last session's.
+
+**Speak.** Utterances carry an act, tags, slots and maybe a directive. `Grammar` renders the exact
+instruction (the core tier). `RuleNarrator` picks a module from `Speech/Lines/*.json` by
+conditions and weight, avoids repeats within the session, and tracks stories across sessions
+through `aidomme_narration_usage`. `Voice` is the one scheduler: orders on time; chatter only in
+the quiet, never within 8 seconds of an order or just before a visible timer; no stories while he
+may edge at any moment; asides said after orders in the same moment; a bridge word when an order
+follows an aside closely, unless the order already opens with one; optional remarks skipped rather
+than cutting a story off.
+
+**Measure.** `TranscriptTests` runs 65 seeded sessions (every mode against simulated users who
+obey, beg to cum, beg to stop, fail and slip, or only edge, plus special cases) and checks
+invariants: the session ends, no line repeats in a session, every segment type is reached, stories
+stay rare across a simulated week, the checkpoint keeps the plan and her memory. With
+`AIDOMME_TRANSCRIPTS` set it writes each session as Markdown.
+
+**UI.** The page reports what is on screen with each poll during a session. The Tuning page edits
+her persona and segment preferences. A debug session shows her plan, lean, mood and revisions.
+
+**Calibration learned from transcripts.** Segments overshot their shares by about half a step each,
+so late segments were always dropped. Now a segment is done when another step would overshoot by
+more than it falls short, a planned share is at least its minimum steps' cost, and running long
+shrinks the rest of the plan before dropping the segments that fit late least.
+
+**Known gaps, for the next rounds.** Length 4 runs about 7 to 12 simulated minutes; the budget per
+length predates the plan and may need retuning against real sessions. The line library is a first
+draft. Free play chatter has no segment context, so it leans on edges, begs and the screen. Games
+carry their own point bonuses, which the plan treats as progress like any other points.

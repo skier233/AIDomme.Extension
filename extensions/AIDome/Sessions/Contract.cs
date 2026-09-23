@@ -104,6 +104,8 @@ public sealed record SessionContract
     public bool CanChangeDuringSession { get; init; }
     /// <summary>Commitments and ledger entries in force, set by the server.</summary>
     public SessionObligations Obligations { get; init; } = new();
+    /// <summary>Her persona for this session (the user's settings, varied), set by the server.</summary>
+    public SessionPersona Persona { get; init; } = new();
 
     public static SessionContract Preset(SessionMode mode) => mode switch
     {
@@ -152,6 +154,7 @@ public sealed record SessionContract
         {
             Mode = DerivedMode(),
             Obligations = Obligations ?? new(),
+            Persona = Persona ?? new(),
             Limits = limits with { Toys = limits.Toys.Distinct().ToArray(), AllowedMethodIds = limits.AllowedMethodIds.Distinct().ToArray() },
         };
     }

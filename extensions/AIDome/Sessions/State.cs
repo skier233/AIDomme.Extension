@@ -1,5 +1,7 @@
 using System.Text.Json.Serialization;
 using AIDome.Data;
+using AIDome.Sessions.Plan;
+using AIDome.Speech;
 
 namespace AIDome.Sessions;
 
@@ -13,7 +15,14 @@ public enum StepCategory { Tease, Stroke, Edge, Rest, Torment, Surprise, Game, P
 public enum SessionPhase { Teasing = 0, Building = 1, Intense = 2, Edging = 3, Resting = 4, Tormenting = 5, Finishing = 6, Ended = 7 }
 
 /// <summary>Why the domme is being harsher, so her words match.</summary>
-public enum RetaliationReason { BegCumDenied = 0, BegStopDenied = 1, Disobedience = 2, UnauthorizedOrgasm = 3, RuinedOrgasm = 4, LostGame = 5 }
+public enum RetaliationReason { BegCumDenied = 0, BegStopDenied = 1, Disobedience = 2, UnauthorizedOrgasm = 3, RuinedOrgasm = 4, LostGame = 5, FailedChallenge = 6 }
+
+/// <summary>Why her mood is what it is, so she can say so.</summary>
+public enum MoodCause
+{
+    None, Temperament, LastSession, Begging, Pestering, Obedience, Disobedience, UnauthorizedOrgasm, FailedChallenge,
+    LostGame, WonGame, Deal, BrokenPromise, Drift,
+}
 
 /// <summary>What the user should be doing right now.</summary>
 public sealed record Directive
@@ -29,10 +38,17 @@ public sealed record Directive
     /// <summary>Seconds for timed steps; edges for edge-count steps.</summary>
     public int DurationOrCount { get; init; }
     public int HoldSeconds { get; init; }
+    /// <summary>Her words for this instruction, filled in by the narrator; the engine never writes it.</summary>
     public string Text { get; init; } = "";
     public SessionPhase Phase { get; init; }
     /// <summary>A timer the user does not see counting down (free-play check-ins).</summary>
     public bool HiddenTimer { get; init; }
+    /// <summary>The segment type this step belongs to, if the session has a plan.</summary>
+    public string? Segment { get; init; }
+    /// <summary>A challenge: an edge before the time is up fails it.</summary>
+    public bool ForbidEdge { get; init; }
+    /// <summary>A challenge: every edge in the time counts, and none interrupts the step.</summary>
+    public bool CountEdges { get; init; }
 }
 
 /// <summary>A punishment ending from the library, snapshotted for a session that owes one.</summary>
@@ -57,6 +73,10 @@ public sealed class MoodState
     public DommeMood Mood { get; set; }
     public int StepsRemaining { get; set; }
     public double Intensity { get; set; }
+    /// <summary>What put her in this mood.</summary>
+    public MoodCause Cause { get; set; }
+    /// <summary>0 (pleased with him) to 1 (angry). Rises when he begs or disobeys, falls when he obeys.</summary>
+    public double Annoyance { get; set; }
 }
 
 public sealed class RetaliationState
@@ -124,8 +144,6 @@ public sealed class SessionState
     public StepCategory? PreviousCategory { get; set; }
     public int? ChainMethodId { get; set; }
     public int ChainStepsRemaining { get; set; }
-    public bool FalsePromiseActive { get; set; }
-    public int FalsePromiseStepsLeft { get; set; }
     public MoodState Mood { get; set; } = new();
     public RetaliationState Retaliation { get; set; } = new();
 
@@ -167,10 +185,29 @@ public sealed class SessionState
     /// <summary>Set when the session stopped without her or the user pausing it (Cove closed, nobody there).</summary>
     public DateTime? InterruptedAtUtc { get; set; }
 
+    // What she is doing and why: the plan (null in free play), the ending she leans toward, and what
+    // she remembers of him from earlier sessions.
+    public SessionPlan? Plan { get; set; }
+    public EndingLean Ending { get; set; } = new();
+    public Recall Recall { get; set; } = new();
+    /// <summary>What she has said: lines used this session, a story in progress, when she last spoke.</summary>
+    public SpeechMemory Speech { get; set; } = new();
+
+    // What he has done this session, for her decisions and her words.
+    public int RestRequests { get; set; }
+    public int RequestsDenied { get; set; }
+    public int ChallengesFailed { get; set; }
+    public int ChallengesPassed { get; set; }
+    public int GamesWon { get; set; }
+    public int GamesLost { get; set; }
+    public int OffersAccepted { get; set; }
+    public int OffersDeclined { get; set; }
+
     [JsonIgnore] public int Mean => Pref(Contract.Preferences.Mean);
     [JsonIgnore] public int Intensity => Pref(Contract.Preferences.Intensity);
     [JsonIgnore] public int Denial => Pref(Contract.Preferences.Denial);
     [JsonIgnore] public int Length => Pref(Contract.Preferences.Length);
+    [JsonIgnore] public SessionPersona Persona => Contract.Persona;
     [JsonIgnore] public double Progress => Budget <= 0 ? 0 : Points / Budget;
     [JsonIgnore] public bool Active => SessionId > 0 && !Ended;
     private static int Pref(int value) => value is >= 1 and <= 10 ? value : 5;

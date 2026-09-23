@@ -302,6 +302,12 @@ wording for promises and deals is still a small fixed set, pending the narration
 
 ## Phase 4 — Session logic and speech realism (8–12 days initial, then iterative)
 
+**Status: first implementation done 2026-09-23 (version 0.10.0), iterating from transcripts.** The
+design and what landed are in [PHASE-4.md](PHASE-4.md). Migration `008_voice` adds her persona and
+plan settings, the plan kept with each session and a usage table for her lines; it was run against a
+copy of the real install's tables. The items below are the original scope; the design replaced the
+"phase planner" with a plan of segments, and all six are covered.
+
 1. **Phase planner** replacing per-step category roulette. A session moves between phases such
    as ramp-up, intensity, torture and teasing, in an order and proportion drawn from the
    contract and her mood, with a rough plan made up front (phase sequence, planned games and

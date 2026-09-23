@@ -200,7 +200,7 @@ public sealed partial class TrackerPostgresTests
             Assert.Equal(state.GetProperty("messages").GetArrayLength(), repeated.GetProperty("messages").GetArrayLength());
             // A timer armed before the restart is stale and changes nothing.
             var runtime = await restored.Services.GetRequiredService<GuidedRuntimes>().ForUserAsync(1);
-            Assert.Empty(runtime.Session.Engine.Timer(runtime.Session.State!, generation).Domme);
+            Assert.Empty(runtime.Session.Engine.Timer(runtime.Session.State!, generation).Say);
             Assert.Equal(step, runtime.Session.StepNumber);
         }
     }

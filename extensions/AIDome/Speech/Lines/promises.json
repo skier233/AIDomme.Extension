@@ -1,0 +1,30 @@
+// Outside a session: her answer to his promises, and to what he tells her when she asks what happened.
+{
+  "modules": [
+    { "id": "promise.accepted", "act": "PromiseAnswer", "when": ["#accepted", "!#distrust"], "variants": [
+      "Good. I'll hold you to that. [Promise]. Break it and you owe me [stakes].",
+      "Agreed. [Promise]. If you break it, you owe me [stakes].",
+      "Mmm. I like that. [Promise]. And if you fail me: [stakes]."
+    ] },
+    { "id": "promise.countered", "act": "PromiseAnswer", "when": ["#countered", "!#distrust"], "variants": [
+      "That's not much of a promise. Make it [promise]. Break it and you owe me [stakes].",
+      "Cute. Not enough. [Promise], or nothing. Breaking it costs [stakes].",
+      "I'll take it, with a change: [promise]. Break it and you owe me [stakes]."
+    ] },
+    { "id": "promise.distrust", "act": "PromiseAnswer", "when": ["#distrust"], "variants": [
+      "After last time? Your word isn't worth much. [Promise]. Break it and you owe me [stakes].",
+      "You broke your last promise, so this one costs more. [Promise]. Break it: [stakes]."
+    ] },
+    { "id": "promise.kept-deal", "act": "PromiseAccepted", "variants": ["Then it's a promise. Don't make me regret believing you.", "Good. I'm holding you to every word.", "It's a deal. I'll be watching."] },
+    { "id": "promise.withdrawn", "act": "PromiseDeclined", "variants": ["Then don't promise me things you won't keep.", "Hm. All talk.", "I thought so."] },
+
+    { "id": "followup.accident", "act": "FollowUpAnswer", "when": ["#orgasm", "#accident", "#no-promise"], "variants": ["An accident. I'll believe you. You still owe me [stakes].", "Accidents still cost. You owe me [stakes]."] },
+    { "id": "followup.accident.promise", "act": "FollowUpAnswer", "when": ["#orgasm", "#accident", "#broke-promise"], "variants": ["An accident. You still broke your promise, and you still pay: [stakes]."] },
+    { "id": "followup.intent", "act": "FollowUpAnswer", "when": ["#orgasm", "#intent"], "variants": ["On purpose. You'll regret that. You owe me [stakes].", "You did it on purpose. At least you're honest. You owe me [stakes]."] },
+    { "id": "followup.intent.promise", "act": "FollowUpAnswer", "when": ["#orgasm", "#intent", "#broke-promise"], "weight": 2, "variants": ["You broke your promise on purpose. That's the worst thing you can do to me. You owe me [stakes]."] },
+    { "id": "followup.resume", "act": "FollowUpAnswer", "when": ["#interrupted", "#resume"], "variants": ["Fine. I'll believe you. Resume when you're ready.", "Alright. We'll pick up where we left off when you're ready."] },
+    { "id": "followup.too-late", "act": "FollowUpAnswer", "when": ["#interrupted", "#too-late"], "variants": ["Fine. It's been too long to pick up where we left off. We'll start fresh next time."] },
+    { "id": "followup.quit", "act": "FollowUpAnswer", "when": ["#quit", "#no-promise"], "variants": ["You just left. Walking out on me costs you [stakes].", "You walked out on me. That costs [stakes]."] },
+    { "id": "followup.quit.promise", "act": "FollowUpAnswer", "when": ["#quit", "#broke-promise"], "variants": ["You walked out, and you broke your promise doing it. You owe me [stakes]."] }
+  ]
+}

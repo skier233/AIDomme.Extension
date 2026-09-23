@@ -1,0 +1,75 @@
+// Reactions: what she says when he does something. His inputs are few (edge, orgasm, beg, rest,
+// done, deals, game answers), so these carry most of the conversation.
+{
+  "modules": [
+    // ── Edges ──
+    { "id": "edge.watching", "act": "EdgeRemark", "when": ["!#target"], "variants": ["Good. That's [edges].", "[Edges]. Keep going.", "Mm. [Edges].", "That's [edges] for me."] },
+    { "id": "edge.watching.cruel", "act": "EdgeRemark", "when": ["!#target", "mood=Cruel|Relentless"], "variants": ["[Edges]. Don't you dare go over.", "Another one. [Edges]. Again."] },
+    { "id": "edge.watching.teasing", "act": "EdgeRemark", "when": ["!#target", "mood=Teasing|Playful"], "variants": ["Ooh. That's [edges].", "[Edges], and you're still hard for me. Good.", "I love watching them pile up. [Edges]."] },
+    { "id": "edge.watching.many", "act": "EdgeRemark", "when": ["!#target", "edges>=12"], "weight": 2, "variants": ["[Edges] edges tonight. You're going to feel every one of them later.", "That's [edges]. I could do this all night."] },
+    { "id": "edge.target", "act": "EdgeRemark", "when": ["#target"], "variants": ["Good. [Left] more.", "One down. [Left] to go.", "Again.", "Keep going."] },
+    { "id": "edge.target.last", "act": "EdgeRemark", "when": ["#target", "left<=1"], "weight": 3, "variants": ["One more.", "Last one. Make it count."] },
+    { "id": "edge.counted", "act": "EdgeCounted", "variants": ["That's [made].", "[Made]. Keep going.", "Another one. [Made].", "[Made]. More."] },
+    { "id": "debt-paid", "act": "DebtPaid", "variants": ["That's your debt paid.", "Paid up. For now.", "There. You don't owe me edges anymore."] },
+
+    // ── Challenges ──
+    {
+      "id": "challenge.failed", "act": "ChallengeFailed",
+      "variants": ["You edged. You couldn't even last [seconds] seconds.", "That was an edge. You failed.", "No control at all. You lose."]
+    },
+    { "id": "challenge.failed.humiliating", "act": "ChallengeFailed", "when": ["humiliation>=6"], "variants": ["Pathetic. [Seconds] seconds and you're already at the edge."] },
+    { "id": "challenge.passed", "act": "ChallengeResult", "when": ["#passed", "!made"], "variants": ["You made it without edging. Good.", "Held it together. I'm almost impressed.", "Good. You can control yourself when you have to."] },
+    { "id": "challenge.max.passed", "act": "ChallengeResult", "when": ["#passed", "made"], "variants": ["Time. [Made] edges. That'll do.", "Time's up. Acceptable."] },
+    { "id": "challenge.max.impressed", "act": "ChallengeResult", "when": ["#impressed"], "variants": ["Time. Look at you go.", "Time's up. More than I expected. Good [name]."] },
+    { "id": "challenge.max.poor", "act": "ChallengeResult", "when": ["#poor"], "variants": ["Time. [Made]? That's all you could manage?", "Time's up. Only [made]. I expected more.", "Time. Disappointing."] },
+
+    // ── Asking to cum ──
+    {
+      "id": "beg.denied", "act": "BegCumDenied",
+      "variants": ["No.", "Denied. Keep going.", "Not a chance.", "No. You don't deserve it yet.", "The answer is no."]
+    },
+    { "id": "beg.denied.again", "act": "BegCumDenied", "when": ["begs>=2"], "weight": 2, "variants": ["Asking again won't change my answer.", "Still no. And now I'm annoyed.", "Ask again and it gets worse."] },
+    { "id": "beg.denied.pestering", "act": "BegCumDenied", "when": ["begs>=4"], "weight": 3, "variants": ["That's [begs] times you've asked. Every time, I add more.", "[Begs] times. You're pathetic. No."] },
+    { "id": "beg.denied.cruel", "act": "BegCumDenied", "when": ["mood=Cruel|Relentless", "harsh>=5"], "variants": ["You think begging helps? It makes it worse.", "No. And that's going to cost you."] },
+    { "id": "beg.denied.teasing", "act": "BegCumDenied", "when": ["mood=Teasing|Playful"], "variants": ["Aww. No.", "So desperate. It's cute. Still no.", "Not yet. Maybe never."] },
+    { "id": "beg.denied.last-time", "act": "BegCumDenied", "when": ["last.begs>=3", "begs<=1"], "cooldown": "Occasional", "variants": ["You begged [last.begs] times last session. Let's see if you can do better tonight."] },
+    {
+      "id": "blocked.promise", "act": "Blocked", "when": ["#why:Promise"],
+      "variants": ["No. You promised me no orgasm.", "You made me a promise. I'm holding you to it.", "Not while your promise stands."]
+    },
+    { "id": "blocked.promise.session", "act": "Blocked", "when": ["#why:Promise", "#this-session"], "weight": 2, "variants": ["You promised: no orgasm this session. Stop asking."] },
+    { "id": "blocked.promise.days", "act": "Blocked", "when": ["#why:Promise", "left"], "weight": 2, "variants": ["You promised me no orgasm. [Left] to go."] },
+    { "id": "blocked.denial", "act": "Blocked", "when": ["#why:Denial"], "variants": ["You're in denial. [Left] left. Don't ask.", "No. Your denial isn't over."] },
+    { "id": "blocked.sold", "act": "Blocked", "when": ["#why:Sold"], "variants": ["You sold me those days of denial. You don't get to take them back.", "No. You paid for that rest with your orgasm, remember?"] },
+    { "id": "blocked.edges", "act": "Blocked", "when": ["#why:OwedEdges"], "variants": ["Not until you've paid what you owe. [Owed] first.", "You still owe me [owed]. Pay, then ask."] },
+
+    // ── Asking for a rest ──
+    { "id": "rest.granted", "act": "BegRestGranted", "when": ["#plain"], "variants": ["Fine. A short break. Don't get used to it.", "Alright. But the next part will be worse.", "I'll let you rest. Only so the next part hurts more."] },
+    { "id": "rest.granted.twist", "act": "BegRestGranted", "when": ["#twist"], "variants": ["Fine. You can stop this. You won't like what comes next.", "Alright, a change. Be careful what you wish for."] },
+    { "id": "rest.denied", "act": "BegRestDenied", "variants": ["No. Keep going.", "You don't get to stop. I decide when this ends.", "Too bad.", "Stop? Not a chance."] },
+    { "id": "rest.denied.again", "act": "BegRestDenied", "when": ["begs>=2"], "weight": 2, "variants": ["Asking me to stop again? Now it gets longer.", "Every time you ask to stop, I want to push harder."] },
+    { "id": "rest.denied.cruel", "act": "BegRestDenied", "when": ["mood=Cruel|Relentless"], "variants": ["I don't care. You'll take what I give you.", "Begging to stop only makes me want more."] },
+    { "id": "rest.already", "act": "AlreadyResting", "variants": ["You're already resting. Don't push it.", "You're resting. Be quiet and enjoy it."] },
+
+    // ── When he breaks the rules ──
+    { "id": "retaliation.orgasm", "act": "Retaliation", "when": ["#reason:UnauthorizedOrgasm", "!#confessed"], "variants": ["You came without permission? You're going to pay for that.", "Did I say you could cum? No. Now you suffer.", "You couldn't hold it. Pathetic. This just got much worse for you."] },
+    { "id": "retaliation.orgasm.confessed", "act": "Retaliation", "when": ["#reason:UnauthorizedOrgasm", "#confessed"], "variants": ["At least you told me. It still costs you."] },
+    { "id": "retaliation.ruined", "act": "Retaliation", "when": ["#reason:RuinedOrgasm"], "variants": ["You ruined it without permission? Then you don't even get the pleasure of it. Keep going.", "Ruined, and not by me. That's going to cost you."] },
+    { "id": "retaliation.disobedience", "act": "Retaliation", "when": ["#reason:Disobedience"], "variants": ["You disobeyed me. You know what happens now.", "Thank you for telling me. Now you pay for it.", "I don't tolerate disobedience. Watch what happens."] },
+
+    // ── Deals ──
+    { "id": "offer.orgasm", "act": "OfferMade", "when": ["#buys:orgasm"], "variants": ["No. Not for free. [offer]", "Not yet... unless you pay for it. [offer]", "You want it that badly? Then pay. [offer]", "Hmm. Maybe. [offer]"] },
+    { "id": "offer.orgasm.playful", "act": "OfferMade", "when": ["#buys:orgasm", "mood=Playful|Teasing"], "variants": ["Let's make a deal. [offer]", "I'm feeling generous. Sort of. [offer]"] },
+    { "id": "offer.rest", "act": "OfferMade", "when": ["#buys:rest"], "variants": ["A break costs something. [offer]", "Tired already? Fine, but it isn't free. [offer]", "You can have one. For a price. [offer]"] },
+    { "id": "offer.accepted.now", "act": "OfferAccepted", "when": ["#pay-now"], "variants": ["Good. Get to work.", "Deal. Now earn it.", "That's what I like to hear."] },
+    { "id": "offer.accepted.later", "act": "OfferAccepted", "when": ["#pay-later"], "variants": ["Deal.", "Good. I'll remember that.", "Mmm. Done. Don't forget you owe me."] },
+    { "id": "offer.declined.orgasm", "act": "OfferDeclined", "when": ["#buys:Orgasm"], "variants": ["Your loss.", "Then you don't cum. Simple.", "Suit yourself."] },
+    { "id": "offer.declined.rest", "act": "OfferDeclined", "when": ["#buys:Rest"], "variants": ["Then keep going.", "No break for you, then."] },
+    { "id": "offer.declined.mercy", "act": "OfferDeclined", "when": ["#buys:Mercy"], "variants": ["Your choice. Take your punishment, then.", "Brave. Or stupid. Take your punishment."] },
+    { "id": "offer.expired.mercy", "act": "OfferExpired", "when": ["#mercy"], "variants": ["Too slow. Take your punishment.", "You hesitated. The punishment stands."] },
+    { "id": "price.progress", "act": "PriceProgress", "variants": ["[Left] more.", "Keep paying. [Left] left.", "Good. [Left] to go."] },
+    { "id": "price.paid.orgasm", "act": "PricePaid", "when": ["#buys:Orgasm"], "variants": ["Paid in full.", "There. You earned it.", "Good. That's what it cost."] },
+    { "id": "price.paid.rest", "act": "PricePaid", "when": ["#buys:Rest"], "variants": ["Paid. Now you can rest.", "Good. Take your break."] },
+    { "id": "mercy", "act": "MercyGranted", "variants": ["You're off the hook. This time.", "Fine. Punishment cancelled. You'll pay the other way."] }
+  ]
+}

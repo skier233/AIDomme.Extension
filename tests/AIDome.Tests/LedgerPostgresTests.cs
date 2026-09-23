@@ -83,7 +83,8 @@ public sealed partial class TrackerPostgresTests
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync($"{Api}/followups/{question.GetProperty("id").GetGuid()}/answer", new FollowUpAnswerRequest("maybe"))).StatusCode);
         var answered = await JsonAsync(await client.PostAsJsonAsync($"{Api}/followups/{question.GetProperty("id").GetGuid()}/answer", new FollowUpAnswerRequest("intent")));
         Assert.Empty(answered.GetProperty("followUps").EnumerateArray());
-        Assert.Contains(answered.GetProperty("messages").EnumerateArray(), x => x.GetProperty("content").GetString()!.StartsWith("On purpose."));
+        Assert.Contains(answered.GetProperty("messages").EnumerateArray(), x => x.GetProperty("content").GetString()!.Contains("on purpose", StringComparison.OrdinalIgnoreCase)
+            && x.GetProperty("content").GetString()!.Contains("You owe me"));
 
         var ledger = await JsonAsync(await client.GetAsync($"{Api}/ledger"));
         Assert.Equal("Broken", ledger.GetProperty("commitments")[0].GetProperty("status").GetString());

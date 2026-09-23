@@ -74,6 +74,9 @@ public sealed class SessionRecord : IUserOwned
     /// <summary>The accepted session contract, as JSON.</summary>
     public string? ContractJson { get; set; }
 
+    /// <summary>Her plan for the session, as JSON (what she intended and how it was revised).</summary>
+    public string? PlanJson { get; set; }
+
     // ── Navigation ──
     public ICollection<EdgeEntry> Edges { get; set; } = new List<EdgeEntry>();
     public ICollection<OrgasmEntry> Orgasms { get; set; } = new List<OrgasmEntry>();

@@ -1,0 +1,48 @@
+// Games. The rules at each stage are generated exactly and placed where a line says [Rules];
+// a result's facts (the coin, the card) come in [reveal]. Her lines wrap them.
+{
+  "modules": [
+    // ── Openings ──
+    { "id": "game.intro", "act": "GamePrompt", "when": ["#start"], "variants": ["Let's play a game. [Rules]", "Game time. [Rules]", "I have a game for you. [Rules]", "Let's make this interesting. [Rules]"] },
+    { "id": "game.intro.playful", "act": "GamePrompt", "when": ["#start", "mood=Playful|Teasing"], "variants": ["Ooh, I love this one. [Rules]", "Time to gamble, [name]. [Rules]"] },
+    { "id": "game.intro.cruel", "act": "GamePrompt", "when": ["#start", "mood=Cruel|Relentless"], "variants": ["A game. The odds favor me. [Rules]", "Let's play. You'll probably lose. [Rules]"] },
+    { "id": "game.envelopes", "act": "GamePrompt", "when": ["#game:TwoEnvelopes", "#start"], "weight": 5, "variants": ["Two envelopes. [Rules] If I were you, I'd take envelope [answer]. Whether I'm telling the truth is another matter.", "[Rules] I'll give you a hint: envelope [answer]. Trust me?"] },
+    { "id": "game.poison", "act": "GamePrompt", "when": ["#game:PickYourPoison", "#start"], "weight": 5, "variants": ["[Rules] Neither is pleasant. Choose.", "[Rules] Pick one. You don't get to pick neither."] },
+    { "id": "game.chicken", "act": "GamePrompt", "when": ["#game:Chicken", "#start"], "weight": 5, "variants": ["[Rules] How brave are you feeling?", "Let's see who flinches first. [Rules]"] },
+    { "id": "game.wager", "act": "GamePrompt", "when": ["#game:EdgeWager", "#start"], "weight": 5, "variants": ["Let's gamble on your stamina. [Rules]", "Bet on yourself. [Rules]"] },
+    { "id": "game.arousal", "act": "GamePrompt", "when": ["#game:ArousalChallenge", "#start"], "weight": 5, "variants": ["Let's test your control. [Rules]", "Challenge time. [Rules]"] },
+    { "id": "game.continue", "act": "GamePrompt", "when": ["!#start"], "variants": ["[Rules]"] },
+    { "id": "game.green", "act": "GamePrompt", "when": ["#stage:green", "!#first"], "variants": ["[Rules]"] },
+    { "id": "game.red", "act": "GamePrompt", "when": ["#stage:red"], "variants": ["[Rules]"] },
+    { "id": "game.progress", "act": "GameProgress", "variants": ["[Rules] Keep going.", "[Rules] Faster.", "[Rules]"] },
+
+    // ── Results ──
+    { "id": "game.won", "act": "GameResult", "when": ["#result:won", "!reveal"], "variants": ["You won. Don't get used to it.", "Lucky you.", "Fine. You win this one."] },
+    { "id": "game.won.reveal", "act": "GameResult", "when": ["#result:won", "reveal"], "variants": ["[reveal] Lucky you.", "[reveal] You win. This time.", "[reveal] Hm. You got it."] },
+    { "id": "game.lost", "act": "GameResult", "when": ["#result:lost", "!reveal"], "variants": ["You lose.", "That's a loss. Pay up.", "Wrong. And now you pay."] },
+    { "id": "game.lost.reveal", "act": "GameResult", "when": ["#result:lost", "reveal"], "variants": ["[reveal] Wrong.", "[reveal] You lose.", "[reveal] Too bad."] },
+    { "id": "game.lost.cruel", "act": "GameResult", "when": ["#result:lost", "mood=Cruel|Relentless"], "variants": ["Loser. Pay up.", "That's what happens when you gamble with me."] },
+    { "id": "game.neutral", "act": "GameResult", "when": ["#result:neutral", "!fate"], "variants": ["Your choice. Live with it.", "Option [answer]. Good luck with that."] },
+    { "id": "game.took-it", "act": "GameResult", "when": ["#detail:took-it"], "weight": 5, "variants": ["Sensible. Take it.", "Playing it safe. Boring, but fine."] },
+    { "id": "game.reroll.accepted", "act": "GameResult", "when": ["#detail:accepted"], "weight": 5, "variants": ["Accepted: [fate].", "Your fate, then: [fate]."] },
+    { "id": "game.reroll.out", "act": "GameResult", "when": ["#detail:out-of-rerolls"], "weight": 5, "variants": ["No more rerolls. The house wins: [fate]."] },
+    { "id": "game.race.won", "act": "GameResult", "when": ["#game:RaceToEdge", "#result:won"], "weight": 4, "variants": ["Fast hands. You made it.", "There it is. Just in time.", "Right on the line. Good."] },
+    { "id": "game.timeout", "act": "GameResult", "when": ["#detail:timeout", "!target"], "weight": 3, "variants": ["Time's up. Too slow.", "Too late. You lose."] },
+    { "id": "game.timeout.target", "act": "GameResult", "when": ["#detail:timeout", "target"], "weight": 3, "variants": ["Time's up. You didn't reach [target].", "Out of time, and short of [target]. You lose."] },
+    { "id": "game.rush.won", "act": "GameResult", "when": ["#game:EdgeRush|game:EdgeWager", "#result:won"], "weight": 4, "variants": ["That's [target]. You made it.", "[Target]. Well done."] },
+    { "id": "game.endurance.won", "act": "GameResult", "when": ["#game:EdgeEndurance", "#result:won"], "weight": 4, "variants": ["[Target] seconds on the edge. Impressive self-control.", "You held it. I'm impressed."] },
+    { "id": "game.endurance.lost", "act": "GameResult", "when": ["#detail:let-go"], "weight": 5, "variants": ["You let go. Weak.", "Couldn't hold it. I expected that."] },
+    { "id": "game.arousal.won", "act": "GameResult", "when": ["#game:ArousalChallenge", "#result:won"], "weight": 4, "variants": ["You didn't edge. Good [name].", "Impressive. You actually held it."] },
+    { "id": "game.arousal.lost", "act": "GameResult", "when": ["#game:ArousalChallenge", "#result:lost"], "weight": 4, "variants": ["You edged. Pathetic. Now you pay.", "Couldn't handle it? That's going to cost you."] },
+    { "id": "game.redlight.edge", "act": "GameResult", "when": ["#detail:edge-on-red"], "weight": 5, "variants": ["An edge on a red light. You couldn't stop when I told you to."] },
+    { "id": "game.redlight.won", "act": "GameResult", "when": ["#game:RedLightGreenLight", "#result:won"], "weight": 4, "variants": ["Good. That's what obedience looks like."] },
+    { "id": "game.redlight.confessed", "act": "GameResult", "when": ["#detail:confessed"], "weight": 5, "variants": ["At least you're honest. You still pay."] },
+    { "id": "game.chicken.bailed", "act": "GameResult", "when": ["#detail:bailed"], "weight": 5, "variants": ["You bailed after [seconds] seconds. That's [made] points off.", "[Seconds] seconds, then you flinched. [Made] points off. Coward."] },
+    { "id": "game.chicken.coward", "act": "GameResult", "when": ["#detail:coward"], "weight": 5, "variants": ["Bailed already? Coward. Nothing for you."] },
+    { "id": "game.chicken.edged", "act": "GameResult", "when": ["#detail:edged"], "weight": 5, "variants": ["You edged before you bailed. Greedy. You lose all of it."] },
+    { "id": "game.chicken.survived", "act": "GameResult", "when": ["#detail:survived"], "weight": 5, "variants": ["You lasted the whole way without edging. I'm almost impressed."] },
+    { "id": "game.envelope.won", "act": "GameResult", "when": ["#game:TwoEnvelopes", "#result:won"], "weight": 4, "variants": ["Mercy. You chose well. This time.", "Lucky. That was the kind one."] },
+    { "id": "game.envelope.lost", "act": "GameResult", "when": ["#game:TwoEnvelopes", "#result:lost"], "weight": 4, "variants": ["Oh dear. That was the other one.", "You trusted me? Sweet."] },
+    { "id": "game.math.won", "act": "GameResult", "when": ["#game:QuickMath", "#result:won"], "weight": 4, "variants": ["Correct. At least your brain still works.", "Right. I'm surprised you can still count."] }
+  ]
+}

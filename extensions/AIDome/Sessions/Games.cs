@@ -1,5 +1,5 @@
 using AIDome.Data;
-using AIDome.Services;
+using AIDome.Speech;
 
 namespace AIDome.Sessions;
 
@@ -42,6 +42,7 @@ public sealed class GameState
     public DateTime PhaseStartedAtUtc { get; set; }
     public GameInput Input { get; set; }
     public List<GameChoice> Choices { get; set; } = [];
+    /// <summary>Her words when the game started, as narrated (kept for the audit row).</summary>
     public string Prompt { get; set; } = "";
     public List<Consequence> Win { get; set; } = [];
     public List<Consequence> Loss { get; set; } = [];
@@ -57,14 +58,14 @@ public sealed record GameContext(int Mean, int Intensity, double Arousal, DommeM
 /// A game step: either the next instruction within the game, or the result. A null timer keeps the
 /// one already running; zero means no timer.
 /// </summary>
-public sealed record GameStep(Directive? Next = null, int? TimerSeconds = 0, GameResult? Result = null)
+public sealed record GameStep(Directive? Next = null, int? TimerSeconds = 0, GameResult? Result = null, Utterance? Say = null)
 {
-    public static GameStep Continue(Directive next, int? timerSeconds = 0) => new(next, timerSeconds);
+    public static GameStep Continue(Directive next, Utterance say, int? timerSeconds = 0) => new(next, timerSeconds, Say: say);
     public static GameStep Over(GameResult result) => new(Result: result);
 }
 
-/// <summary>The end of a game. Neutral results (a chosen poison) neither please nor anger her.</summary>
-public sealed record GameResult(bool Won, string Line, IReadOnlyList<Consequence> Consequences, int? Answer = null, bool Neutral = false);
+/// <summary>The end of a game, and what she says about it. Neutral results (a chosen poison) neither please nor anger her.</summary>
+public sealed record GameResult(bool Won, Utterance Say, IReadOnlyList<Consequence> Consequences, int? Answer = null, bool Neutral = false);
 
 /// <summary>
 /// The game catalogue. Every game either asks for a real decision or is judged from the tracker;
@@ -115,7 +116,6 @@ public static class Games
     public static (GameState Game, GameStep First) Start(GameType type, GameContext ctx)
     {
         var r = ctx.Random;
-        var intro = DommeText.Pick(DommeText.GameIntros);
         var game = new GameState { Type = type, PhaseStartedAtUtc = ctx.Now, Method = ctx.StrokeMethod };
         var heads = new List<GameChoice> { new("Heads", 0), new("Tails", 1) };
         switch (type)
@@ -127,8 +127,7 @@ public static class Games
                 else if (ctx.Mean >= 5) { game.Win = [Bonus(6)]; game.Loss = [Edges(ctx, 3, 0)]; }
                 else { game.Win = [Rest(30), Bonus(4)]; game.Loss = [Torment(45)]; }
                 game.Input = GameInput.Choices; game.Choices = heads;
-                game.Prompt = $"{intro} I'm flipping a coin. Call it. Right, and {Describe(game.Win)}. Wrong, and {Describe(game.Loss)}.";
-                return (game, Ask(game));
+                return (game, Ask(game, Say(game, "prompt").With("win", Describe(game.Win)).With("loss", Describe(game.Loss))));
             }
             case GameType.NumberGuess:
             {
@@ -137,8 +136,8 @@ public static class Games
                 game.Win = [Bonus(8), Rest(20)];
                 game.Input = GameInput.Choices;
                 game.Choices = Enumerable.Range(1, range).Select(x => new GameChoice(x.ToString(), x)).ToList();
-                game.Prompt = $"{intro} I'm thinking of a number between 1 and {range}. Guess it and {Describe(game.Win)}. Miss, and you edge once for every step you were off.";
-                return (game, Ask(game));
+                return (game, Ask(game, Say(game, "prompt").With("target", range).With("win", Describe(game.Win))
+                    .Tagged(ctx.DommeOwnsEdges ? "edges" : "torment")));
             }
             case GameType.CardDraw:
             {
@@ -146,8 +145,7 @@ public static class Games
                 game.Win = [Bonus(6)];
                 game.Loss = [Torment(30 + ctx.Mean * 5)];
                 game.Input = GameInput.Choices; game.Choices = [new("High (7 or more)", 1), new("Low (6 or less)", 0)];
-                game.Prompt = $"{intro} I'm drawing a card you can't see. High or low? Right, and {Describe(game.Win)}. Wrong, and {Describe(game.Loss)}.";
-                return (game, Ask(game));
+                return (game, Ask(game, Say(game, "prompt").With("win", Describe(game.Win)).With("loss", Describe(game.Loss))));
             }
             case GameType.DoubleOrNothing:
             {
@@ -157,8 +155,7 @@ public static class Games
                 game.Win = [stake with { Amount = stake.Amount * 2 }];
                 game.Loss = [Torment(40 + ctx.Mean * 4)];
                 game.Input = GameInput.Choices; game.Choices = [new("Take it", 2), new("Heads", 0), new("Tails", 1)];
-                game.Prompt = $"{intro} You've earned {Describe([stake])}. Take it, or call a coin for double. Lose the call and you get nothing but {Describe(game.Loss)}.";
-                return (game, Ask(game));
+                return (game, Ask(game, Say(game, "prompt").With("win", Describe([stake])).With("loss", Describe(game.Loss))));
             }
             case GameType.PickYourPoison:
             {
@@ -173,8 +170,7 @@ public static class Games
                 game.Options = [a, b];
                 game.Input = GameInput.Choices;
                 game.Choices = [new($"1: {Describe([a])}", 1), new($"2: {Describe([b])}", 2)];
-                game.Prompt = $"{intro} Pick your poison. One: {Describe([a])}. Two: {Describe([b])}. Neither is pleasant. Choose.";
-                return (game, Ask(game));
+                return (game, Ask(game, Say(game, "prompt").With("win", Describe([a])).With("loss", Describe([b]))));
             }
             case GameType.RerollGamble:
             {
@@ -182,8 +178,7 @@ public static class Games
                 game.Secret = r.Next(0, game.Options.Count);
                 game.Target = 3 + r.Next(0, 3);
                 game.Input = GameInput.Choices; game.Choices = [new("Accept", 0), new("Reroll", 1)];
-                game.Prompt = $"{intro} Your fate: {game.Options[game.Secret].Description}. Accept it, or reroll and let the house tighten the screws. You get {game.Target} rerolls at most.";
-                return (game, Ask(game));
+                return (game, Ask(game, Say(game, "prompt").With("fate", game.Options[game.Secret].Description).With("target", game.Target)));
             }
             case GameType.QuickMath:
             {
@@ -193,24 +188,21 @@ public static class Games
                 game.Loss = [Edges(ctx, 2, 0)];
                 game.Input = GameInput.Number;
                 int seconds = Math.Max(8, ctx.Mean >= 8 ? 12 : 22 - ctx.Mean);
-                game.Prompt = $"{intro} Keep stroking and tell me: what's {problem}? You have {seconds} seconds.";
-                return (game, Ask(game, seconds));
+                return (game, Ask(game, Say(game, "prompt").With("rules", problem).With("seconds", seconds), seconds));
             }
             case GameType.RaceToEdge:
             {
                 int seconds = Math.Max(20, 60 - ctx.Mean * 3);
                 game.Win = [Bonus(6), Rest(15)];
                 game.Loss = [Torment(45 + ctx.Mean * 3)];
-                game.Prompt = $"{intro} Race. {Stroke(ctx.StrokeMethod)}. Reach the edge within {seconds} seconds and record it. Too slow, and {Describe(game.Loss)}.";
-                return (game, Play(game, ctx, 8, seconds));
+                return (game, Play(game, ctx, 8, seconds, Say(game, "prompt").With("seconds", seconds).With("loss", Describe(game.Loss))));
             }
             case GameType.EdgeEndurance:
             {
                 game.Target = 10 + ctx.Mean * 2;
                 game.Win = [Bonus(game.Target / 3)];
                 game.Loss = [Edges(ctx, 3, 15)];
-                game.Prompt = $"{intro} Get to the edge. {Stroke(ctx.StrokeMethod)}. Record it when you're there, then hold it for {game.Target} seconds without going over. If you have to let go, admit it.";
-                return (game, Play(game, ctx, 6, 0));
+                return (game, Play(game, ctx, 6, 0, Say(game, "prompt").With("target", game.Target)));
             }
             case GameType.ArousalChallenge:
             {
@@ -218,8 +210,7 @@ public static class Games
                 game.Target = seconds;
                 game.Win = [Bonus(8)];
                 game.Loss = [Edges(ctx, 3 + ctx.Mean / 3, 10)];
-                game.Prompt = $"{DommeText.Pick(DommeText.ArousalChallengeStart)} {Stroke(ctx.StrokeMethod)}, fast, for {seconds} seconds, and do not edge. Edge before time is up and {Describe(game.Loss)}.";
-                return (game, Play(game, ctx, 8, seconds));
+                return (game, Play(game, ctx, 8, seconds, Say(game, "prompt").With("seconds", seconds).With("loss", Describe(game.Loss))));
             }
             case GameType.EdgeRush:
             {
@@ -228,15 +219,13 @@ public static class Games
                 game.EdgesAtPhaseStart = ctx.EdgesThisStep;
                 game.Win = [Bonus(game.Target * 2), Rest(20)];
                 game.Loss = [Torment(60 + ctx.Mean * 5)];
-                game.Prompt = $"{intro} {game.Target} edges in {seconds} seconds. {Stroke(ctx.StrokeMethod)}. I'm counting every one you record.";
-                return (game, Play(game, ctx, 8, seconds));
+                return (game, Play(game, ctx, 8, seconds, Say(game, "prompt").With("target", game.Target).With("seconds", seconds)));
             }
             case GameType.RedLightGreenLight:
             {
                 game.Rounds = 3 + ctx.Mean / 3;
                 game.Win = [Bonus(8)];
                 game.Loss = [Torment(60 + ctx.Mean * 5)];
-                game.Prompt = $"{intro} Red light, green light. {game.Rounds} rounds. Stroke on green, hands off on red. An edge on red loses.";
                 game.Phase = 1;
                 return (game, GreenOrRed(game, ctx));
             }
@@ -245,15 +234,13 @@ public static class Games
                 game.Target = 60 + ctx.Mean * 3;
                 game.Loss = [Edges(ctx, 3, 10), Penalty(10)];
                 game.Input = GameInput.Choices; game.Choices = [new("Bail now", 1)];
-                game.Prompt = $"{intro} Chicken. {Stroke(ctx.StrokeMethod)}, fast. Every ten seconds you last takes two points off your session. Bail whenever you like. Edge before you bail and you lose all of it, and more.";
-                return (game, Play(game, ctx, 8, game.Target, answerReady: true));
+                return (game, Play(game, ctx, 8, game.Target, Say(game, "prompt"), answerReady: true));
             }
             case GameType.EdgeWager:
             {
                 game.Input = GameInput.Choices;
                 game.Choices = Enumerable.Range(1, 5).Select(x => new GameChoice($"Bet {x}", x)).ToList();
-                game.Prompt = $"{intro} Place a bet: how many edges can you give me in {WagerSeconds(1)} to {WagerSeconds(5)} seconds? Every edge you bet pays three points if you make it. Miss, and you pay the same in torment.";
-                return (game, Ask(game));
+                return (game, Ask(game, Say(game, "prompt").With("seconds", WagerSeconds(1)).With("left", WagerSeconds(5))));
             }
             case GameType.TwoEnvelopes:
             {
@@ -264,8 +251,7 @@ public static class Games
                 double truthful = ctx.Mood switch { DommeMood.Cruel => 30, DommeMood.Playful or DommeMood.Teasing => 70, _ => 55 };
                 int hinted = r.Chance(truthful) ? game.Secret : 3 - game.Secret;
                 game.Input = GameInput.Choices; game.Choices = [new("Envelope 1", 1), new("Envelope 2", 2)];
-                game.Prompt = $"{intro} Two envelopes. One holds mercy: {Describe(mercy)}. The other holds {Describe(cruelty)}. If I were you... I'd take envelope {hinted}. Whether I'm telling the truth is another matter.";
-                return (game, Ask(game));
+                return (game, Ask(game, Say(game, "prompt").With("win", Describe(mercy)).With("loss", Describe(cruelty)).With("answer", hinted)));
             }
             default:
                 throw new ArgumentException($"{type} is not playable.");
@@ -278,25 +264,27 @@ public static class Games
         switch (game.Type)
         {
             case GameType.RaceToEdge:
-                return GameStep.Over(new(true, DommeText.Pick(["Fast hands. You made it.", "There it is. In time, barely.", "Good. Right on the line."]), game.Win));
+                return GameStep.Over(new(true, Result(game, "won"), game.Win));
             case GameType.EdgeEndurance when game.Phase == 0:
                 game.Phase = 1;
                 game.PhaseStartedAtUtc = ctx.Now;
                 game.Input = GameInput.Choices; game.Choices = [new("I had to let go", 0)];
-                return GameStep.Continue(Step(game, $"Now hold it right there for {game.Target} seconds. Don't you dare go over.", 0, StepCategory.Hold), game.Target);
+                return GameStep.Continue(Step(0, StepCategory.Hold), Say(game, "hold").With("target", game.Target), game.Target);
             case GameType.ArousalChallenge:
-                return GameStep.Over(new(false, DommeText.Pick(DommeText.ArousalChallengeLose), game.Loss));
+                return GameStep.Over(new(false, Result(game, "lost"), game.Loss));
             case GameType.EdgeRush:
             case GameType.EdgeWager when game.Phase == 1:
             {
                 int made = edgesThisStep - game.EdgesAtPhaseStart;
-                if (made < game.Target) return GameStep.Continue(Step(game, $"{made} of {game.Target}. Keep going.", 8, StepCategory.Game) with { Method = ctx.StrokeMethod }, null);
-                return GameStep.Over(new(true, $"That's {game.Target}. You made it.", game.Win));
+                if (made < game.Target)
+                    return GameStep.Continue(Step(8, StepCategory.Game) with { Method = ctx.StrokeMethod },
+                        new Utterance(SpeechAct.GameProgress) { Tags = [$"game:{game.Type}"], Instruction = true }.With("made", made).With("target", game.Target), null);
+                return GameStep.Over(new(true, Result(game, "won").With("target", game.Target), game.Win));
             }
             case GameType.RedLightGreenLight when game.Phase % 2 == 0:
-                return GameStep.Over(new(false, "An edge on a red light. You couldn't stop when I told you to.", game.Loss));
+                return GameStep.Over(new(false, Result(game, "lost", "edge-on-red"), game.Loss));
             case GameType.Chicken:
-                return GameStep.Over(new(false, "You edged before you bailed. Greedy. You lose all of it.", game.Loss));
+                return GameStep.Over(new(false, Result(game, "lost", "edged"), game.Loss));
             default:
                 return null;
         }
@@ -308,16 +296,16 @@ public static class Games
         switch (game.Type)
         {
             case GameType.QuickMath:
-                return GameStep.Over(new(false, "Too slow. You couldn't even manage that.", game.Loss));
+                return GameStep.Over(new(false, Result(game, "lost", "timeout"), game.Loss));
             case GameType.RaceToEdge:
-                return GameStep.Over(new(false, "Time's up. Too slow.", game.Loss));
+                return GameStep.Over(new(false, Result(game, "lost", "timeout"), game.Loss));
             case GameType.EdgeEndurance:
-                return GameStep.Over(new(true, $"{game.Target} seconds on the edge. Impressive self-control.", game.Win));
+                return GameStep.Over(new(true, Result(game, "won").With("target", game.Target), game.Win));
             case GameType.ArousalChallenge:
-                return GameStep.Over(new(true, DommeText.Pick(DommeText.ArousalChallengeWin), game.Win));
+                return GameStep.Over(new(true, Result(game, "won"), game.Win));
             case GameType.EdgeRush:
             case GameType.EdgeWager:
-                return GameStep.Over(new(false, $"Time's up. You didn't reach {game.Target}.", game.Loss));
+                return GameStep.Over(new(false, Result(game, "lost", "timeout").With("target", game.Target), game.Loss));
             case GameType.RedLightGreenLight:
                 if (game.Phase < game.Rounds * 2)
                 {
@@ -326,11 +314,11 @@ public static class Games
                 }
                 game.Input = GameInput.Choices;
                 game.Choices = [new("I obeyed every call", 1), new("I slipped", 0)];
-                return GameStep.Continue(Step(game, $"All {game.Rounds} rounds done. Did you obey every call? Be honest.", 0, StepCategory.Game));
+                return GameStep.Continue(Step(0, StepCategory.Game), Say(game, "ask").With("target", game.Rounds));
             case GameType.Chicken:
-                return GameStep.Over(new(true, "You lasted the whole way without edging. I'm almost impressed.", [Bonus(game.Target / 5)]));
+                return GameStep.Over(new(true, Result(game, "won", "survived"), [Bonus(game.Target / 5)]));
             default:
-                return GameStep.Over(new(false, "Too late. You lose.", game.Loss));
+                return GameStep.Over(new(false, Result(game, "lost", "timeout"), game.Loss));
         }
     }
 
@@ -346,53 +334,54 @@ public static class Games
             {
                 bool won = game.Type == GameType.CoinFlip ? answer == game.Secret : (game.Secret >= 7) == (answer == 1);
                 string reveal = game.Type == GameType.CoinFlip ? (game.Secret == 0 ? "Heads." : "Tails.") : $"The card was {CardName(game.Secret)}.";
-                return GameStep.Over(new(won, $"{reveal} {(won ? "Lucky you." : "Wrong.")}", won ? game.Win : game.Loss, answer));
+                return GameStep.Over(new(won, Result(game, won ? "won" : "lost").With("reveal", reveal), won ? game.Win : game.Loss, answer));
             }
             case GameType.NumberGuess:
             {
-                if (answer == game.Secret) return GameStep.Over(new(true, $"{game.Secret}. You got it.", game.Win, answer));
+                if (answer == game.Secret) return GameStep.Over(new(true, Result(game, "won").With("reveal", $"{game.Secret}."), game.Win, answer));
                 int off = Math.Abs(answer - game.Secret);
-                return GameStep.Over(new(false, $"It was {game.Secret}. You were {off} off.", [Edges(ctx, Math.Min(5, off), 0)], answer));
+                return GameStep.Over(new(false, Result(game, "lost").With("reveal", $"It was {game.Secret}. You were {off} off."), [Edges(ctx, Math.Min(5, off), 0)], answer));
             }
             case GameType.DoubleOrNothing:
-                if (answer == 2) return GameStep.Over(new(true, "Sensible. Take it.", game.Options, answer, Neutral: true));
+                if (answer == 2) return GameStep.Over(new(true, Result(game, "neutral", "took-it"), game.Options, answer, Neutral: true));
+                string side = game.Secret == 0 ? "Heads." : "Tails.";
                 return answer == game.Secret
-                    ? GameStep.Over(new(true, $"{(game.Secret == 0 ? "Heads" : "Tails")}. Double it is.", game.Win, answer))
-                    : GameStep.Over(new(false, $"{(game.Secret == 0 ? "Heads" : "Tails")}. Greedy, and wrong.", game.Loss, answer));
+                    ? GameStep.Over(new(true, Result(game, "won").With("reveal", side), game.Win, answer))
+                    : GameStep.Over(new(false, Result(game, "lost").With("reveal", side), game.Loss, answer));
             case GameType.PickYourPoison:
-                return GameStep.Over(new(false, $"Option {answer}. Your choice. Live with it.", [game.Options[answer - 1]], answer, Neutral: true));
+                return GameStep.Over(new(false, Result(game, "neutral").With("answer", answer), [game.Options[answer - 1]], answer, Neutral: true));
             case GameType.RerollGamble:
             {
                 if (answer == 0 || game.Data >= game.Target)
                 {
                     var fate = game.Options[game.Secret];
-                    string line = answer == 0 ? $"Accepted: {fate.Description}." : $"No more rerolls. The house wins: {fate.Description}.";
-                    return GameStep.Over(new(game.Secret >= game.Options.Count / 2, line, [fate], answer, Neutral: true));
+                    var said = Result(game, "neutral", answer == 0 ? "accepted" : "out-of-rerolls").With("fate", fate.Description);
+                    return GameStep.Over(new(game.Secret >= game.Options.Count / 2, said, [fate], answer, Neutral: true));
                 }
                 game.Data++;
                 // Each reroll leans a little further toward the worse fates at the front of the list.
                 int roll = ctx.Random.Next(0, game.Options.Count);
                 game.Secret = Math.Max(0, roll - (game.Data - 1));
-                var text = $"Reroll {game.Data}. New fate: {game.Options[game.Secret].Description}. Accept, or push your luck?";
-                if (game.Data >= game.Target) { game.Choices = [new("Accept", 0)]; text = $"Reroll {game.Data}, your last. Your fate: {game.Options[game.Secret].Description}."; }
-                return GameStep.Continue(Step(game, text, 0, StepCategory.Game));
+                var reroll = Say(game, "reroll").With("made", game.Data).With("fate", game.Options[game.Secret].Description);
+                if (game.Data >= game.Target) { game.Choices = [new("Accept", 0)]; reroll = reroll.Tagged("last"); }
+                return GameStep.Continue(Step(0, StepCategory.Game), reroll);
             }
             case GameType.QuickMath:
                 return answer == game.Secret
-                    ? GameStep.Over(new(true, "Correct. At least your brain still works.", game.Win, answer))
-                    : GameStep.Over(new(false, $"Wrong. It was {game.Secret}.", game.Loss, answer));
+                    ? GameStep.Over(new(true, Result(game, "won"), game.Win, answer))
+                    : GameStep.Over(new(false, Result(game, "lost").With("reveal", $"It was {game.Secret}."), game.Loss, answer));
             case GameType.EdgeEndurance:
-                return GameStep.Over(new(false, "You let go. Weak.", game.Loss, answer));
+                return GameStep.Over(new(false, Result(game, "lost", "let-go"), game.Loss, answer));
             case GameType.RedLightGreenLight:
                 return answer == 1
-                    ? GameStep.Over(new(true, "Good. That's what obedience looks like.", game.Win, answer))
-                    : GameStep.Over(new(false, "At least you're honest. You still pay.", game.Loss, answer));
+                    ? GameStep.Over(new(true, Result(game, "won"), game.Win, answer))
+                    : GameStep.Over(new(false, Result(game, "lost", "confessed"), game.Loss, answer));
             case GameType.Chicken:
             {
                 int seconds = (int)Math.Max(0, (ctx.Now - game.PhaseStartedAtUtc).TotalSeconds);
                 int points = seconds / 10 * 2;
-                return GameStep.Over(new(points > 0, points > 0 ? $"You bailed after {seconds} seconds. That's {points} points off." : "Bailed already? Coward. Nothing for you.",
-                    points > 0 ? [Bonus(points)] : [], answer));
+                var bailed = points > 0 ? Result(game, "won", "bailed").With("seconds", seconds).With("made", points) : Result(game, "lost", "coward");
+                return GameStep.Over(new(points > 0, bailed, points > 0 ? [Bonus(points)] : [], answer));
             }
             case GameType.EdgeWager when game.Phase == 0:
             {
@@ -403,12 +392,12 @@ public static class Games
                 game.Loss = [Torment(20 * answer + ctx.Mean * 3)];
                 game.Input = GameInput.None; game.Choices = [];
                 int seconds = WagerSeconds(answer);
-                return GameStep.Continue(Step(game, $"You bet {answer}. {Stroke(ctx.StrokeMethod)}. {seconds} seconds, starting now.", 8, StepCategory.Game) with { Method = ctx.StrokeMethod }, seconds);
+                return GameStep.Continue(Step(8, StepCategory.Game) with { Method = ctx.StrokeMethod }, Say(game, "bet").With("bet", answer).With("seconds", seconds), seconds);
             }
             case GameType.TwoEnvelopes:
             {
                 bool won = answer == game.Secret;
-                return GameStep.Over(new(won, won ? "Mercy. You chose well... this time." : "Oh dear. That was the other one.", won ? game.Win : game.Loss, answer));
+                return GameStep.Over(new(won, Result(game, won ? "won" : "lost"), won ? game.Win : game.Loss, answer));
             }
             default:
                 return null;
@@ -471,30 +460,33 @@ public static class Games
         return ($"{x} plus {y}", x + y);
     }
 
-    /// <summary>"Use {method}" for a prescribed method; the user's own choice otherwise.</summary>
-    public static string Stroke(MethodInfo method)
-        => method.IsUserChoice ? "Stroke however you like" : method.Description.TrimEnd('.', ' ') is { Length: > 0 } d ? d : method.Name;
+    /// <summary>What she says at a stage of a game: the narrator renders the rules and her words.</summary>
+    private static Utterance Say(GameState game, string stage)
+        => new(SpeechAct.GamePrompt) { Tags = [$"game:{game.Type}", $"stage:{stage}"], Instruction = true };
 
-    private static GameStep Ask(GameState game, int timerSeconds = 0)
-        => GameStep.Continue(Step(game, game.Prompt, 0, StepCategory.Game), timerSeconds);
+    private static Utterance Result(GameState game, string result, params string[] detail)
+        => new(SpeechAct.GameResult) { Tags = [$"game:{game.Type}", $"result:{result}", .. detail.Select(x => $"detail:{x}")] };
 
-    private static GameStep Play(GameState game, GameContext ctx, int speed, int timerSeconds, bool answerReady = false)
+    private static GameStep Ask(GameState game, Utterance say, int timerSeconds = 0)
+        => GameStep.Continue(Step(0, StepCategory.Game), say, timerSeconds);
+
+    private static GameStep Play(GameState game, GameContext ctx, int speed, int timerSeconds, Utterance say, bool answerReady = false)
     {
         if (!answerReady) { game.Input = GameInput.None; game.Choices = []; }
-        return GameStep.Continue(Step(game, game.Prompt, speed, StepCategory.Game) with { Method = ctx.StrokeMethod }, timerSeconds);
+        return GameStep.Continue(Step(speed, StepCategory.Game) with { Method = ctx.StrokeMethod }, say, timerSeconds);
     }
 
     private static GameStep GreenOrRed(GameState game, GameContext ctx)
     {
         bool green = game.Phase % 2 == 1;
         int seconds = green ? 5 + ctx.Random.Next(0, 10) : 3 + ctx.Random.Next(0, 6);
-        string text = green ? "GREEN LIGHT. Stroke, fast." : "RED LIGHT. Hands off. Now.";
-        if (game.Phase == 1) text = $"{game.Prompt} {text}";
-        return GameStep.Continue(Step(game, text, green ? 8 : 0, StepCategory.Game) with { Method = green ? ctx.StrokeMethod : null }, seconds);
+        var say = Say(game, green ? "green" : "red");
+        if (game.Phase == 1) say = say.Tagged("first").With("target", game.Rounds);
+        return GameStep.Continue(Step(green ? 8 : 0, StepCategory.Game) with { Method = green ? ctx.StrokeMethod : null }, say, seconds);
     }
 
-    private static Directive Step(GameState game, string text, int speed, StepCategory category) => new()
+    private static Directive Step(int speed, StepCategory category) => new()
     {
-        Kind = InstructionKind.FreeText, Category = category, Speed = speed, Text = text, Phase = SessionPhase.Intense,
+        Kind = InstructionKind.FreeText, Category = category, Speed = speed, Phase = SessionPhase.Intense,
     };
 }

@@ -1,0 +1,205 @@
+// Her orders. The exact instruction (method, pace, time, edges, hold) is generated and placed
+// where a line says [Instruction]; a line without it is spoken before the instruction.
+// Plain "[Instruction]" is deliberately common: terseness is part of her voice.
+{
+  "modules": [
+    // ── Any step ──
+    { "id": "instruct.bare", "act": "Instruct", "weight": 3, "variants": ["[Instruction]"] },
+    { "id": "instruct.lead", "act": "Instruct", "when": ["step.category!=Rest"], "weight": 1.2, "variants": ["Now. [Instruction]", "Next. [Instruction]", "Good. [Instruction]"] },
+    { "id": "instruct.again", "act": "Instruct", "when": ["step.category!=Rest", "segment.steps>=2"], "weight": 0.6, "variants": ["Again. [Instruction]", "Once more. [Instruction]"] },
+    {
+      "id": "instruct.cruel", "act": "Instruct", "when": ["step.category!=Rest", "mood=Cruel", "harsh>=4"],
+      "variants": ["[Instruction] Don't you dare slow down.", "[Instruction] No complaints.", "[Instruction] I don't care how it feels.", "[Instruction] And keep your whining to yourself."]
+    },
+    {
+      "id": "instruct.teasing", "act": "Instruct", "when": ["step.category!=Rest", "mood=Teasing", "!segment.tags=torture"],
+      "variants": ["Mmm. [Instruction]", "[Instruction] Enjoy it. It won't last.", "[Instruction] I love watching you do this.", "[Instruction] Let it build."]
+    },
+    {
+      "id": "instruct.playful", "act": "Instruct", "when": ["step.category!=Rest", "mood=Playful", "!segment.tags=torture"],
+      "variants": ["Ooh, you'll like this one. [Instruction]", "[Instruction] Let's see how you do.", "Try this. [Instruction]"]
+    },
+    {
+      "id": "instruct.relentless", "act": "Instruct", "when": ["step.category!=Rest", "mood=Relentless"],
+      "variants": ["[Instruction] Keep going.", "[Instruction] No stopping.", "Don't stop. [Instruction]", "[Instruction] More."]
+    },
+    {
+      "id": "instruct.edgy", "act": "Instruct", "when": ["step.category!=Rest", "mood=Edgy"],
+      "variants": ["Go. [Instruction]", "[Instruction] Now.", "Right. [Instruction]"]
+    },
+    {
+      "id": "instruct.gentle", "act": "Instruct", "when": ["step.category!=Rest", "harsh<=3", "!segment.tags=torture"],
+      "variants": ["[Instruction] That's it.", "Good [name]. [Instruction]", "[Instruction] Nice and easy for me."]
+    },
+    {
+      "id": "instruct.humiliating", "act": "Instruct", "when": ["step.category!=Rest", "humiliation>=6"],
+      "variants": ["[Instruction] Look at you, so eager to obey.", "[Instruction] Such a desperate little [name].", "[Instruction] You'd do anything I said, wouldn't you?"]
+    },
+    {
+      "id": "instruct.retaliating", "act": "Instruct", "when": ["step.category!=Rest", "retaliating", "mood.cause=Begging|Pestering"],
+      "weight": 2,
+      "variants": ["[Instruction] That's for asking.", "[Instruction] Ask again and it gets worse.", "You wanted something. Here it is. [Instruction]"]
+    },
+    {
+      "id": "instruct.after-disobedience", "act": "Instruct", "when": ["step.category!=Rest", "retaliating", "mood.cause=Disobedience|FailedChallenge|LostGame"],
+      "weight": 2,
+      "variants": ["[Instruction] That's what disappointing me costs.", "[Instruction] You earned this one."]
+    },
+    {
+      "id": "instruct.on-screen", "act": "Instruct", "when": ["step.category!=Rest", "performer", "step.category=Stroke|Tease|Edge"],
+      "variants": ["Look at [performer] while you do it. [Instruction]", "[Instruction] Keep your eyes on [performer].", "Watch [performer]. [Instruction]"]
+    },
+    {
+      "id": "instruct.favorite", "act": "Instruct", "when": ["step.category!=Rest", "method.favorite", "!segment.tags=torture|rest"],
+      "cooldown": "Occasional",
+      "variants": ["Your favorite. I know what gets you there. [Instruction]"]
+    },
+    { "id": "instruct.consequence", "act": "Instruct", "when": ["#consequence"], "weight": 6, "variants": ["Now pay up. [Instruction]", "Your forfeit. [Instruction]", "Time to pay. [Instruction]"] },
+    { "id": "instruct.reward", "act": "Instruct", "when": ["#reward"], "weight": 6, "variants": ["Your reward. [Instruction]", "You won that. [Instruction] Enjoy it."] },
+    { "id": "instruct.rest-granted", "act": "Instruct", "when": ["step.category=Rest", "#granted"], "weight": 6, "variants": ["[Instruction] Catch your breath.", "[Instruction] Don't get used to this."] },
+
+    // ── By segment goal ──
+    {
+      "id": "instruct.slow-build", "act": "Instruct", "when": ["step.category!=Rest", "segment=slow-build"], "weight": 2,
+      "variants": ["Gently. [Instruction]", "[Instruction] Barely touching. I want you desperate.", "[Instruction] Slow. You don't get to rush this.", "[Instruction] Just enough to feel it."]
+    },
+    {
+      "id": "instruct.stroke-steady", "act": "Instruct", "when": ["step.category!=Rest", "segment=stroke-steady"], "weight": 1.5,
+      "variants": ["Keep yourself hard for me. [Instruction]", "[Instruction] Steady.", "[Instruction] Don't think, just stroke."]
+    },
+    {
+      "id": "instruct.stroke-steady.again", "act": "Instruct", "when": ["step.category!=Rest", "segment=stroke-steady", "segment.steps>=2"], "weight": 2.5,
+      "variants": ["Same grip. Keep going. [Instruction]", "Don't change a thing. [Instruction]", "More of the same. [Instruction]"]
+    },
+    {
+      "id": "instruct.edge-steady", "act": "Instruct", "when": ["step.category!=Rest", "segment=edge-steady"], "weight": 1.5,
+      "variants": ["[Instruction] Right up to the line, not over.", "[Instruction] Don't you dare go over.", "Find the edge for me. [Instruction]"]
+    },
+    {
+      "id": "instruct.edge-ladder", "act": "Instruct", "when": ["step.category!=Rest", "segment=edge-ladder", "segment.steps>=2"], "weight": 3,
+      "variants": ["Faster this time. [Instruction]", "A little faster again. [Instruction]", "[Instruction] The next one's faster still."]
+    },
+    {
+      "id": "instruct.rapid-fire", "act": "Instruct", "when": ["step.category!=Rest", "segment=rapid-fire", "segment.steps>=2"], "weight": 2.5,
+      "variants": ["Again. [Instruction]", "[Instruction] No rest.", "Don't stop to breathe. [Instruction]", "Straight back to it. [Instruction]", "[Instruction] Faster than last time."]
+    },
+    {
+      "id": "instruct.long-hold", "act": "Instruct", "when": ["step.category!=Rest", "segment=long-hold"], "weight": 2.5,
+      "variants": ["[Instruction] And when you get there, you stay there.", "Get yourself to the edge. [Instruction]"]
+    },
+    {
+      "id": "instruct.tempo-crawl", "act": "Instruct", "when": ["step.category!=Rest", "segment=tempo-crawl"], "weight": 3,
+      "variants": ["[Instruction] One stroke per beat. Not one more.", "[Instruction] Slower than you want. That's the point.", "Crawl. [Instruction]"]
+    },
+    {
+      "id": "instruct.max-edges", "act": "Instruct", "when": ["step.category!=Rest", "segment=max-edges"], "weight": 3,
+      "variants": ["[Instruction] Go.", "[Instruction] I want a big number.", "Show me what you've got. [Instruction]"]
+    },
+    {
+      "id": "instruct.no-edge", "act": "Instruct", "when": ["step.category!=Rest", "segment=no-edge"], "weight": 3,
+      "variants": ["[Instruction] If you edge, you fail. And failing costs.", "[Instruction] Control yourself.", "Let's see your self-control. [Instruction]"]
+    },
+    {
+      "id": "instruct.torment", "act": "Instruct", "when": ["step.category!=Rest", "segment=torment|hated-grip"], "weight": 2.5,
+      "variants": ["[Instruction] It's supposed to hurt.", "This one's for me. [Instruction]", "[Instruction] Take every second.", "[Instruction] No stopping, no matter how it feels."]
+    },
+    {
+      "id": "instruct.hated", "act": "Instruct", "when": ["step.category!=Rest", "segment=hated-grip", "segment.steps<=1"], "weight": 3,
+      "variants": ["The grip you hate. [Instruction]", "You know this one. You hate it. [Instruction]"]
+    },
+    { "id": "instruct.burst", "act": "Instruct", "when": ["step.category!=Rest", "segment=burst"], "weight": 4, "variants": ["Now. [Instruction]", "[Instruction] Go, go, go.", "No warning. [Instruction]"] },
+    {
+      "id": "instruct.punish", "act": "Instruct", "when": ["step.category!=Rest", "segment=punish"], "weight": 4,
+      "variants": ["[Instruction] This is what you earned.", "[Instruction] Every second of this is punishment.", "[Instruction] Think about what you did."]
+    },
+    {
+      "id": "instruct.breather", "act": "Instruct", "when": ["step.category=Rest", "segment=breather"], "weight": 3,
+      "variants": ["[Instruction] Breathe.", "[Instruction] Enjoy it while it lasts.", "[Instruction] You'll need the rest."]
+    },
+    {
+      "id": "instruct.tease-rest", "act": "Instruct", "when": ["step.category=Rest", "segment=tease-rest"], "weight": 3,
+      "variants": ["[Instruction] Hands at your sides. Just listen to me.", "[Instruction] Don't touch. Feel it throb.", "[Instruction] Keep your mind on me."]
+    },
+    { "id": "instruct.false-finish", "act": "Instruct", "when": ["step.category=Rest", "segment=false-finish"], "weight": 5, "variants": ["[Instruction]"] },
+
+    // ── Holds, cooldowns, resuming, lube ──
+    { "id": "hold.bare", "act": "Hold", "weight": 2, "variants": ["[Instruction]", "Right there. [Instruction]", "Stay. [Instruction]"] },
+    { "id": "hold.cruel", "act": "Hold", "when": ["mood=Cruel|Relentless"], "variants": ["[Instruction] I want you suffering on that edge.", "Don't you dare let go. [Instruction]"] },
+    { "id": "hold.teasing", "act": "Hold", "when": ["mood=Teasing|Playful"], "variants": ["Hold it... [Instruction] Feel how badly you want to go over.", "Mmm, there it is. [Instruction]"] },
+    { "id": "cooldown.bare", "act": "Cooldown", "weight": 2, "variants": ["[Instruction]", "Good edge. [Instruction]", "Off. [Instruction] Then again."] },
+    { "id": "cooldown.failed", "act": "Cooldown", "when": ["#failed"], "weight": 5, "variants": ["[Instruction]", "Let go. [Instruction]"] },
+    { "id": "resume.bare", "act": "Resume", "variants": ["[Instruction]", "Don't get comfortable. [Instruction]", "And back. [Instruction]"] },
+    { "id": "lube.bare", "act": "Lube", "variants": ["[Instruction]", "This next one needs lube. [Instruction]"] },
+
+    // ── Free play: he sets the pace; she watches ──
+    {
+      "id": "freeplay.neutral", "act": "FreePlay",
+      "variants": [
+        "Do whatever you like. Record every edge. When you want to cum, you ask me first.",
+        "Your hands, your pace. I'm watching the edges. You don't cum until I say so.",
+        "Play however you want. Just remember who decides how it ends."
+      ]
+    },
+    {
+      "id": "freeplay.cruel", "act": "FreePlay", "when": ["mood=Cruel|Relentless"],
+      "variants": ["Go on then, your way. Every edge gets reported to me, and you don't cum until I say."]
+    },
+    {
+      "id": "freeplay.teasing", "act": "FreePlay", "when": ["mood=Teasing|Playful"],
+      "variants": ["Play however you like. I'll be watching the edges pile up. Ask nicely when you can't take it anymore."]
+    },
+    {
+      "id": "freeplay.after-slip", "act": "FreePlay", "when": ["slipped"], "weight": 50,
+      "variants": ["Keep going. You already came without permission, so don't bother asking again.", "Hands back on. That was the last thing tonight that will feel good. Record every edge."]
+    },
+
+    // ── Paying a price, deciding on mercy ──
+    { "id": "price.bare", "act": "Price", "variants": ["[Instruction]", "Earn it. [Instruction]", "Pay up. [Instruction]"] },
+    {
+      "id": "offer-decision", "act": "OfferDecision",
+      "variants": ["Or... [offer] Take it, or take your punishment.", "I'll give you a way out. [offer] Your choice.", "Unless... [offer] Decide."]
+    },
+
+    // ── Endings ──
+    { "id": "finish.requested", "act": "Finish", "when": ["#requested", "!#ruined"], "variants": ["Fine. [Instruction]", "You've begged enough. [Instruction]", "Permission granted. [Instruction]", "Go on then. [Instruction]"] },
+    {
+      "id": "finish.hers", "act": "Finish", "when": ["#her-decision", "!#ruined", "!#told:Lie"],
+      "variants": ["That's enough. You've earned it. [Instruction]", "Alright. I'll let you finish. [Instruction]", "Cum for me. [Instruction]"]
+    },
+    {
+      "id": "finish.after-lie", "act": "Finish", "when": ["#her-decision", "!#ruined", "#told:Lie"], "weight": 3,
+      "variants": ["I told you that you weren't cumming tonight. I lied. [Instruction]", "Surprise. [Instruction]"]
+    },
+    { "id": "finish.warm", "act": "Finish", "when": ["!#ruined", "harsh<=3"], "variants": ["You've been so good for me. [Instruction]"] },
+    {
+      "id": "finish.ruined", "act": "Finish", "when": ["#ruined"],
+      "variants": ["You can cum. But I'm ruining it. [Instruction]", "Go on, then. You won't enjoy it. [Instruction]", "Here's your orgasm. Such as it is. [Instruction]"]
+    },
+    {
+      "id": "denied.default", "act": "Denied", "when": ["!#told:Lie", "!#why:Promise", "!#why:Denial", "!#why:Sold", "!#too-slow"],
+      "variants": [
+        "That's all. No orgasm for you tonight.",
+        "Time's up, and you don't get to cum. Accept it.",
+        "No. Not tonight. Hands off.",
+        "That's where it ends. Denied."
+      ]
+    },
+    {
+      "id": "denied.cruel", "act": "Denied", "when": ["mood=Cruel|Relentless", "!#too-slow", "!#why:Promise"],
+      "variants": ["Did you really think you'd get to cum? Denied.", "No. You don't deserve it."]
+    },
+    {
+      "id": "denied.teasing", "act": "Denied", "when": ["mood=Teasing|Playful", "!#too-slow", "!#why:Promise"],
+      "variants": ["You were so hopeful. That's cute. Denied.", "Almost... but no."]
+    },
+    { "id": "denied.after-lie", "act": "Denied", "when": ["#told:Lie"], "weight": 4, "variants": ["I said you might cum tonight. I say a lot of things. Denied.", "Did you believe me? That's adorable. No."] },
+    { "id": "denied.promise", "act": "Denied", "when": ["#why:Promise"], "weight": 4, "variants": ["You promised me no orgasm tonight, and you're keeping that promise. We're done.", "Your promise holds. No orgasm. Session over."] },
+    { "id": "denied.window", "act": "Denied", "when": ["#why:Denial|why:Sold"], "weight": 4, "variants": ["You're still in denial. Nothing for you tonight.", "Your denial isn't over. So neither is the ache."] },
+    { "id": "denied.too-slow", "act": "Denied", "when": ["#too-slow"], "weight": 5, "variants": ["You had your chance and you wasted it. Denied.", "The window's closed. No orgasm."] },
+    { "id": "denied.begging", "act": "Denied", "when": ["#cause:Begging|cause:Pestering", "!#told:Lie"], "weight": 2, "variants": ["All that begging. The answer was always going to be no."] },
+    { "id": "denied.slipped", "act": "Denied", "when": ["#cause:UnauthorizedOrgasm"], "weight": 5, "variants": ["You already came without permission. You get nothing else."] },
+    { "id": "punishment-ending.orgasm", "act": "PunishmentEnding", "when": ["#orgasm"], "variants": ["You owe me a punishment ending. [Instruction] Record it when you cum.", "Here's how you finish tonight. [Instruction] Record it when you cum."] },
+    { "id": "punishment-ending.denied", "act": "PunishmentEnding", "when": ["#denied"], "variants": ["You owe me a punishment ending. [Instruction]", "This is how tonight ends. [Instruction]"] },
+    { "id": "time-up", "act": "TimeUp", "variants": ["Time's up.", "Too slow.", "Out of time."] }
+  ]
+}

@@ -6,6 +6,7 @@ using AIDome.Services;
 using AIDome.Tracking;
 using AIDome.Persistence;
 using AIDome.Sessions;
+using AIDome.Sessions.Plan;
 using Cove.Data;
 
 using Cove.Plugins;
@@ -42,7 +43,7 @@ public sealed class AiDomeExtension : FullExtensionBase
 
     public override string Id => "cove.community.aidome";
     public override string Name => "AI Domme";
-    public override string Version => "0.9.0";
+    public override string Version => "0.10.0";
     public override string Description => "A rule-driven domme for guided edging sessions on your Cove library, with an app-wide edge tracker, orgasm permission, games and persistent commitments.";
     public override string Author => "Cove Community";
     public override string Url => "https://github.com/yourcove/AIDome.Extension";
@@ -65,6 +66,7 @@ public sealed class AiDomeExtension : FullExtensionBase
         services.AddScoped<TrackerService>();
         services.AddSingleton<MetronomeLeases>();
         services.AddSingleton<NarrationLeases>();
+        services.AddSingleton<ScreenResolver>();
 
         // TTS: editable settings (loaded from the store in InitializeAsync) + per-call HttpClient.
         services.TryAddSingleton<TtsOptions>();
@@ -121,6 +123,7 @@ public sealed class AiDomeExtension : FullExtensionBase
         Migration("005_guided_v2", GuidedMigrations.Load("005_guided_v2"));
         Migration("006_session_contracts", GuidedMigrations.Load("006_session_contracts"));
         Migration("007_ledger", GuidedMigrations.Load("007_ledger"));
+        Migration("008_voice", GuidedMigrations.Load("008_voice"));
     }
 
     public override void MapEndpoints(IEndpointRouteBuilder endpoints)
@@ -218,7 +221,36 @@ public sealed class AiDomeExtension : FullExtensionBase
 
         // ── Live state ──
         // Polls only refresh the saved countdown occasionally; state changes are saved when they happen.
-        group.MapGet("/state", async (CancellationToken ct) => JsonResult(await BuildSnapshotAsync(ct, persist: false)));
+        // The page reports what is on screen with each poll (media=video:12:345.6), so she can talk about it.
+        group.MapGet("/state", async (string? media, HttpContext http, ILoggerFactory logs, CancellationToken ct) =>
+        {
+            var runtime = _runtimes!.Current;
+            if (ScreenResolver.Parse(media) is var (kind, id, position) && http.RequestServices.GetService<ScreenResolver>() is { } screens)
+            {
+                try { runtime.Session.See(await screens.ResolveAsync(http.RequestServices.GetRequiredService<DbContext>(), kind, id, position, DateTime.UtcNow, ct)); }
+                catch (Exception ex) when (ex is not OperationCanceledException) { logs.CreateLogger("AIDome").LogDebug(ex, "Could not read what is on screen"); }
+            }
+            return JsonResult(await BuildSnapshotAsync(ct, persist: false));
+        });
+
+        // ── Her persona and how she plans ──
+        group.MapGet("/domme-settings", async (CancellationToken ct) =>
+        {
+            await using var db = _runtimes!.Current.Factory.Open();
+            return JsonResult(new
+            {
+                Settings = await RecallStore.SettingsAsync(db, ct),
+                Segments = SegmentCatalogue.Default.Types.Where(x => x.Planned).Select(x => new { x.Id, x.Name, x.Goal, x.Tags }),
+            });
+        });
+        group.MapPut("/domme-settings", async (DommeSettings body, CancellationToken ct) =>
+        {
+            if (body is null) return Results.BadRequest(new { message = "Settings are required." });
+            var settings = body.Validate(SegmentCatalogue.Default);
+            await using var db = _runtimes!.Current.Factory.Open();
+            await RecallStore.SaveSettingsAsync(db, settings, DateTime.UtcNow, ct);
+            return JsonResult(settings);
+        });
 
         group.MapGet("/setup", async (CancellationToken ct) =>
         {

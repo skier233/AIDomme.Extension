@@ -142,7 +142,7 @@ beforeEach(() => {
   localStorage.clear();
   vi.stubGlobal("AudioContext", Audio);
   runtime.fetch.mockImplementation(async (path: string) => {
-    if (path === "/api/ext/aidome/state") return Response.json(snapshot);
+    if (path === "/api/ext/aidome/state" || path.startsWith("/api/ext/aidome/state?")) return Response.json(snapshot);
     if (path === "/api/ext/aidome/setup") return Response.json(setup);
     if (path === "/api/ext/aidome/configuration") return Response.json({ methods: [] });
     if (path.endsWith("release")) return new Response(null, { status: 204 });
@@ -364,6 +364,21 @@ it("does not request speech for an already claimed message", async () => {
   expect(runtime.fetch.mock.calls.some(([path]) => path.endsWith("/tts"))).toBe(
     false,
   );
+});
+
+it("tells her what is on screen with each poll, but only during a session", async () => {
+  runtime.media = { kind: "video", id: 12, positionSeconds: 345.64 };
+  guidedClient.start(1);
+  await loaded(guidedClient);
+  await guidedClient.refresh();
+  expect(runtime.fetch.mock.calls.map(([path]) => path)).toContain("/api/ext/aidome/state?media=video:12:345.6");
+  runtime.fetch.mockClear();
+  snapshot = { ...snapshot, revision: 3, sessionActive: false, session: null };
+  await guidedClient.refresh();
+  await guidedClient.refresh();
+  expect(runtime.fetch.mock.calls.map(([path]) => path).filter((path) => path.includes("media="))).toHaveLength(1);
+  runtime.media = { kind: "audio", id: 3 };
+  expect((await import("../../extensions/AIDome/ui/GuidedClient")).screenQuery()).toBe("");
 });
 
 it("offers pause but not end outside debug sessions", async () => {

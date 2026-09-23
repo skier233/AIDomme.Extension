@@ -59,7 +59,6 @@ public sealed class GuidedRuntime : IAsyncDisposable
 {
     public GuidedDataFactory Factory { get; }
     public SessionHost Session { get; }
-    public OfflineInstructionEngine Instructions { get; }
     public MediaDirector Media { get; } = new();
     /// <summary>Serializes every change to this account's live session: requests, tracker delivery and timers.</summary>
     public SemaphoreSlim Gate { get; } = new(1, 1);
@@ -77,8 +76,7 @@ public sealed class GuidedRuntime : IAsyncDisposable
     {
         Factory = factory;
         logger = logs.CreateLogger<GuidedRuntime>();
-        Instructions = new(factory, logs.CreateLogger<OfflineInstructionEngine>());
-        Session = new(factory, Instructions, logs.CreateLogger<SessionHost>(), random, clock) { TimerDispatcher = DispatchTimerAsync };
+        Session = new(factory, logs.CreateLogger<SessionHost>(), random, clock) { TimerDispatcher = DispatchTimerAsync };
     }
 
     public static async Task<GuidedRuntime> CreateAsync(GuidedDataFactory factory, ILoggerFactory logs, IRandom? random = null, IClock? clock = null)

@@ -1,0 +1,273 @@
+// The segment catalogue: every goal she can pursue for a stretch of a session.
+// The plan engine reads only these properties; adding a segment type is adding an entry here.
+//   tags        what kind of thing it is (other types refer to tags in follows/followUp)
+//   intensity   0-10, for the escalation curve across the session
+//   needs       what she must decide for it: pacing, edges, methods, games
+//   share       [min, max] share of the session's points budget
+//   steps       [min, max] steps
+//   position    weights for start / middle / late in the session
+//   follows     multiplier when the previous segment has a tag
+//   followUp    tags the next segment must have
+//   onRestBeg   what she does when he begs for a rest during it
+//   persona     minimum persona dials for her to use it
+//   step        the shape of its steps (ranges are [min, max])
+{
+  "segments": [
+    {
+      "id": "slow-build",
+      "name": "Slow build",
+      "goal": "Warm him up slowly with teasing touches, without letting him edge.",
+      "tags": ["setup", "tease"],
+      "intensity": 2,
+      "needs": ["pacing"],
+      "share": [0.06, 0.14],
+      "steps": [1, 4],
+      "position": { "start": 2.2, "middle": 0.6, "late": 0.3 },
+      "follows": { "rest": 1.4, "torture": 1.3, "tease": 0.4 },
+      "step": { "kind": "Timed", "speed": [1, 3], "seconds": [40, 90], "method": { "policy": "rotate", "prefer": "tease", "ceiling": -1 } }
+    },
+    {
+      "id": "stroke-steady",
+      "name": "Steady stroking",
+      "goal": "Plain, steady stroking on a good grip: keep him hard and building.",
+      "tags": ["stroking"],
+      "intensity": 4,
+      "needs": ["pacing"],
+      "share": [0.06, 0.16],
+      "steps": [1, 4],
+      "repeatable": true,
+      "position": { "start": 1.3, "middle": 1.0, "late": 0.7 },
+      "follows": { "setup": 1.5, "rest": 1.5, "stroking": 0.5 },
+      "step": { "kind": "Timed", "speed": [3, 6], "seconds": [45, 120], "method": { "policy": "same", "prefer": "basic", "ceiling": 0 } }
+    },
+    {
+      "id": "edge-steady",
+      "name": "Edging",
+      "goal": "Bring him to the edge and back, again and again, on grips that get him there.",
+      "tags": ["edging"],
+      "intensity": 5,
+      "needs": ["edges"],
+      "share": [0.08, 0.18],
+      "steps": [1, 5],
+      "repeatable": true,
+      "position": { "start": 0.8, "middle": 1.3, "late": 1.1 },
+      "follows": { "setup": 1.8, "stroking": 1.8, "rest": 1.2, "edging": 0.6 },
+      "step": { "kind": "Edges", "speed": [4, 7], "count": [1, 3], "hold": [5, 20], "holdChance": 0.35, "method": { "policy": "rotate", "prefer": "closeness", "ceiling": 1 } }
+    },
+    {
+      "id": "edge-ladder",
+      "name": "Edge ladder",
+      "goal": "One edge at a time, each one faster than the last.",
+      "tags": ["edging", "setup"],
+      "intensity": 5,
+      "needs": ["edges", "pacing"],
+      "share": [0.08, 0.16],
+      "steps": [3, 5],
+      "position": { "start": 0.9, "middle": 1.2, "late": 0.8 },
+      "follows": { "stroking": 1.5, "tease": 1.5, "rest": 1.2, "edging": 0.5 },
+      "step": { "kind": "Edges", "speed": [3, 9], "rise": true, "count": [1, 1], "method": { "policy": "same", "prefer": "closeness", "ceiling": 1 } }
+    },
+    {
+      "id": "rapid-fire",
+      "name": "Rapid-fire edges",
+      "goal": "Edge after edge on intense grips, no time to recover.",
+      "tags": ["edging", "intense", "payoff"],
+      "intensity": 7,
+      "needs": ["edges", "pacing"],
+      "share": [0.06, 0.22],
+      "steps": [2, 8],
+      "position": { "start": 0.15, "middle": 1.0, "late": 1.4 },
+      "follows": { "setup": 3.0, "tease": 1.8, "rest": 1.3, "torture": 0.8, "edging": 0.5 },
+      "step": { "kind": "Edges", "speed": [7, 10], "count": [1, 2], "method": { "policy": "swap", "prefer": "closeness", "ceiling": 2 } }
+    },
+    {
+      "id": "long-hold",
+      "name": "Long hold",
+      "goal": "Get to the edge and stay there far longer than is comfortable.",
+      "tags": ["edging", "hold", "payoff"],
+      "intensity": 6,
+      "needs": ["edges"],
+      "share": [0.04, 0.1],
+      "steps": [1, 2],
+      "position": { "start": 0.2, "middle": 1.2, "late": 1.2 },
+      "follows": { "edging": 1.5, "setup": 1.6, "hold": 0.1 },
+      "step": { "kind": "Hold", "speed": [5, 8], "hold": [25, 60], "method": { "policy": "rotate", "prefer": "closeness", "ceiling": 1 } }
+    },
+    {
+      "id": "tempo-crawl",
+      "name": "Tempo crawl",
+      "goal": "Maddeningly slow strokes, one beat at a time, until he aches.",
+      "tags": ["tease", "slow"],
+      "intensity": 3,
+      "needs": ["pacing"],
+      "share": [0.05, 0.12],
+      "steps": [1, 2],
+      "position": { "start": 0.8, "middle": 1.1, "late": 0.9 },
+      "follows": { "edging": 1.6, "intense": 1.5, "slow": 0.1 },
+      "step": { "kind": "Timed", "speed": [1, 1], "seconds": [60, 150], "method": { "policy": "same", "prefer": "basic", "ceiling": 0 } }
+    },
+    {
+      "id": "max-edges",
+      "name": "As many as you can",
+      "goal": "Give her as many edges as he can in the time, at her tempo.",
+      "tags": ["edging", "challenge", "intense"],
+      "intensity": 6,
+      "needs": ["pacing"],
+      "share": [0.06, 0.14],
+      "steps": [1, 1],
+      "position": { "start": 0.2, "middle": 1.2, "late": 1.1 },
+      "follows": { "stroking": 1.5, "setup": 1.5, "rest": 1.4, "challenge": 0.2 },
+      "step": { "kind": "MaxEdges", "speed": [6, 8], "seconds": [60, 150], "method": { "policy": "same", "prefer": "closeness", "ceiling": 1 } }
+    },
+    {
+      "id": "no-edge",
+      "name": "Don't you dare",
+      "goal": "Stroke hard for a set time without reaching the edge. An edge fails it.",
+      "tags": ["challenge", "intense"],
+      "intensity": 7,
+      "needs": ["pacing"],
+      "share": [0.04, 0.1],
+      "steps": [1, 2],
+      "position": { "start": 0.1, "middle": 1.1, "late": 1.2 },
+      "follows": { "edging": 1.6, "stroking": 1.3, "challenge": 0.2, "rest": 0.8 },
+      "step": { "kind": "NoEdge", "speed": [7, 9], "seconds": [30, 75], "method": { "policy": "rotate", "prefer": "closeness", "ceiling": 1 } }
+    },
+    {
+      "id": "torment",
+      "name": "Torment",
+      "goal": "Grips that hurt more than they please. He takes every second.",
+      "tags": ["torture"],
+      "intensity": 8,
+      "needs": ["pacing", "methods"],
+      "share": [0.06, 0.16],
+      "steps": [1, 4],
+      "position": { "start": 0.05, "middle": 1.0, "late": 1.2 },
+      "follows": { "edging": 1.4, "intense": 1.2, "rest": 1.0, "torture": 0.3 },
+      "onRestBeg": { "grant": 0.3, "swapTo": ["edging"], "resume": true },
+      "persona": { "harsh": 3 },
+      "step": { "kind": "Timed", "speed": [6, 9], "seconds": [30, 90], "method": { "policy": "rotate", "prefer": "torture", "ceiling": 3 } }
+    },
+    {
+      "id": "hated-grip",
+      "name": "The grip he hates",
+      "goal": "The most torturous grip she's allowed, and she stays on it.",
+      "tags": ["torture"],
+      "intensity": 9,
+      "needs": ["pacing", "methods"],
+      "share": [0.04, 0.1],
+      "steps": [1, 3],
+      "position": { "start": 0.05, "middle": 0.9, "late": 1.3 },
+      "follows": { "edging": 1.3, "payoff": 1.4, "torture": 0.2, "rest": 0.9 },
+      "onRestBeg": { "grant": 0.2, "swapTo": ["edging"], "resume": true },
+      "persona": { "harsh": 5 },
+      "step": { "kind": "Timed", "speed": [6, 9], "seconds": [30, 75], "method": { "policy": "hated", "prefer": "torture", "ceiling": 4 } }
+    },
+    {
+      "id": "burst",
+      "name": "Burst",
+      "goal": "Out of nowhere: full speed, very short, then stop.",
+      "tags": ["intense", "surprise"],
+      "intensity": 7,
+      "needs": ["pacing"],
+      "share": [0.02, 0.05],
+      "steps": [1, 2],
+      "position": { "start": 0.1, "middle": 1.0, "late": 1.0 },
+      "follows": { "slow": 2.5, "tease": 2.0, "rest": 1.5, "surprise": 0.05 },
+      "step": { "kind": "Burst", "speed": [9, 10], "seconds": [10, 25], "method": { "policy": "rotate", "prefer": "any", "ceiling": 3 } }
+    },
+    {
+      "id": "tease-rest",
+      "name": "Hands off",
+      "goal": "Hands off while she talks to him: a rest that doesn't let the ache fade.",
+      "tags": ["rest", "tease", "psych"],
+      "intensity": 1,
+      "needs": ["pacing"],
+      "share": [0.02, 0.05],
+      "steps": [1, 1],
+      "position": { "start": 0.0, "middle": 1.0, "late": 0.8 },
+      "follows": { "torture": 2.2, "intense": 2.0, "edging": 1.4, "rest": 0.05 },
+      "persona": { "talk": 3 },
+      "step": { "kind": "TeaseRest", "seconds": [30, 70] }
+    },
+    {
+      "id": "breather",
+      "name": "Breather",
+      "goal": "A real, short rest so he can take more.",
+      "tags": ["rest"],
+      "intensity": 0,
+      "needs": ["pacing"],
+      "share": [0.01, 0.03],
+      "steps": [1, 1],
+      "position": { "start": 0.0, "middle": 1.0, "late": 0.7 },
+      "follows": { "torture": 2.5, "intense": 2.0, "hold": 1.6, "rest": 0.05, "setup": 0.2 },
+      "step": { "kind": "Rest", "seconds": [15, 40] }
+    },
+    {
+      "id": "false-finish",
+      "name": "False finish",
+      "goal": "Let him think it's over, or that he's about to cum. Then more.",
+      "tags": ["psych", "tease"],
+      "intensity": 4,
+      "needs": ["pacing"],
+      "share": [0.01, 0.03],
+      "steps": [1, 1],
+      "position": { "start": 0.0, "middle": 0.8, "late": 1.6 },
+      "follows": { "edging": 1.5, "intense": 1.3, "psych": 0.05 },
+      "followUp": ["edging", "torture"],
+      "persona": { "manipulation": 4 },
+      "step": { "kind": "Rest", "seconds": [10, 20] }
+    },
+    {
+      "id": "game",
+      "name": "A game",
+      "goal": "A game with real stakes. She enjoys it more than he does.",
+      "tags": ["game"],
+      "intensity": 5,
+      "needs": ["games", "pacing"],
+      "share": [0.03, 0.08],
+      "steps": [1, 1],
+      "position": { "start": 0.1, "middle": 1.2, "late": 1.0 },
+      "follows": { "rest": 1.8, "stroking": 1.3, "tease": 1.2, "game": 0.1 },
+      "step": { "kind": "Game" }
+    },
+    {
+      "id": "punish",
+      "name": "Punishment",
+      "goal": "Make him pay for what he just did.",
+      "tags": ["torture", "punish"],
+      "intensity": 9,
+      "needs": ["pacing"],
+      "share": [0.05, 0.12],
+      "steps": [1, 3],
+      "planned": false,
+      "position": {},
+      "step": { "kind": "Timed", "speed": [7, 10], "seconds": [45, 90], "method": { "policy": "hated", "prefer": "torture", "ceiling": 4 } }
+    },
+    {
+      "id": "ending",
+      "name": "The ending",
+      "goal": "She decides how this ends.",
+      "tags": ["ending"],
+      "intensity": 6,
+      "share": [0.01, 0.01],
+      "steps": [1, 1],
+      "planned": false,
+      "step": { "kind": "Rest" }
+    }
+  ],
+  // Tags a plan must include when the session asks for it (keys: punishment, torturous, teasing, intense, mean).
+  "requires": {
+    "punishment": ["torture"],
+    "torturous": ["torture"],
+    "teasing": ["tease"]
+  },
+  // How her mood leans on segment tags when she plans (a multiplier, scaled by how strongly she feels it).
+  "moodLenses": {
+    "Cruel": { "torture": 1.7, "tease": 0.7, "rest": 0.6, "punish": 1.4 },
+    "Relentless": { "edging": 1.5, "intense": 1.4, "rest": 0.4, "slow": 0.6 },
+    "Edgy": { "edging": 1.6, "hold": 1.3, "tease": 0.8 },
+    "Teasing": { "tease": 1.7, "slow": 1.5, "psych": 1.5, "torture": 0.6 },
+    "Playful": { "game": 1.9, "challenge": 1.5, "surprise": 1.4, "torture": 0.7 },
+    "Neutral": { "stroking": 1.2 }
+  }
+}

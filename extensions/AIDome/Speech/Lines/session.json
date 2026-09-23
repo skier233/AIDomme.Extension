@@ -1,0 +1,528 @@
+// The frame of a session: how she opens it, what she reminds him of, how she announces a new
+// segment, how she hints at the ending, how she comes back from an aside, and how she closes.
+// Conditions: see Speech/Facts.cs. Slots: see LineLibrary.KnownSlots.
+{
+  "modules": [
+    // ── Openings ──
+    {
+      "id": "start.plain",
+      "act": "SessionStart",
+      "when": ["!punishment", "sessions>=1"],
+      "variants": [
+        "Here we go, [name].",
+        "Hands ready. We're starting.",
+        "Good. You're here. Let's begin.",
+        "Settle in. I'm in charge now.",
+        "Let's see what you've got for me tonight.",
+        "Get comfortable. You won't be for long."
+      ]
+    },
+    {
+      "id": "start.first-ever",
+      "act": "SessionStart",
+      "cooldown": "Once",
+      "when": ["sessions<1", "!punishment"],
+      "variants": ["So this is the first time. Listen carefully and do exactly what I say, and we'll get along fine."]
+    },
+    {
+      "id": "start.cruel",
+      "act": "SessionStart",
+      "when": ["mood=Cruel|Relentless", "!punishment", "harsh>=5"],
+      "weight": 1.5,
+      "variants": [
+        "No warm welcome tonight. Hands where I can see them.",
+        "I'm not in a generous mood. You'll find out why.",
+        "Let's get to work. I don't plan on being gentle."
+      ]
+    },
+    {
+      "id": "start.playful",
+      "act": "SessionStart",
+      "when": ["mood=Playful|Teasing", "!punishment"],
+      "weight": 1.5,
+      "variants": [
+        "Mmm. I've been looking forward to this.",
+        "There you are. I have plans for you.",
+        "Ready to be played with?"
+      ]
+    },
+    {
+      "id": "start.back-soon",
+      "act": "SessionStart",
+      "when": ["last.days<0.6", "!punishment"],
+      "weight": 2,
+      "variants": [
+        "Back already? You couldn't stay away.",
+        "Again, so soon. Someone's desperate.",
+        "You were just here. Can't get enough of me, can you?"
+      ]
+    },
+    {
+      "id": "start.long-gone",
+      "act": "SessionStart",
+      "when": ["last.days>=7", "!punishment"],
+      "weight": 2,
+      "variants": [
+        "It's been a while. Don't think I didn't notice.",
+        "Look who finally came back.",
+        "A whole week without me. I hope you missed this."
+      ]
+    },
+    {
+      "id": "start.after-denial-streak",
+      "act": "SessionStart",
+      "when": ["denial.streak>=2", "!punishment"],
+      "weight": 2.5,
+      "variants": [
+        "Denied [denial.streak] times in a row, and here you are again. Good.",
+        "You haven't cum for me in [denial.streak] sessions. Let's see if you've learned anything.",
+        "[Denial.streak] denials running. You must be aching by now."
+      ]
+    },
+    {
+      "id": "start.long-since-orgasm",
+      "act": "SessionStart",
+      "when": ["orgasm.days>=5", "!punishment"],
+      "weight": 2,
+      "variants": [
+        "It's been [orgasm.days] days since you last came. I can tell.",
+        "[Orgasm.days] days without cumming. Poor thing. Let's make it worse."
+      ]
+    },
+    {
+      "id": "start.edges-today",
+      "act": "SessionStart",
+      "when": ["edges.today>=5", "!punishment"],
+      "weight": 2,
+      "variants": [
+        "You've already edged [edges.today] times today. Now you edge for me.",
+        "[Edges.today] edges already today and you still came back for more."
+      ]
+    },
+    {
+      "id": "start.after-walkout",
+      "act": "SessionStart",
+      "when": ["mood.cause=LastSession"],
+      "weight": 4,
+      "variants": [
+        "Don't think I've forgotten last time.",
+        "After how you behaved last time, you're starting with a debt.",
+        "I remember what you did last time. So will you, before we're done."
+      ]
+    },
+    {
+      "id": "start.punishment",
+      "act": "SessionStart",
+      "when": ["#punishment"],
+      "variants": [
+        "This session is punishment. Every second of it.",
+        "You're here to be punished. Remember that when it hurts.",
+        "Punishment time. No mercy tonight."
+      ]
+    },
+    {
+      "id": "start.owed-punishment",
+      "act": "SessionStart",
+      "when": ["#owed-punishment"],
+      "variants": [
+        "You owe me a punishment session. This is it.",
+        "Time to pay what you owe. This one's a punishment.",
+        "You earned this punishment. Now you serve it."
+      ]
+    },
+
+    // ── What he owes and what he promised ──
+    {
+      "id": "obligations.no-orgasm-promise",
+      "act": "Obligations",
+      "when": ["#no-orgasm-tonight", "#why:Promise"],
+      "variants": [
+        "And remember: you promised me no orgasm tonight. I'm holding you to it.",
+        "You promised me you wouldn't cum tonight. Good. Now I get to test that.",
+        "No orgasm tonight. Your promise, not mine. I intend to enjoy it."
+      ]
+    },
+    {
+      "id": "obligations.in-denial",
+      "act": "Obligations",
+      "when": ["#in-denial"],
+      "variants": [
+        "You're still in denial. [Left] of it. Don't bother asking.",
+        "Your denial isn't over. [Left] to go, and I'm counting.",
+        "No orgasm for [left]. You know that, and so do I."
+      ]
+    },
+    {
+      "id": "obligations.owed-edges",
+      "act": "Obligations",
+      "when": ["#owed-edges"],
+      "variants": [
+        "You still owe me [owed]. Every one gets paid before you cum again.",
+        "Before anything else: [owed] outstanding. I haven't forgotten."
+      ]
+    },
+    {
+      "id": "obligations.owed-ending",
+      "act": "Obligations",
+      "when": ["#owed-ending", "!#owed-edges"],
+      "variants": [
+        "And tonight ends my way. You owe me that.",
+        "You owe me a punishment ending. Tonight you pay it."
+      ]
+    },
+    {
+      "id": "obligations.owed-ruins",
+      "act": "Obligations",
+      "when": ["#owed-ruins", "!#owed-edges", "!#owed-ending"],
+      "variants": [
+        "Whenever I do let you cum, it's ruined. You owe me that.",
+        "Your next orgasm is mine to ruin. Remember that."
+      ]
+    },
+    {
+      "id": "obligations.character",
+      "act": "Obligations",
+      "when": ["#promised-character", "!#no-orgasm-tonight", "!#owed-edges"],
+      "variants": [
+        "You promised me a certain kind of session. You're going to get it.",
+        "Remember what you promised me. I'm going to make you keep every word."
+      ]
+    },
+    {
+      "id": "obligations.collect-edges",
+      "act": "Obligations",
+      "when": ["#collect-edges", "!#record"],
+      "variants": [
+        "Before I decide anything: you still owe me [owed]. Pay up.",
+        "Not so fast. [Owed] outstanding. We settle that first."
+      ]
+    },
+    {
+      "id": "obligations.collect-edges-record",
+      "act": "Obligations",
+      "when": ["#collect-edges", "#record"],
+      "variants": [
+        "Before I decide anything: you owe me [owed]. Record them.",
+        "We're not done. [Owed] still owed. Give them to me."
+      ]
+    },
+
+    // ── A new segment: she says what she wants now, or says nothing ──
+    {
+      "id": "segment.first",
+      "act": "SegmentStart",
+      "when": ["#first"],
+      "variants": [
+        "We'll start easy. Don't get used to it.",
+        "Let's begin.",
+        "First, I want you nice and warm."
+      ]
+    },
+    {
+      "id": "segment.slow-build",
+      "act": "SegmentStart",
+      "when": ["#segment:slow-build", "!#first"],
+      "variants": ["Slow down. I want this to build.", "Let's take it slow for a bit. It'll make the rest worse."]
+    },
+    {
+      "id": "segment.stroke-steady",
+      "act": "SegmentStart",
+      "when": ["#segment:stroke-steady"],
+      "variants": ["Just stroke for me for a while.", "Nice and steady now. Keep yourself hard for me.", "Let's keep you simmering."]
+    },
+    {
+      "id": "segment.edge-steady",
+      "act": "SegmentStart",
+      "when": ["#segment:edge-steady"],
+      "variants": ["Time to edge.", "Now I want edges.", "Let's find your edge. Again and again."]
+    },
+    {
+      "id": "segment.edge-ladder",
+      "act": "SegmentStart",
+      "when": ["#segment:edge-ladder"],
+      "variants": ["One edge at a time, and each one a little faster.", "We're climbing now. Every edge faster than the last."]
+    },
+    {
+      "id": "segment.rapid-fire",
+      "act": "SegmentStart",
+      "when": ["#segment:rapid-fire"],
+      "variants": [
+        "No more breaks. Edge after edge, as fast as I can make you.",
+        "Rapid fire. You don't get to recover between these.",
+        "Now I'm going to run you into the edge over and over."
+      ]
+    },
+    {
+      "id": "segment.long-hold",
+      "act": "SegmentStart",
+      "when": ["#segment:long-hold"],
+      "variants": ["I want you on the edge, and I want you to stay there.", "This time you're going to hold it. For a long time."]
+    },
+    {
+      "id": "segment.tempo-crawl",
+      "act": "SegmentStart",
+      "when": ["#segment:tempo-crawl"],
+      "variants": [
+        "Slow. Slower than you want. One stroke per beat and not one more.",
+        "Let's see how you like it painfully slow."
+      ]
+    },
+    {
+      "id": "segment.max-edges",
+      "act": "SegmentStart",
+      "when": ["#segment:max-edges"],
+      "variants": ["Let's see how many edges you can give me.", "I want a number. As many edges as you can manage."]
+    },
+    {
+      "id": "segment.no-edge",
+      "act": "SegmentStart",
+      "when": ["#segment:no-edge"],
+      "variants": ["A little test of control.", "Let's find out how much self-control you really have."]
+    },
+    {
+      "id": "segment.torment",
+      "act": "SegmentStart",
+      "when": ["#segment:torment|segment:hated-grip"],
+      "variants": ["Now something that hurts a little.", "Time to suffer for me.", "This part isn't for your pleasure. It's for mine."]
+    },
+    {
+      "id": "segment.hated-grip",
+      "act": "SegmentStart",
+      "when": ["#segment:hated-grip"],
+      "weight": 2,
+      "variants": ["I know which grip you hate. We're doing that one.", "Your least favorite. My favorite."]
+    },
+    {
+      "id": "segment.burst",
+      "act": "SegmentStart",
+      "when": ["#segment:burst"],
+      "variants": ["Surprise.", "Now. No warning."]
+    },
+    {
+      "id": "segment.tease-rest",
+      "act": "SegmentStart",
+      "when": ["#segment:tease-rest"],
+      "variants": ["Hands off. I want to talk to you for a moment.", "Let go. Just listen to me for a bit."]
+    },
+    {
+      "id": "segment.breather",
+      "act": "SegmentStart",
+      "when": ["#segment:breather"],
+      "variants": ["Take a breath. You'll need it.", "A short break. Enjoy it."]
+    },
+    {
+      "id": "segment.false-finish.lie",
+      "act": "SegmentStart",
+      "when": ["#segment:false-finish", "manipulation>=5"],
+      "variants": [
+        "You know what? I think that's enough for tonight.",
+        "I think you've earned something. Hands off for a moment.",
+        "That was good. Really good. Let's wrap this up."
+      ]
+    },
+    {
+      "id": "segment.false-finish.plain",
+      "act": "SegmentStart",
+      "when": ["#segment:false-finish", "manipulation<5"],
+      "variants": ["Stop. Hands off. Catch your breath while I think about what you deserve."]
+    },
+    {
+      "id": "segment.after-false-finish",
+      "act": "SegmentStart",
+      "when": ["segment.previous=false-finish", "!#segment:game"],
+      "weight": 20,
+      "variants": [
+        "Did you really think we were done? Not even close.",
+        "I lied. Hands back on.",
+        "You should have seen your face. Back to work."
+      ]
+    },
+    {
+      "id": "segment.punish",
+      "act": "SegmentStart",
+      "when": ["#segment:punish"],
+      "variants": ["Now you pay for that.", "That's going to cost you. Starting now.", "You earned this."]
+    },
+    {
+      "id": "segment.after-failed-challenge",
+      "act": "SegmentStart",
+      "when": ["#origin:failed-a-challenge"],
+      "weight": 3,
+      "variants": ["You failed my test. This is what failing costs."]
+    },
+    {
+      "id": "segment.after-pestering",
+      "act": "SegmentStart",
+      "when": ["#origin:pestering"],
+      "weight": 3,
+      "variants": ["All that begging bought you more of this.", "Every time you ask, it gets longer. You did this."]
+    },
+    {
+      "id": "segment.annoyed",
+      "act": "SegmentStart",
+      "when": ["#origin:annoyed"],
+      "weight": 3,
+      "variants": ["You've annoyed me. I'm changing my plans for you.", "I was going to be nice. Not anymore."]
+    },
+    {
+      "id": "segment.changed-mind",
+      "act": "SegmentStart",
+      "when": ["#origin:changed-her-mind"],
+      "weight": 3,
+      "variants": ["I was going to do something else with you. I've changed my mind.", "Change of plans."]
+    },
+    {
+      "id": "segment.rest-beg-twist",
+      "act": "SegmentStart",
+      "when": ["#origin:rest-beg"],
+      "weight": 3,
+      "variants": ["You wanted a change. Here's your change.", "Break's over. You're going to wish you'd kept quiet."]
+    },
+    {
+      "id": "segment.resumed",
+      "act": "SegmentStart",
+      "when": ["#origin:resumed-after-a-rest-beg"],
+      "weight": 3,
+      "variants": ["Did you think I forgot where we were? Back to it.", "Now, where were we."]
+    },
+    {
+      "id": "segment.extended",
+      "act": "SegmentStart",
+      "when": ["#origin:extended|origin:the-ending-waits"],
+      "weight": 3,
+      "variants": ["We're not done. Not even close.", "I'm not finished with you yet."]
+    },
+
+    // ── Hints about the ending: the truth, or a lie ──
+    {
+      "id": "foreshadow.denied.honest",
+      "act": "Foreshadow",
+      "when": ["#lean:Denied", "#presentation:Honest"],
+      "variants": [
+        "Just so you know, I don't see you cumming tonight.",
+        "You can stop hoping. Tonight isn't your night.",
+        "Every edge you give me is going to stay with you after we're done."
+      ]
+    },
+    {
+      "id": "foreshadow.denied.lie",
+      "act": "Foreshadow",
+      "when": ["#lean:Denied", "#presentation:Lie"],
+      "variants": [
+        "Keep being this good and I might let you cum tonight.",
+        "You're earning it. I can feel myself getting generous.",
+        "If you behave, tonight could end very nicely for you."
+      ]
+    },
+    {
+      "id": "foreshadow.allowed.honest",
+      "act": "Foreshadow",
+      "when": ["#lean:Full|lean:Ruined", "#presentation:Honest"],
+      "variants": [
+        "Keep going like this and you might get your reward tonight.",
+        "I'm starting to think you've earned something."
+      ]
+    },
+    {
+      "id": "foreshadow.allowed.lie",
+      "act": "Foreshadow",
+      "when": ["#lean:Full|lean:Ruined", "#presentation:Lie"],
+      "variants": [
+        "Don't get your hopes up. I haven't let you cum in a while and I'm enjoying that.",
+        "You're not cumming tonight. Just so we're clear."
+      ]
+    },
+    {
+      "id": "foreshadow.ruined",
+      "act": "Foreshadow",
+      "when": ["#lean:Ruined", "#presentation:Honest"],
+      "weight": 2,
+      "variants": ["If you cum tonight, you won't enjoy it. I'll make sure of that."]
+    },
+    {
+      "id": "foreshadow.punishment-ending",
+      "act": "Foreshadow",
+      "when": ["#lean:PunishmentEnding", "!#presentation:Silent"],
+      "variants": ["I already know how tonight ends. You're going to hate it.", "Save some strength. The ending is going to take it."]
+    },
+
+    // ── Back to orders after an aside ──
+    {
+      "id": "bridge.plain",
+      "act": "Bridge",
+      "when": ["#after-chatter"],
+      "variants": ["Anyway.", "Enough of that.", "Now.", "Focus."]
+    },
+    {
+      "id": "bridge.interrupted",
+      "act": "Bridge",
+      "when": ["#interrupted"],
+      "variants": ["I'll finish that story another time.", "Where was I? Never mind."]
+    },
+
+    // ── Closing ──
+    {
+      "id": "end.granted.full",
+      "act": "SessionEnd",
+      "when": ["#granted", "#ending:full"],
+      "variants": [
+        "Good [name]. That's all for tonight.",
+        "There. Remember who gave you that.",
+        "Look at the mess you made for me. Session over.",
+        "Enjoy it while it lasts. I'll want more next time."
+      ]
+    },
+    {
+      "id": "end.granted.full.warm",
+      "act": "SessionEnd",
+      "when": ["#granted", "#ending:full", "harsh<=4"],
+      "variants": ["You did so well for me. Rest now.", "That was beautiful. Good [name]."]
+    },
+    {
+      "id": "end.granted.ruined",
+      "act": "SessionEnd",
+      "when": ["#granted", "#ending:ruined"],
+      "variants": [
+        "Ruined. Doesn't feel like much of a reward, does it?",
+        "All that work for that. Session over.",
+        "That's what a ruined one feels like. Remember it."
+      ]
+    },
+    {
+      "id": "end.granted.punishment",
+      "act": "SessionEnd",
+      "when": ["#granted", "#ending:punishment-ending"],
+      "variants": ["Debt paid. I hope it was worth it.", "That's what you owed me. We're even, for now."]
+    },
+    {
+      "id": "end.denied",
+      "act": "SessionEnd",
+      "when": ["#denied"],
+      "variants": [
+        "Go to bed aching.",
+        "Keep your hands off until I say otherwise.",
+        "Walk away frustrated. That's exactly how I want you.",
+        "Think about me when it throbs."
+      ]
+    },
+    {
+      "id": "end.denied.cruel",
+      "act": "SessionEnd",
+      "when": ["#denied", "mood=Cruel|Relentless", "harsh>=5"],
+      "variants": ["Get out. And don't touch yourself.", "You're dismissed. Stay frustrated."]
+    },
+    {
+      "id": "end.denied.playful",
+      "act": "SessionEnd",
+      "when": ["#denied", "mood=Playful|Teasing"],
+      "variants": ["Aww. Better luck next time.", "Poor thing. Sweet dreams."]
+    },
+    {
+      "id": "end.denied.punishment-ending",
+      "act": "SessionEnd",
+      "when": ["#denied", "#ending:punishment-ending"],
+      "weight": 2,
+      "variants": ["That's your punishment served. Now go.", "Paid in full. You can thank me by staying frustrated."]
+    }
+  ]
+}

@@ -1,3 +1,5 @@
+using AIDome.Speech;
+
 namespace AIDome.Sessions;
 
 /// <summary>What an owed ledger entry asks of the user.</summary>
@@ -138,8 +140,8 @@ public sealed record CommitmentTerms
     }
 }
 
-/// <summary>Her answer to a proposed commitment: the terms she holds the user to and what breaking them costs.</summary>
-public sealed record CommitmentResponse(CommitmentTerms Terms, IReadOnlyList<Stake> Stakes, bool Countered, string Words);
+/// <summary>Her answer to a proposed commitment: the terms she holds the user to, what breaking them costs, and what she says.</summary>
+public sealed record CommitmentResponse(CommitmentTerms Terms, IReadOnlyList<Stake> Stakes, bool Countered, Utterance Say);
 
 /// <summary>
 /// How she responds to a promise: she accepts or asks for more, and always names the price of
@@ -171,13 +173,12 @@ public static class CommitmentRules
         if (mean >= 7 || distrust) stakes.Add(new(LedgerKind.Ruin, 1, severity));
         stakes = Stake.Merge(stakes);
 
-        string opener = distrust
-            ? r.Pick(["After last time? Your word isn't worth much.", "You broke your last promise. So this one costs more."])
-            : counter
-                ? r.Pick(["That's not much of a promise.", "Cute. Not enough.", "I'll take it, with a change."])
-                : r.Pick(["Good. I'll hold you to that.", "Agreed.", "Mmm. I like that."]);
-        string what = counter ? $"Make it {terms.Describe()}." : $"{Capitalize(terms.Describe())}.";
-        return new(terms, stakes, counter, $"{opener} {what} Break it and you owe me {Stake.Describe(stakes)}.");
+        var say = Utterance.Of(SpeechAct.PromiseAnswer, counter ? "countered" : "accepted")
+            .With("promise", terms.Describe()).With("stakes", Stake.Describe(stakes));
+        if (distrust) say = say.Tagged("distrust");
+        if (terms.NoOrgasm) say = say.Tagged("no-orgasm");
+        if (terms.HasCharacter) say = say.Tagged("character");
+        return new(terms, stakes, counter, say);
     }
 
     private static CommitmentTerms AddCharacter(CommitmentTerms t, int mean, IRandom r)
@@ -202,5 +203,4 @@ public static class CommitmentRules
     }
 
     private static int Count(CommitmentTerms t) => (t.Long ? 1 : 0) + (t.Intense ? 1 : 0) + (t.Torturous ? 1 : 0) + (t.Mean ? 1 : 0) + (t.Teasing ? 1 : 0);
-    private static string Capitalize(string s) => s.Length == 0 ? s : char.ToUpperInvariant(s[0]) + s[1..];
 }

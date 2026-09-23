@@ -1,5 +1,6 @@
 using AIDome.Data;
-using AIDome.Services;
+using AIDome.Sessions.Plan;
+using AIDome.Speech;
 
 namespace AIDome.Sessions;
 
@@ -15,10 +16,14 @@ public sealed record OfferDecided(PendingOffer Offer, OfferStatus Status) : Sess
 /// <summary>A new ledger entry: a price accepted during the session.</summary>
 public sealed record LedgerOwed(Stake Stake, LedgerOrigin Origin, string Reason, Guid? OfferId = null) : SessionEffect;
 
-/// <summary>What a transition produced: the domme's lines, system notices and effects.</summary>
+/// <summary>Why an orgasm is off the table.</summary>
+public enum Block { Promise, Denial, Sold, OwedEdges }
+
+/// <summary>What a transition produced: what she should say, system notices and effects.</summary>
 public sealed class Transition
 {
-    public List<string> Domme { get; } = [];
+    /// <summary>What she says, as utterances; the narrator gives them words.</summary>
+    public List<Utterance> Say { get; } = [];
     public List<string> Notices { get; } = [];
     public List<SessionEffect> Effects { get; } = [];
     /// <summary>The event did not apply (for example an answer with no game running).</summary>
@@ -27,13 +32,14 @@ public sealed class Transition
 
 /// <summary>
 /// The session engine. Each event mutates <see cref="SessionState"/> and returns a
-/// <see cref="Transition"/>; it never touches the database, timers or the network, and all chance
-/// comes from the injected <see cref="IRandom"/> and <see cref="IClock"/>. Every decision consults the
-/// contract's authorities, never the mode name.
+/// <see cref="Transition"/>; it never touches the database, timers, the network or words, and all
+/// chance comes from the injected <see cref="IRandom"/> and <see cref="IClock"/>. Guided sessions run
+/// her plan (<see cref="PlanEngine"/>) and events revise it; every decision consults the contract's
+/// authorities, never the mode name.
 /// </summary>
 public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Authorities, IPlanner>? planners = null)
 {
-    private readonly Func<IRandom, Authorities, IPlanner> planners = planners ?? ((r, a) => new RulePlanner(r, a));
+    private readonly Func<IRandom, Authorities, IPlanner> planners = planners ?? ((r, a) => new SegmentPlanner(r, a));
     private IPlanner Planner(Authorities a) => planners(random, a);
 
     /// <summary>How often the domme checks in during free play (no countdown is shown).</summary>
@@ -45,7 +51,11 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
 
     public static Authorities AuthoritiesFor(SessionState s, IRandom random) => Authorities.For(s.Contract, random);
 
-    /// <summary>Starts a prepared state (id, accepted contract, methods, history) and gives the first instruction.</summary>
+    /// <summary>
+    /// Starts a prepared state (id, accepted contract, methods, recall, preferences in an empty plan)
+    /// and gives the first instruction. Guided sessions get their plan here; every session gets the
+    /// ending she leans toward.
+    /// </summary>
     public Transition Begin(SessionState s)
     {
         var t = new Transition();
@@ -58,8 +68,15 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
         s.OwedRuins = owed.OwedRuins;
         s.OwedEndings = owed.PunishmentEnding ? 1 : 0;
         Mood.Start(s, random);
-        if (s.Contract.Punishment) t.Domme.Add(DommeText.Pick(DommeText.PunishmentSessionIntro));
-        if (ObligationLine(s) is { } line) t.Domme.Add(line);
+        var a = AuthoritiesFor(s, random);
+        var planner = Planner(a);
+        s.Plan = a.PlansSteps ? planner.Plans.Make(s, a, s.Plan?.Preferences ?? new Dictionary<string, SegmentPreference>()) : null;
+        s.Ending = EndingAuthority.Lean(s, random);
+
+        var start = Utterance.Of(SpeechAct.SessionStart, $"mode:{s.Contract.Mode}", $"mood:{s.Mood.Mood}", $"cause:{s.Mood.Cause}");
+        if (s.Contract.Punishment) start = start.Tagged(s.Contract.Obligations.PunishmentSession ? "owed-punishment" : "punishment");
+        t.Say.Add(start);
+        if (ObligationLine(s) is { } obligations) t.Say.Add(obligations);
         Advance(s, t, completed: false);
         return t;
     }
@@ -91,28 +108,49 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
             price.EdgesLeft--;
             if (price.EdgesLeft > 0)
             {
-                if (s.Current?.Kind != InstructionKind.EdgeCount) t.Domme.Add(price.EdgesLeft == 1 ? "One more." : $"{price.EdgesLeft} more.");
+                if (s.Current?.Kind != InstructionKind.EdgeCount) t.Say.Add(Utterance.Of(SpeechAct.PriceProgress).With("left", price.EdgesLeft));
                 return t;
             }
             if (price.Hold > 0)
             {
                 s.Holding = true;
-                Present(s, t, planner.EdgeHold(s, price.Hold), price.Hold, newStep: false);
+                Present(s, t, planner.EdgeHold(s, price.Hold), price.Hold, newStep: false, act: SpeechAct.Hold);
             }
             else PayPrice(s, t, planner);
             return t;
         }
         if (s.FinishDecided || s.Current is null) return t;
 
+        var current = s.Current;
+        // Challenges: an edge fails "don't you dare", and counts toward "as many as you can".
+        if (current.ForbidEdge)
+        {
+            s.ChallengesFailed++;
+            Mood.Retaliate(s, random, RetaliationReason.FailedChallenge, 2, 4, 0.5);
+            t.Say.Add(Utterance.Of(SpeechAct.ChallengeFailed, $"segment:{current.Segment}").With("seconds", (int)(Now - s.StepStartedAtUtc).TotalSeconds));
+            if (s.Plan is not null) planner.Plans.OnChallengeFailed(s, a, Now);
+            if (a.Edges.DommeSets)
+            {
+                int cooldown = random.Next(5, 10);
+                Present(s, t, planner.Cooldown(s, cooldown), cooldown, newStep: true, act: SpeechAct.Cooldown, tags: "failed");
+            }
+            else Advance(s, t, completed: true);
+            return t;
+        }
+        if (current.CountEdges)
+        {
+            t.Say.Add(Utterance.Of(SpeechAct.EdgeCounted).With("made", s.EdgesThisStep));
+            return t;
+        }
+
         if (!a.Edges.DommeSets)
         {
             // She is only watching the count; an occasional word keeps her present.
-            if (random.Chance(35)) t.Domme.Add(EdgeRemark(s));
+            t.Say.Add(Utterance.Of(SpeechAct.EdgeRemark, $"mood:{s.Mood.Mood}").With("edges", s.EdgesThisSession));
             if (!a.PlansSteps) CheckEnding(s, t, planner);
             return t;
         }
 
-        var current = s.Current;
         if (current.Kind == InstructionKind.TimedMethod && current.Category != StepCategory.Finish)
         {
             int remaining = TimerRemaining(s);
@@ -121,12 +159,12 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
             {
                 int hold = s.Contract.Punishment ? random.Next(5, 15) : random.Next(3, 10);
                 s.Holding = true;
-                Present(s, t, planner.EdgeHold(s, hold), hold, newStep: false);
+                Present(s, t, planner.EdgeHold(s, hold), hold, newStep: false, act: SpeechAct.Hold);
             }
             else
             {
                 int cooldown = random.Next(3, 8);
-                Present(s, t, planner.Cooldown(s, cooldown), cooldown, newStep: false);
+                Present(s, t, planner.Cooldown(s, cooldown), cooldown, newStep: false, act: SpeechAct.Cooldown);
             }
             return t;
         }
@@ -135,10 +173,12 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
             if (current.HoldSeconds > 0)
             {
                 s.Holding = true;
-                Present(s, t, planner.EdgeHold(s, current.HoldSeconds), current.HoldSeconds, newStep: false);
+                Present(s, t, planner.EdgeHold(s, current.HoldSeconds), current.HoldSeconds, newStep: false, act: SpeechAct.Hold);
             }
             else Advance(s, t, completed: true);
         }
+        else if (current.Kind == InstructionKind.EdgeCount && !s.Holding)
+            t.Say.Add(Utterance.Of(SpeechAct.EdgeRemark, "target").With("left", current.DurationOrCount - s.EdgesThisStep).With("edges", s.EdgesThisSession));
         return t;
     }
 
@@ -159,21 +199,23 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
     {
         var t = new Transition();
         if (!s.Active) return t;
-        var planner = Planner(AuthoritiesFor(s, random));
+        var a = AuthoritiesFor(s, random);
         s.LastActivityUtc = Now;
         if (allowed)
         {
+            string how = s.FinishEnderId is not null ? "punishment-ending" : s.FinishRuined ? "ruined" : "full";
             ServeFinish(s);
-            t.Domme.Add(planner.EndLine(s, orgasmGranted: true));
+            t.Say.Add(Utterance.Of(SpeechAct.SessionEnd, "granted", $"ending:{how}", $"mood:{s.Mood.Mood}"));
             End(s, t, SessionOutcome.AllowedOrgasm);
             return t;
         }
         s.UnauthorizedOrgasms++;
         Mood.Retaliate(s, random, RetaliationReason.UnauthorizedOrgasm, 4, 8, 1.0);
-        t.Domme.Add(DommeText.PickRetaliation(RetaliationReason.UnauthorizedOrgasm));
+        t.Say.Add(Utterance.Of(SpeechAct.Retaliation, $"reason:{RetaliationReason.UnauthorizedOrgasm}"));
         if (s.Game is not null) AbandonGame(s, t);
         if (s.Offer is not null) Decide(s, t, OfferStatus.Expired);
         s.Price = null;
+        if (s.Plan is not null && !s.FinishDecided) Planner(a).Plans.OnUnauthorizedOrgasm(s, a, Now);
         if (!s.FinishDecided) Advance(s, t, completed: false);
         return t;
     }
@@ -193,7 +235,8 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
             // The window closed without an orgasm.
             Accrue(s);
             s.PermissionGranted = false;
-            Present(s, t, planner.Denied(s, "Time's up. You didn't cum in time. Denied."), 0, newStep: false);
+            t.Say.Add(Utterance.Of(SpeechAct.TimeUp));
+            Present(s, t, planner.Denied(s), 0, newStep: false, act: SpeechAct.Denied, tags: "too-slow");
             return t;
         }
         if (current.Category == StepCategory.Offer)
@@ -201,7 +244,7 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
             // She waited long enough: the punishment stands.
             if (s.Offer is { } offer)
             {
-                t.Domme.Add("Too slow. Take your punishment.");
+                t.Say.Add(Utterance.Of(SpeechAct.OfferExpired, "mercy"));
                 QueueStakes(s, offer.Replaces);
                 Decide(s, t, OfferStatus.Expired);
             }
@@ -238,8 +281,23 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
         {
             int remaining = s.SuspendedRemainingSeconds;
             s.Suspended = null;
-            Present(s, t, planner.Resume(s, suspended, remaining), remaining, newStep: false);
+            Present(s, t, planner.Resume(s, suspended, remaining), remaining, newStep: false, act: SpeechAct.Resume);
             return t;
+        }
+        if (current.ForbidEdge)
+        {
+            s.ChallengesPassed++;
+            Mood.Nudge(s, random, -0.3, MoodCause.Obedience);
+            t.Say.Add(Utterance.Of(SpeechAct.ChallengeResult, "passed", $"segment:{current.Segment}"));
+        }
+        else if (current.CountEdges)
+        {
+            // What she expected: roughly one edge every half minute at her tempo.
+            int expected = Math.Max(1, current.DurationOrCount / 30);
+            string how = s.EdgesThisStep >= expected + 1 ? "impressed" : s.EdgesThisStep >= expected ? "passed" : "poor";
+            if (how == "poor") Mood.Nudge(s, random, 0.2, MoodCause.FailedChallenge);
+            else Mood.Nudge(s, random, -0.2, MoodCause.Obedience);
+            t.Say.Add(Utterance.Of(SpeechAct.ChallengeResult, how, $"segment:{current.Segment}").With("made", s.EdgesThisStep).With("target", expected));
         }
         Advance(s, t, completed: true);
         return t;
@@ -253,8 +311,9 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
         if (s.Paused) return Reject(t, "Resume the session first.");
         if (s.Current.Kind == InstructionKind.Finish)
         {
+            bool ender = s.FinishEnderId is not null;
             ServeFinish(s);
-            t.Domme.Add(Planner(AuthoritiesFor(s, random)).EndLine(s, orgasmGranted: false));
+            t.Say.Add(Utterance.Of(SpeechAct.SessionEnd, "denied", ender ? "ending:punishment-ending" : "ending:denied", $"mood:{s.Mood.Mood}"));
             End(s, t, s.UnauthorizedOrgasms > 0 ? SessionOutcome.UnauthorizedOrgasm : SessionOutcome.Denied);
             return t;
         }
@@ -283,12 +342,13 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
         s.LastActivityUtc = Now;
         s.RequestsThisSession++;
         Accrue(s);
-        if (Blocked(s) is { } reason)
+        if (Blocked(s) is { } block)
         {
             // Promises and debts are not up for negotiation.
             t.Effects.Add(new PermissionAnswered(false, 0));
-            t.Domme.Add(reason);
-            Mood.Nudge(s, random, 0.2);
+            t.Say.Add(BlockedLine(s, block));
+            s.RequestsDenied++;
+            Mood.Nudge(s, random, 0.2, MoodCause.Begging);
             return t;
         }
         double chance = a.Permission.Chance(s, requested: true);
@@ -299,14 +359,16 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
             Grant(s, t, planner, requested: true);
             return t;
         }
+        s.RequestsDenied++;
         if (MayOffer(s, OfferBuys.Orgasm) && Offers.Make(s, OfferBuys.Orgasm, random, Now) is { } offer)
         {
-            t.Domme.Add($"{random.Pick(["No. Not for free.", "Not yet... unless you pay for it.", "You want it that badly? Then pay."])} {offer.Text}");
+            t.Say.Add(Utterance.Of(SpeechAct.OfferMade, "buys:orgasm", $"flavor:{offer.Flavor}").With("offer", offer.Text));
             Put(s, t, offer);
             return t;
         }
-        t.Domme.Add(DommeText.Pick(DommeText.BegCumDenied));
+        t.Say.Add(Utterance.Of(SpeechAct.BegCumDenied, $"mood:{s.Mood.Mood}").With("begs", s.RequestsThisSession));
         Mood.Retaliate(s, random, RetaliationReason.BegCumDenied, 2, 5, 0.5);
+        if (s.Plan is not null) planner.Plans.OnPestering(s, a, Now);
         if (!a.PlansSteps) CheckEnding(s, t, planner);
         return t;
     }
@@ -321,22 +383,27 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
         ExpireOffer(s, t);
         if (s.Offer is not null) return Reject(t, "Answer her offer first.");
         if (s.FinishDecided || s.Game is not null || s.Price is not null) return Reject(t, "Not now.");
-        if (s.Current?.Kind == InstructionKind.Rest || s.Holding) { t.Domme.Add("You're already resting. Don't push it."); return t; }
+        if (s.Current?.Kind == InstructionKind.Rest || s.Holding) { t.Say.Add(Utterance.Of(SpeechAct.AlreadyResting)); return t; }
         s.LastActivityUtc = Now;
-        if (random.Next(0, 10) < (s.Arousal > 70 ? 1 : 3))
+        s.RestRequests++;
+        var planner = Planner(a);
+        // The segment she is running may say what she does with a rest beg; otherwise the usual odds.
+        var outcome = s.Plan is not null ? planner.Plans.OnRestBeg(s, a, Now) : RestBegOutcome.NoRule;
+        bool granted = outcome == RestBegOutcome.Granted || outcome == RestBegOutcome.NoRule && random.Next(0, 10) < (s.Arousal > 70 ? 1 : 3);
+        if (granted)
         {
             Mood.Nudge(s, random, -0.2);
-            t.Domme.Add(DommeText.Pick(DommeText.BegStopGranted));
+            t.Say.Add(Utterance.Of(SpeechAct.BegRestGranted, outcome == RestBegOutcome.Granted ? "twist" : "plain"));
             Rest(s, t);
             return t;
         }
         if (MayOffer(s, OfferBuys.Rest) && Offers.Make(s, OfferBuys.Rest, random, Now) is { } offer)
         {
-            t.Domme.Add($"{random.Pick(["A break costs something.", "Tired already? Fine, but it isn't free.", "You can have one. For a price."])} {offer.Text}");
+            t.Say.Add(Utterance.Of(SpeechAct.OfferMade, "buys:rest", $"flavor:{offer.Flavor}").With("offer", offer.Text));
             Put(s, t, offer);
             return t;
         }
-        t.Domme.Add(DommeText.Pick(DommeText.BegStopDenied));
+        t.Say.Add(Utterance.Of(SpeechAct.BegRestDenied, $"mood:{s.Mood.Mood}").With("begs", s.RestRequests));
         Mood.Retaliate(s, random, RetaliationReason.BegStopDenied, 2, 5, 0.7);
         return t;
     }
@@ -366,14 +433,17 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
         var a = AuthoritiesFor(s, random);
         var planner = Planner(a);
         s.LastActivityUtc = Now;
+        s.OffersAccepted++;
         Decide(s, t, OfferStatus.Accepted);
-        Mood.Nudge(s, random, -0.2);
+        Mood.Nudge(s, random, -0.2, MoodCause.Deal);
         if (offer.Kind == OfferKind.EdgesNow)
         {
             s.Price = new() { OfferId = offer.Id, EdgesLeft = Math.Max(1, offer.Amount), Hold = offer.Hold, Reward = offer.Buys };
-            t.Domme.Add(random.Pick(["Good. Get to work.", "Deal. Now earn it.", "That's what I like to hear."]));
+            // A deal struck mid-hold ends the hold: paying starts from here.
+            s.Holding = false;
+            t.Say.Add(Utterance.Of(SpeechAct.OfferAccepted, "pay-now", $"buys:{offer.Buys}"));
             var step = planner.PriceStep(s, s.Price);
-            Present(s, t, step, step.HiddenTimer ? FreePlayCheckSeconds : 0, newStep: true);
+            Present(s, t, step, step.HiddenTimer ? FreePlayCheckSeconds : 0, newStep: true, act: SpeechAct.Price);
             return t;
         }
         if (offer.Stake is { } stake)
@@ -391,13 +461,13 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
                         if (s.DenialUntilUtc is not DateTime current || current < until)
                         {
                             s.DenialUntilUtc = until;
-                            s.DenialReason = $"No. You sold me {Stake.Plural(stake.Amount, "day")} of denial. You're not cumming.";
+                            s.DenialReason = nameof(Block.Sold);
                         }
                         break;
                 }
             }
         }
-        t.Domme.Add(random.Pick(["Deal.", "Good. I'll remember that.", "Mmm. Done."]));
+        t.Say.Add(Utterance.Of(SpeechAct.OfferAccepted, "pay-later", $"buys:{offer.Buys}"));
         GrantReward(s, t, planner, offer.Buys, ruinNow: offer.Kind == OfferKind.RuinNow);
         return t;
     }
@@ -410,14 +480,10 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
         ExpireOffer(s, t);
         if (s.Offer is not { } offer) return Reject(t, t.Effects.Count > 0 ? "Too late. That offer's gone." : "There's no offer on the table.");
         s.LastActivityUtc = Now;
+        s.OffersDeclined++;
         Decide(s, t, OfferStatus.Declined);
         Mood.Nudge(s, random, 0.3);
-        t.Domme.Add(offer.Buys switch
-        {
-            OfferBuys.Mercy => "Your choice. Take your punishment, then.",
-            OfferBuys.Rest => "Then keep going.",
-            _ => random.Pick(["Your loss.", "Then you don't cum. Simple.", "Suit yourself."]),
-        });
+        t.Say.Add(Utterance.Of(SpeechAct.OfferDeclined, $"buys:{offer.Buys}"));
         if (offer.Buys == OfferBuys.Mercy)
         {
             QueueStakes(s, offer.Replaces);
@@ -438,7 +504,7 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
             _ => (RetaliationReason.Disobedience, 3, 7, 0.8),
         };
         Mood.Retaliate(s, random, reason, min, max, delta);
-        t.Domme.Add(DommeText.PickRetaliation(reason));
+        t.Say.Add(Utterance.Of(SpeechAct.Retaliation, $"reason:{reason}", "confessed"));
         if (s.Game is null && s.Price is null && s.Offer is null && !s.FinishDecided && !s.Paused && AuthoritiesFor(s, random).PlansSteps)
             Advance(s, t, completed: true);
         return t;
@@ -484,13 +550,17 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
         if (s.Offer is not null) s.Offer.ExpiresAtUtc = Now.AddSeconds(Offers.ExpirySeconds);
         if (s.PausedTimerSeconds > 0) SetTimer(s, Math.Max(1, s.PausedTimerSeconds));
         s.PausedTimerSeconds = 0;
+        // Her chatter clock restarts with the session.
+        s.Speech.ChatterDueUtc = null;
+        s.Speech.LastCommandUtc = Now;
         t.Notices.Add("Session resumed.");
         return t;
     }
 
     /// <summary>
     /// Replaces the contract mid-session (only when it allows changes). The running step or game is
-    /// dropped without counting as a failure; recorded activity and points are kept.
+    /// dropped without counting as a failure; recorded activity and points are kept, and the rest of
+    /// the plan is made again.
     /// </summary>
     public Transition ChangeContract(SessionState s, SessionContract contract, List<MethodInfo> methods)
     {
@@ -506,6 +576,7 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
         s.Contract = contract with
         {
             Preferences = s.Contract.Preferences, Punishment = s.Contract.Punishment, Debug = s.Contract.Debug, Obligations = s.Contract.Obligations,
+            Persona = s.Contract.Persona,
         };
         s.Methods = methods.Where(contract.Allows).ToList();
         s.ContractRevision++;
@@ -514,6 +585,11 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
         s.Suspended = null;
         s.Holding = false;
         s.ChainStepsRemaining = 0;
+        var a = AuthoritiesFor(s, random);
+        var planner = Planner(a);
+        if (!a.PlansSteps) s.Plan = null;
+        else if (s.Plan is null) s.Plan = planner.Plans.Make(s, a, new Dictionary<string, SegmentPreference>());
+        else planner.Plans.OnContractChanged(s, a, Now);
         bool paused = s.Paused;
         s.Paused = false;
         Advance(s, t, completed: false);
@@ -537,15 +613,26 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
         return t;
     }
 
-    /// <summary>Whether an orgasm is off the table right now, in her words.</summary>
-    public string? Blocked(SessionState s)
+    /// <summary>Whether an orgasm is off the table right now, and why.</summary>
+    public Block? Blocked(SessionState s)
     {
         if (s.DenialUntilUtc is DateTime until && Now < until)
-            return s.DenialReason ?? "No. You're in denial, and you know it.";
-        if (s.OwedEdges > 0)
-            return $"Not until you've paid what you owe. {Stake.Plural(s.OwedEdges, "edge")} first.";
+            return Enum.TryParse<Block>(s.DenialReason, true, out var why) ? why : Block.Denial;
+        if (s.OwedEdges > 0) return Block.OwedEdges;
         return null;
     }
+
+    private Utterance BlockedLine(SessionState s, Block block)
+    {
+        var u = Utterance.Of(SpeechAct.Blocked, $"why:{block}", $"mood:{s.Mood.Mood}").With("begs", s.RequestsThisSession);
+        if (block == Block.OwedEdges) return u.With("owed", Stake.Plural(s.OwedEdges, "edge"));
+        if (s.DenialUntilUtc is DateTime until)
+            u = until == DateTime.MaxValue ? u.Tagged("this-session") : u.With("left", Left(until - Now));
+        return u;
+    }
+
+    private static string Left(TimeSpan left)
+        => left.TotalHours < 24 ? Stake.Plural(Math.Max(1, (int)Math.Ceiling(left.TotalHours)), "more hour") : Stake.Plural((int)Math.Ceiling(left.TotalDays), "more day");
 
     // ── Internals ──
 
@@ -576,7 +663,7 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
         s.TimerGeneration++;
     }
 
-    /// <summary>Completes the current step (if any) and presents the next one, or her ending decision.</summary>
+    /// <summary>Completes the current step (if any) and presents the next one from the plan, or her ending.</summary>
     private void Advance(SessionState s, Transition t, bool completed)
     {
         var a = AuthoritiesFor(s, random);
@@ -591,12 +678,33 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
         if (!a.PlansSteps)
         {
             if (!CheckEnding(s, t, planner))
-                Present(s, t, planner.FreePlay(s, FreePlayCheckSeconds), FreePlayCheckSeconds, newStep: true);
+                Present(s, t, planner.FreePlay(s, FreePlayCheckSeconds), FreePlayCheckSeconds, newStep: true, act: SpeechAct.FreePlay,
+                    tags: s.Retaliation.Active ? [$"reason:{s.Retaliation.Reason}"] : []);
             return;
         }
-        if (s.PendingConsequences.Count == 0 && s.PendingLube is null && CheckEnding(s, t, planner)) return;
 
-        var next = planner.Next(s);
+        var next = planner.Next(s, Now);
+        t.Say.AddRange(next.Say);
+        if (next.Ending)
+        {
+            if (CheckEnding(s, t, planner, due: true)) return;
+            // Not yet: debts to collect first, or she is still punishing him. The plan runs a little longer.
+            if (s.PendingConsequences.Count == 0) planner.Plans.Extend(s, a, Now, 0.06, "the ending waits");
+            next = planner.Next(s, Now);
+            t.Say.AddRange(next.Say);
+            if (next.Ending)
+            {
+                // Nothing left to add: she ends it now; if even that must wait, a short rest.
+                s.Retaliation.Active = false;
+                if (!CheckEnding(s, t, planner, due: true)) Present(s, t, planner.Rest(s, 15), 15, newStep: true);
+                return;
+            }
+        }
+        PresentPlanned(s, t, planner, next);
+    }
+
+    private void PresentPlanned(SessionState s, Transition t, IPlanner planner, PlannedStep next)
+    {
         if (next.Game is GameType type)
         {
             var stroke = planner.Stroke(s);
@@ -606,16 +714,22 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
             s.RecentGames.Add(type);
             if (s.RecentGames.Count > 5) s.RecentGames.RemoveAt(0);
             t.Effects.Add(new GameStarted(game));
-            Present(s, t, first.Next!, first.TimerSeconds ?? 0, newStep: true);
+            Present(s, t, first.Next! with { Segment = s.Plan?.Current?.Type }, first.TimerSeconds ?? 0, newStep: true, say: first.Say?.Tagged("start"));
             return;
         }
-        Present(s, t, next.Directive!, next.TimerSeconds, newStep: true);
+        var d = next.Directive!;
+        var act = next.Tags.Contains("lube") ? SpeechAct.Lube : SpeechAct.Instruct;
+        Present(s, t, d, next.TimerSeconds, newStep: true, act: act, tags: next.Tags);
     }
 
-    /// <summary>When the points reach the budget she decides the ending herself, in every mode.</summary>
-    private bool CheckEnding(SessionState s, Transition t, IPlanner planner)
+    /// <summary>
+    /// She decides the ending: when the plan reaches it in a guided session, or when the points
+    /// reach the budget in free play. The same rules and the same chance draw decide it in every mode.
+    /// </summary>
+    private bool CheckEnding(SessionState s, Transition t, IPlanner planner, bool due = false)
     {
-        if (s.FinishDecided || s.Contract.GamesOnly || s.Game is not null || s.Retaliation.Active || s.Points < s.Budget
+        bool reached = s.Plan is null ? s.Points >= s.Budget : due;
+        if (s.FinishDecided || s.Contract.GamesOnly || s.Game is not null || s.Retaliation.Active || !reached
             || s.Offer is not null || s.Price is not null) return false;
         var a = AuthoritiesFor(s, random);
         if (s.OwedEdges > 0)
@@ -625,22 +739,25 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
             {
                 if (!s.PendingConsequences.Any(x => x.Kind == ConsequenceKind.ExtraEdges))
                 {
-                    t.Domme.Add($"Before I decide anything: you owe me {Stake.Plural(s.OwedEdges, "edge")}. Pay up.");
+                    t.Say.Add(Utterance.Of(SpeechAct.Obligations, "collect-edges").With("owed", Stake.Plural(s.OwedEdges, "edge")));
                     s.PendingConsequences.Insert(0, new(ConsequenceKind.ExtraEdges, s.OwedEdges));
                 }
             }
             else if (!s.OwedEdgesAnnounced)
             {
                 s.OwedEdgesAnnounced = true;
-                t.Domme.Add($"Before I decide anything: you owe me {Stake.Plural(s.OwedEdges, "edge")}. Record them.");
+                t.Say.Add(Utterance.Of(SpeechAct.Obligations, "collect-edges", "record").With("owed", Stake.Plural(s.OwedEdges, "edge")));
             }
             return false;
         }
-        if (s.DenialUntilUtc is DateTime until && Now < until)
+        EndingAuthority.Refresh(s, s.Ending, projected: false);
+        var lean = s.Ending;
+        string told = $"told:{lean.Presentation}";
+        if (Blocked(s) is { } block)
         {
             s.FinishDecided = true;
             if (s.OwedEndings > 0 && PickEnder(s, orgasm: false) is { } denier) PresentEnder(s, t, planner, denier);
-            else Present(s, t, planner.Denied(s, $"That's enough for tonight. {s.DenialReason ?? "You're in denial."}"), 0, newStep: true);
+            else Present(s, t, planner.Denied(s), 0, newStep: true, act: SpeechAct.Denied, tags: [$"why:{block}", told]);
             return true;
         }
         if (s.OwedEndings > 0 && PickEnder(s, orgasm: true) is { } ender)
@@ -649,12 +766,12 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
             PresentEnder(s, t, planner, ender);
             return true;
         }
-        double chance = a.Permission.Chance(s, requested: false);
-        if (random.Chance(chance)) Grant(s, t, planner, requested: false);
+        // An owed ruin ruins it anyway (and is served by it); her own choice to ruin applies otherwise.
+        if (lean.Kind is EndingKind.Full or EndingKind.Ruined) Grant(s, t, planner, requested: false, ruinNow: lean.Kind == EndingKind.Ruined && s.OwedRuins == 0);
         else
         {
             s.FinishDecided = true;
-            Present(s, t, planner.Denied(s), 0, newStep: true);
+            Present(s, t, planner.Denied(s), 0, newStep: true, act: SpeechAct.Denied, tags: [told, $"cause:{s.Mood.Cause}"]);
         }
         return true;
     }
@@ -671,8 +788,10 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
         s.PermissionGranted = true;
         s.FinishRuinOwed = !ruinNow && s.OwedRuins > 0;
         s.FinishRuined = ruinNow || s.FinishRuinOwed;
-        var finishing = planner.Finishing(s, requested, s.FinishRuined);
-        Present(s, t, finishing, finishing.DurationOrCount, newStep: true);
+        var finishing = planner.Finishing(s, s.FinishRuined);
+        var tags = new List<string> { requested ? "requested" : "her-decision", $"told:{s.Ending.Presentation}" };
+        if (s.FinishRuined) tags.Add("ruined");
+        Present(s, t, finishing, finishing.DurationOrCount, newStep: true, act: SpeechAct.Finish, tags: [.. tags]);
     }
 
     private void GrantReward(SessionState s, Transition t, IPlanner planner, OfferBuys reward, bool ruinNow = false)
@@ -686,7 +805,7 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
                 Rest(s, t);
                 break;
             default:
-                t.Domme.Add("You're off the hook. This time.");
+                t.Say.Add(Utterance.Of(SpeechAct.MercyGranted));
                 Advance(s, t, completed: false);
                 break;
         }
@@ -696,7 +815,7 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
     {
         var price = s.Price!;
         s.Price = null;
-        t.Domme.Add(random.Pick(["Paid in full.", "Good. That's what it cost.", "There. You earned it."]));
+        t.Say.Add(Utterance.Of(SpeechAct.PricePaid, $"buys:{price.Reward}"));
         GrantReward(s, t, planner, price.Reward);
     }
 
@@ -705,14 +824,10 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
         Accrue(s);
         s.Suspended = null;
         s.Holding = false;
-        var rest = new Directive
-        {
-            Kind = InstructionKind.Rest, Category = StepCategory.Rest, DurationOrCount = 15 + random.Next(0, 16), Phase = SessionPhase.Resting,
-            Text = "Hands off. Catch your breath.",
-        };
+        var rest = Planner(AuthoritiesFor(s, random)).Rest(s, 15 + random.Next(0, 16));
         s.PreviousCategory = StepCategory.Rest;
         s.StepsSinceRest = 0;
-        Present(s, t, rest, rest.DurationOrCount, newStep: true);
+        Present(s, t, rest, rest.DurationOrCount, newStep: true, tags: "granted");
     }
 
     private void PresentEnder(SessionState s, Transition t, IPlanner planner, EnderInfo ender)
@@ -720,7 +835,9 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
         s.FinishEnderId = ender.Id;
         s.PermissionGranted = ender.EndsInOrgasm;
         var d = planner.PunishmentEnding(s, ender);
-        Present(s, t, d, d.Kind == InstructionKind.Finish ? 0 : d.DurationOrCount, newStep: true);
+        var say = Utterance.Instruct(d, SpeechAct.PunishmentEnding, ender.EndsInOrgasm ? "orgasm" : "denied")
+            .With("ender", $"{ender.Announcement} {ender.Instruction}".Trim());
+        Present(s, t, d, d.Kind == InstructionKind.Finish ? 0 : d.DurationOrCount, newStep: true, say: say);
     }
 
     private EnderInfo? PickEnder(SessionState s, bool orgasm)
@@ -750,7 +867,7 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
         if (s.OwedEdges <= 0) return;
         s.OwedEdges--;
         s.EdgesPaid++;
-        if (s.OwedEdges == 0) t.Domme.Add("That's your debt paid.");
+        if (s.OwedEdges == 0) t.Say.Add(Utterance.Of(SpeechAct.DebtPaid));
     }
 
     private bool MayOffer(SessionState s, OfferBuys buys)
@@ -800,15 +917,23 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
         }
     }
 
-    private string? ObligationLine(SessionState s)
+    /// <summary>What she reminds him of at the start: promises in force and what he owes.</summary>
+    private Utterance? ObligationLine(SessionState s)
     {
-        var parts = new List<string>();
+        var tags = new List<string>();
+        var u = Utterance.Of(SpeechAct.Obligations);
         if (s.DenialUntilUtc is DateTime until && Now < until)
-            parts.Add(until == DateTime.MaxValue ? "You're not cumming tonight. You promised." : "You're still in denial, and I haven't forgotten.");
-        if (s.OwedEdges > 0) parts.Add($"You owe me {Stake.Plural(s.OwedEdges, "edge")} before you cum again.");
-        if (s.OwedEndings > 0) parts.Add("And tonight ends my way.");
-        if (s.OwedRuins > 0) parts.Add(s.OwedRuins == 1 ? "Your next orgasm is ruined." : $"Your next {s.OwedRuins} orgasms are ruined.");
-        return parts.Count == 0 ? null : string.Join(" ", parts);
+        {
+            tags.Add(until == DateTime.MaxValue ? "no-orgasm-tonight" : "in-denial");
+            if (Enum.TryParse<Block>(s.DenialReason, true, out var why)) tags.Add($"why:{why}");
+            if (until != DateTime.MaxValue) u = u.With("left", Left(until - Now));
+        }
+        if (s.OwedEdges > 0) { tags.Add("owed-edges"); u = u.With("owed", Stake.Plural(s.OwedEdges, "edge")); }
+        if (s.OwedEndings > 0) tags.Add("owed-ending");
+        if (s.OwedRuins > 0) { tags.Add("owed-ruins"); u = u.With("count", s.OwedRuins); }
+        var traits = s.Contract.Obligations.Character;
+        if (traits.Long || traits.Intense || traits.Torturous || traits.Mean || traits.Teasing) tags.Add("promised-character");
+        return tags.Count == 0 ? null : u.Tagged([.. tags]);
     }
 
     private void HandleGame(SessionState s, Transition t, IPlanner planner, GameStep step)
@@ -818,11 +943,11 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
             var game = s.Game!;
             s.Game = null;
             t.Effects.Add(new GameFinished(game, result));
-            t.Domme.Add(result.Line);
+            t.Say.Add(result.Say);
             if (!result.Neutral)
             {
-                if (result.Won) Mood.Nudge(s, random, -0.4);
-                else Mood.Retaliate(s, random, RetaliationReason.LostGame, 2, 5, 0.6);
+                if (result.Won) { s.GamesWon++; Mood.Nudge(s, random, -0.4, MoodCause.WonGame); }
+                else { s.GamesLost++; Mood.Retaliate(s, random, RetaliationReason.LostGame, 2, 5, 0.6); }
             }
             // A lost game can be bought off: she names a price instead of the punishment.
             var hurts = result.Consequences.Where(Hurts).ToList();
@@ -831,20 +956,22 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
             {
                 QueueStakes(s, result.Consequences.Where(x => !Hurts(x)));
                 Put(s, t, offer);
-                Present(s, t, planner.OfferDecision(s, offer), Offers.ExpirySeconds, newStep: true);
+                var d = planner.OfferDecision(s, offer);
+                Present(s, t, d, Offers.ExpirySeconds, newStep: true,
+                    say: Utterance.Instruct(d, SpeechAct.OfferDecision, "buys:mercy", $"flavor:{offer.Flavor}").With("offer", offer.Text));
                 return;
             }
             QueueStakes(s, result.Consequences);
             Advance(s, t, completed: true);
             return;
         }
-        var next = step.Next!;
-        if (step.TimerSeconds is int seconds) Present(s, t, next, seconds, newStep: false);
+        var next = step.Next! with { Segment = s.Current?.Segment };
+        if (step.TimerSeconds is int seconds) Present(s, t, next, seconds, newStep: false, say: step.Say);
         else
         {
             // Same timer keeps running; only the instruction changes.
             int remaining = TimerRemaining(s);
-            Present(s, t, next with { DurationOrCount = remaining }, remaining, newStep: false, keepTimer: true);
+            Present(s, t, next with { DurationOrCount = remaining }, remaining, newStep: false, keepTimer: true, say: step.Say);
         }
     }
 
@@ -862,8 +989,12 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
         s.Game = null;
     }
 
-    /// <summary>Makes a directive current: metronome tempo, points bookkeeping, timer, and her words.</summary>
-    private void Present(SessionState s, Transition t, Directive d, int timerSeconds, bool newStep, bool keepTimer = false)
+    /// <summary>
+    /// Makes a directive current: metronome tempo, points bookkeeping, timer, and what she says
+    /// (the instruction line, unless a hidden free-play check-in continues quietly).
+    /// </summary>
+    private void Present(SessionState s, Transition t, Directive d, int timerSeconds, bool newStep, bool keepTimer = false,
+        SpeechAct act = SpeechAct.Instruct, Utterance? say = null, params string[] tags)
     {
         var a = AuthoritiesFor(s, random);
         bool stimulating = Stimulating(d);
@@ -871,6 +1002,7 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
         {
             Tempo = stimulating && d.Category != StepCategory.Hold ? a.Pacing.Tempo(d.Speed) : 0,
             DurationOrCount = d.Kind == InstructionKind.FreeText && d.DurationOrCount == 0 && timerSeconds > 0 ? timerSeconds : d.DurationOrCount,
+            Text = "",
         };
         Accrue(s);
         if (newStep)
@@ -883,8 +1015,16 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
         s.ActiveSinceUtc = stimulating && !s.Paused ? Now : null;
         s.ActiveMethod = stimulating ? d.Method : s.ActiveMethod;
         s.ActiveSpeed = stimulating ? d.Speed : 0;
+        if (stimulating && d.Method is { IsUserChoice: false } m && (s.RecentMethodIds.Count == 0 || s.RecentMethodIds[^1] != m.Id))
+        {
+            s.RecentMethodIds.Add(m.Id);
+            if (s.RecentMethodIds.Count > 10) s.RecentMethodIds.RemoveAt(0);
+        }
         if (!keepTimer) SetTimer(s, timerSeconds);
-        if (!d.HiddenTimer || newStep) t.Domme.Add(d.Text);
+        if (d.HiddenTimer && !newStep) return;
+        var line = (say ?? Utterance.Instruct(d, act)) with { Directive = d, Instruction = true };
+        if (d.Segment is { } segment) line = line.Tagged($"segment:{segment}");
+        t.Say.Add(tags.Length > 0 ? line.Tagged(tags) : line);
     }
 
     private static MethodInfo GameMethod(SessionState s, GameState game) => game.Method ?? MethodInfo.UserChoice(s.Methods);
@@ -932,18 +1072,6 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
 
     private int TimerRemaining(SessionState s)
         => s.TimerDueUtc is DateTime due ? Math.Max(0, (int)Math.Ceiling((due - Now).TotalSeconds)) : 0;
-
-    private string EdgeRemark(SessionState s)
-    {
-        string count = s.EdgesThisSession == 1 ? "That's one." : $"That's {s.EdgesThisSession}.";
-        return s.Mood.Mood switch
-        {
-            DommeMood.Cruel => random.Pick([$"{count} Keep going.", $"{count} Don't you dare go over."]),
-            DommeMood.Teasing => random.Pick([$"Mmm. {count}", $"{count} I love watching you suffer."]),
-            DommeMood.Playful => random.Pick([$"Ooh! {count}", $"Nice one. {count}"]),
-            _ => random.Pick([$"Good. {count}", count]),
-        };
-    }
 
     private static Transition Reject(Transition t, string reason)
     {
