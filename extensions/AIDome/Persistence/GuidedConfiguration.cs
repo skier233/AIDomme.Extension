@@ -60,6 +60,49 @@ public sealed class GuidedConfiguration(GuidedRuntimes runtimes)
         return shared;
     }
 
+    // ── The tuning lab: side-by-side comparisons ──
+
+    public async Task<TuningLabView> LabAsync(string mode, CancellationToken ct)
+    {
+        if (!TuningLab.IsMode(mode)) throw new TrackerValidationException("Mode must be Stim or Ender.");
+        await using var db = runtimes.Current.Factory.Open();
+        return await LabViewAsync(db, mode, ct);
+    }
+
+    /// <summary>Records which of two assignments he would rather be given (the winner is the easier one).</summary>
+    public async Task<TuningLabView> CompareAsync(ComparisonRequest request, CancellationToken ct)
+    {
+        if (request is null || !TuningLab.IsMode(request.Mode)) throw new TrackerValidationException("Mode must be Stim or Ender.");
+        if (request.Strength is < 1 or > 3) throw new TrackerValidationException("Strength runs from 1 to 3.");
+        if (request.WinnerKey == request.LoserKey) throw new TrackerValidationException("Compare two different things.");
+        await using var db = runtimes.Current.Factory.Open();
+        var known = TuningLab.Candidates(request.Mode, await db.MethodsAsync(ct), await db.EndersAsync(ct)).Select(x => x.Key).ToHashSet();
+        if (!known.Contains(request.WinnerKey) || !known.Contains(request.LoserKey)) throw new TrackerValidationException("Unknown option.");
+        db.Db.Add(new TuningComparisonEntry
+        {
+            UserId = db.UserId, Mode = request.Mode, WinnerKey = request.WinnerKey, LoserKey = request.LoserKey,
+            Strength = request.Strength, TimestampUtc = DateTime.UtcNow,
+        });
+        await db.SaveChangesAsync(ct);
+        return await LabViewAsync(db, request.Mode, ct);
+    }
+
+    /// <summary>Takes back his most recent comparison in a mode.</summary>
+    public async Task<TuningLabView> UndoAsync(string mode, CancellationToken ct)
+    {
+        if (!TuningLab.IsMode(mode)) throw new TrackerValidationException("Mode must be Stim or Ender.");
+        await using var db = runtimes.Current.Factory.Open();
+        var last = await db.TuningComparisons.Where(x => x.UserId == db.UserId && x.Mode == mode).OrderByDescending(x => x.Id).FirstOrDefaultAsync(ct)
+            ?? throw new TrackerValidationException("Nothing to undo.");
+        db.Db.Remove(last);
+        await db.SaveChangesAsync(ct);
+        return await LabViewAsync(db, mode, ct);
+    }
+
+    private static async Task<TuningLabView> LabViewAsync(GuidedData db, string mode, CancellationToken ct)
+        => TuningLab.View(mode, await db.MethodsAsync(ct), await db.EndersAsync(ct), await db.TuningComparisons.AsNoTracking().ToListAsync(ct),
+            db.UserId, await RecallStore.PaceAsync(db, ct), Random.Shared);
+
     public async Task<object> OptimizeAsync(CancellationToken ct)
     {
         await using var db = runtimes.Current.Factory.Open();
@@ -67,6 +110,7 @@ public sealed class GuidedConfiguration(GuidedRuntimes runtimes)
         StimMultiplierOptimizer.OptimizationResult result;
         try { result = StimMultiplierOptimizer.Optimize(methods, await db.TuningComparisons.AsNoTracking().ToListAsync(ct)); }
         catch (InvalidOperationException ex) { throw new TrackerValidationException(ex.Message); }
+        var before = methods.ToDictionary(x => x.Id, x => StimMethodPointMath.GetSeedMultipliers(x));
         foreach (var method in methods)
         {
             var multiplier = result.Multipliers[method.Id];
@@ -80,6 +124,8 @@ public sealed class GuidedConfiguration(GuidedRuntimes runtimes)
         {
             result.WinningAlgorithm, result.ValidationLogLoss, result.ValidationAccuracy, result.Trials,
             Multipliers = result.Multipliers.ToDictionary(x => x.Key, x => new { TimePointsPerSecond = x.Value.TimePointsPerSecond, EdgePointsPerEdge = x.Value.EdgePointsPerEdge }),
+            // What each method earned before, so the lab can show the change.
+            Before = before.ToDictionary(x => x.Key, x => new { TimePointsPerSecond = x.Value.TimePointsPerSecond, EdgePointsPerEdge = x.Value.EdgePointsPerEdge }),
         };
     }
 

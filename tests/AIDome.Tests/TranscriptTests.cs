@@ -17,7 +17,7 @@ public sealed class TranscriptTests(ITestOutputHelper output)
     private static MethodInfo Method(int id, string name, string description, int intensity, int tease, int torture, int closeness, bool lube = false) => new()
     {
         Id = id, Name = name, Description = description, Intensity = intensity, Tease = tease, TortLevel = torture, Closeness = closeness,
-        RequiresLube = lube, TimePoints = 0.06 + intensity * 0.008, EdgePoints = 2 + closeness * 0.3,
+        RequiresLube = lube, TimePoints = 0.04 + intensity * 0.005, EdgePoints = 2 + closeness * 0.1,
     };
 
     /// <summary>A realistic slice of the shipped method library.</summary>
@@ -45,7 +45,7 @@ public sealed class TranscriptTests(ITestOutputHelper output)
         new() { Id = 3, Name = "Pay in days", Wording = "You may [what]. Then you're locked away for [amount] day[s]. No exceptions.", Kind = OfferKind.Denial, MinAmount = 1, MaxAmount = 7, PointsPerUnit = 14, Flavor = OfferFlavor.Strict, ForOrgasm = true, ForMercy = true },
         new() { Id = 4, Name = "Owe me a session", Wording = "Fine, [what]. But you'll owe me [amount] punishment session[s], and I won't be gentle.", Kind = OfferKind.PunishmentSession, MinAmount = 1, MaxAmount = 2, PointsPerUnit = 60, Flavor = OfferFlavor.Cruel, Moods = [DommeMood.Cruel], ForOrgasm = true, ForMercy = true },
         new() { Id = 6, Name = "Ruined, then", Wording = "You can cum. I'm just not letting you enjoy it: you're ruining it.", Kind = OfferKind.RuinNow, MinAmount = 1, MaxAmount = 1, PointsPerUnit = 30, Flavor = OfferFlavor.Teasing, ForOrgasm = true },
-        new() { Id = 8, Name = "Edges on account", Wording = "Okay, [what]. But you owe me [amount] edge[s] before you cum again. I'm keeping count.", Kind = OfferKind.EdgesLater, MinAmount = 5, MaxAmount = 30, PointsPerUnit = 1.5, Flavor = OfferFlavor.Playful, ForRest = true, ForMercy = true },
+        new() { Id = 8, Name = "Edges on account", Wording = "Okay, [what]. But you owe me [amount] edge[s] before you cum again. I'm keeping count.", Kind = OfferKind.EdgesLater, MinAmount = 3, MaxAmount = 15, PointsPerUnit = 4, Flavor = OfferFlavor.Playful, ForRest = true, ForMercy = true },
         new() { Id = 9, Name = "Buy a break", Wording = "Want a break? Edge [amount] more time[s] first.", Kind = OfferKind.EdgesNow, MinAmount = 2, MaxAmount = 4, PointsPerUnit = 4, Flavor = OfferFlavor.Playful, ForRest = true },
     ];
 

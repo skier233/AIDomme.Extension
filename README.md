@@ -91,9 +91,11 @@ to it): her persona (harshness, humiliation, mind games, talkativeness, what she
 she varies from session to session), how your sessions end (how much denial, whether and when she
 ruins, roughly how many days between orgasms), how many minutes a length 1, 5 and 10 session means
 to you, how often she uses each kind of segment and how long it runs, and the narration voice.
-Changes save automatically. The same tab opens the tuning lab: a page for her methods, punishment
-endings and deals, showing what each is worth in session points, where you can override the shared
-defaults and calibrate. Each session's own settings (Denial, limits such as
+Changes save automatically. The same tab opens the tuning lab. Its Compare view shows two
+assignments side by side ("Palm for a minute" or "3 edges using Figure Eight") and asks which you
+would rather be told to do; your answers show what each method is really worth to you, and Apply
+sets your methods' points from them. Its Edit view changes her methods, punishment endings and deals
+directly. Each session's own settings (Denial, limits such as
 "no ruined orgasm tonight") apply on top. Sessions still run on points (what you do), so the minutes are a target: she converts them
 at your pace, which she learns from the sessions you finish. Session settings decide how strict a session is;
 the persona decides how she talks.
@@ -103,6 +105,10 @@ teasing, stories, comments on what is on screen). Stock lines don't repeat withi
 are tracked across sessions so they stay rare. A debug session shows her plan and how it changed.
 
 ## Upgrading an existing install
+
+Version 0.13.0 adds side-by-side comparisons to the tuning lab and migration `010_offer_values`,
+which reprices the shared "Edges on account" deal (an owed edge was worth 1.5 session points; it is
+now 4, like a real edge). The default pace is 4 points a minute.
 
 Version 0.12.1 restyles the settings to match Cove and brings the tuning lab back as a page.
 

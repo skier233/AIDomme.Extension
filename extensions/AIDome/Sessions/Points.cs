@@ -9,11 +9,11 @@ namespace AIDome.Sessions;
 public static class Points
 {
     /// <summary>
-    /// Points a typical user earns per minute of play (strokes, edges and holds, with rests between).
-    /// Measured from simulated sessions, which run a little fast; each user's own pace replaces it
-    /// as his sessions are recorded.
+    /// Points a typical user earns per minute of play (strokes, edges and holds, with rests between),
+    /// as the shipped methods score it: about 4. Each user's own pace replaces it as his sessions
+    /// are recorded.
     /// </summary>
-    public const double DefaultPointsPerMinute = 8.0;
+    public const double DefaultPointsPerMinute = 4.0;
 
     /// <summary>Stimulation that goes unreported longer than this is not counted (the user may have stepped away).</summary>
     public static readonly TimeSpan MaxUnreportedStimulation = TimeSpan.FromMinutes(5);

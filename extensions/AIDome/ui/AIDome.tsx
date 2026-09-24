@@ -11,6 +11,7 @@ import { extensionFetch } from "@cove/runtime/api";
 export { TrackerCompanion } from "./Tracker";
 import { TrackerCompanion, openTracker } from "./Tracker";
 import { DefinitionSettings } from "./Configuration";
+import { CompareLab } from "./Compare";
 import { EndingsPanel, HerPersonaPanel, LengthsPanel, PlanDebug, SegmentsPanel, TuningLabLinkPanel } from "./Persona";
 import { Row, inputCls, primaryBtn, secondaryBtn } from "./Ui";
 import { guidedApi, guidedClient, useGuidedSession } from "./GuidedClient";
@@ -781,15 +782,44 @@ export function TuningLabPage() {
         <div>
           <h1 className="text-xl font-semibold text-foreground">AI Domme tuning lab</h1>
           <p className="mt-1 text-sm text-secondary">
-            Adjust her methods, punishment endings and deals, and calibrate what each is worth in session points.
+            Compare methods side by side to calibrate what each is worth in session points, or edit her methods, punishment endings and deals directly.
           </p>
         </div>
         <button type="button" className={secondaryBtn} onClick={() => navigateToUrl("/settings/extensions/aidome")}>
           Her settings
         </button>
       </div>
-      <DefinitionSettings />
+      <LabTabs />
     </div>
+  );
+}
+
+/** Compare (side-by-side calibration) or edit the definitions directly. */
+function LabTabs() {
+  const [tab, setTab] = useState<"compare" | "edit">("compare");
+  return (
+    <>
+      <div className="flex gap-1 border-b border-border" role="tablist" aria-label="Tuning lab">
+        {(
+          [
+            ["compare", "Compare"],
+            ["edit", "Edit methods, endings and deals"],
+          ] as const
+        ).map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            role="tab"
+            aria-selected={tab === key}
+            className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium ${tab === key ? "border-accent text-foreground" : "border-transparent text-secondary hover:text-foreground"}`}
+            onClick={() => setTab(key)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      {tab === "compare" ? <CompareLab /> : <DefinitionSettings />}
+    </>
   );
 }
 

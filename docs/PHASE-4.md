@@ -508,3 +508,21 @@ automatically through one shared settings store. The hand-written stylesheet is 
 components layer so utility classes win over it. The settings tab has five panels (persona, how
 sessions end, session length, what she plans, narration voice) and a link to the tuning lab, a
 page again (`/aidome-tuning`) for methods, punishment endings and deals with a points readout.
+
+## 18. Calibration and pace (0.13.0)
+
+- **Compare** in the tuning lab ports the original app's calibration (AIDome2025 `TuningLab.razor`):
+  two assignments side by side (a method for 15 to 120 seconds, or 1 to 5 edges on it when its
+  Closeness is 3+; or two punishment endings), "which would you rather be told to do", with three
+  strengths. The preferred one is recorded as the easier (winner), as the optimizer expects. A
+  Bradley-Terry model over per-method rates refits on every answer; the next matchup is the most
+  uncertain one, weighted toward little-seen candidates, the same amount on two methods, and a
+  method's time against its edges. The method table shows what each earns now and what the answers
+  suggest; Apply runs `StimMultiplierOptimizer` (25+ answers) into personal overrides. Undo takes
+  back the last answer. Endpoints: `GET /configuration/lab`, `POST /configuration/comparisons`,
+  `DELETE /configuration/comparisons/last`.
+- **Pace**: the default is 4 points a minute (the user's tuned methods earn about 0.07 a second, 2.7
+  an edge, with rests between). The simulated users now edge at a realistic pace (about a minute)
+  and the fixture methods score like tuned ones, so transcripts run close to real length.
+- **Edges on account** was valued at 1.5 points an owed edge, so a small mercy cost twenty-odd
+  edges that he then paid in-session past the budget; migration 010 sets the shared default to 4.

@@ -72,7 +72,7 @@ const choices: Record<string, string[]> = {
 };
 const fields = { methods: methodFields, enders: enderFields, offers: offerFields };
 
-async function request(path = "", method = "GET", body?: unknown) {
+export async function request(path = "", method = "GET", body?: unknown) {
   const response = await extensionFetch(
     `/api/ext/aidome/configuration${path}`,
     {
@@ -104,8 +104,8 @@ const kinds: [Kind, string, string][] = [
   ["offers", "Deals", "What she asks in return when you beg: the price, and what it is worth to her."],
 ];
 
-/** Points she expects per minute of play, the same default the session budget uses. */
-const PointsPerMinute = 8;
+/** Points a typical session earns per minute of play: the default the session budget starts from. */
+const PointsPerMinute = 4;
 
 /** One line under a definition's name in the list: the numbers that matter when comparing them. */
 function summary(kind: Kind, d: Definition): string {

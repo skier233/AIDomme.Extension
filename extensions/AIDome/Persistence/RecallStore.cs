@@ -42,6 +42,23 @@ public static class RecallStore
                 """, ct);
     }
 
+    /// <summary>His pace: points per minute of play over his last finished sessions of five minutes or more, newest first.</summary>
+    public static (double? PointsPerMinute, int Sessions) Pace(IEnumerable<(SessionOutcome Outcome, int? ActiveSeconds, int Points)> newestFirst)
+    {
+        var paced = newestFirst.Where(x => x.Outcome is not (SessionOutcome.Unknown or SessionOutcome.Abandoned) && x.ActiveSeconds >= 300 && x.Points > 0)
+            .Take(10).ToList();
+        return paced.Count == 0 ? (null, 0) : (paced.Sum(x => x.Points) / (paced.Sum(x => x.ActiveSeconds!.Value) / 60.0), paced.Count);
+    }
+
+    /// <summary>His current points per minute, as the session budget uses it.</summary>
+    public static async Task<double> PaceAsync(GuidedData db, CancellationToken ct)
+    {
+        var rows = await db.Sessions.AsNoTracking().Where(x => !x.IsDebugSession && x.Mode != "Homework")
+            .OrderByDescending(x => x.StartedAtUtc).Take(30).Select(x => new { x.Outcome, x.ActiveSeconds, x.Points }).ToListAsync(ct);
+        var (pace, count) = Pace(rows.Select(x => (x.Outcome, x.ActiveSeconds, x.Points)));
+        return Sessions.Points.Pace(new Recall { PointsPerMinute = pace, PaceSessions = count });
+    }
+
     public static async Task<Recall> RecallAsync(GuidedData db, TrackerDecisionMetrics metrics, DateTime now, CancellationToken ct)
     {
         var sessions = await db.Sessions.AsNoTracking()
@@ -99,14 +116,11 @@ public static class RecallStore
             """).ToListAsync(ct);
         var starts = sessions.Select(x => x.StartedAtUtc).ToList();
 
-        // His pace: points per minute of play over his last finished sessions of five minutes or more.
-        var paced = sessions.Where(x => x.Outcome is not (SessionOutcome.Unknown or SessionOutcome.Abandoned) && x.ActiveSeconds >= 300 && x.Points > 0)
-            .Take(10).ToList();
-        double? pace = paced.Count == 0 ? null : paced.Sum(x => x.Points) / (paced.Sum(x => x.ActiveSeconds!.Value) / 60.0);
+        var (pace, pacedCount) = Pace(sessions.Select(x => (x.Outcome, x.ActiveSeconds, x.Points)));
 
         return new()
         {
-            PointsPerMinute = pace, PaceSessions = paced.Count,
+            PointsPerMinute = pace, PaceSessions = pacedCount,
             Sessions = sessions.Count,
             DaysSinceLastSession = sessions.FirstOrDefault() is { } last ? (now - last.LastInteractionUtc).TotalDays : null,
             LastOutcome = finished.FirstOrDefault()?.Outcome,

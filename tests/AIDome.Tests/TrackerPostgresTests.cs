@@ -72,12 +72,12 @@ public sealed partial class TrackerPostgresTests : IAsyncLifetime
 
     private static string Fixture(string name) => File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", name));
 
-    /// <summary>Applies 002-009 exactly as Cove would on a fresh install.</summary>
+    /// <summary>Applies 002-010 exactly as Cove would on a fresh install.</summary>
     private async Task InstallGuidedAsync()
     {
         await using var db = Context();
         foreach (var sql in new[] { GuidedMigrations.Superseded, GuidedMigrations.Superseded, GuidedMigrations.Superseded, GuidedMigrations.Load("005_guided_v2"),
-                     GuidedMigrations.Load("006_session_contracts"), GuidedMigrations.Load("007_ledger"), GuidedMigrations.Load("008_voice"), GuidedMigrations.Load("009_pace") })
+                     GuidedMigrations.Load("006_session_contracts"), GuidedMigrations.Load("007_ledger"), GuidedMigrations.Load("008_voice"), GuidedMigrations.Load("009_pace"), GuidedMigrations.Load("010_offer_values") })
             await db.Database.ExecuteSqlRawAsync(sql);
     }
 
@@ -151,6 +151,7 @@ public sealed partial class TrackerPostgresTests : IAsyncLifetime
             await db.Database.ExecuteSqlRawAsync(GuidedMigrations.Load("007_ledger"));
             await db.Database.ExecuteSqlRawAsync(GuidedMigrations.Load("008_voice"));
             await db.Database.ExecuteSqlRawAsync(GuidedMigrations.Load("009_pace"));
+            await db.Database.ExecuteSqlRawAsync(GuidedMigrations.Load("010_offer_values"));
         }
         await using (var db = Context())
         {

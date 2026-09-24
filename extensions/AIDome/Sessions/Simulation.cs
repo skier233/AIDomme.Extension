@@ -23,7 +23,7 @@ public sealed record SimulatedUser
 {
     public string Name { get; init; } = "obedient";
     /// <summary>Seconds to reach an edge at a middling pace.</summary>
-    public double EdgeSeconds { get; init; } = 35;
+    public double EdgeSeconds { get; init; } = 60;
     /// <summary>Ask to cum every this many seconds once past the first third (0: never).</summary>
     public double BegEvery { get; init; }
     /// <summary>Chance of begging for a rest when a torturous step starts.</summary>
@@ -37,13 +37,13 @@ public sealed record SimulatedUser
     /// <summary>Chance of coming without permission once, late in the session.</summary>
     public double Slips { get; init; }
     /// <summary>Edges per minute in free play.</summary>
-    public double FreePlayEdgesPerMinute { get; init; } = 1.2;
+    public double FreePlayEdgesPerMinute { get; init; } = 0.8;
 
     public static readonly SimulatedUser Obedient = new();
     public static readonly SimulatedUser Beggar = new() { Name = "begs to cum", BegEvery = 90 };
     public static readonly SimulatedUser Soft = new() { Name = "begs to stop", BegRestOnTorture = 0.8, Offers = "decline" };
     public static readonly SimulatedUser Silent = new() { Name = "only edges", Offers = "ignore", FailsChallenges = 0.1 };
-    public static readonly SimulatedUser Weak = new() { Name = "fails and slips", EdgeSeconds = 20, FailsChallenges = 0.9, Luck = 0.2, Slips = 1, BegEvery = 240, Offers = "decline" };
+    public static readonly SimulatedUser Weak = new() { Name = "fails and slips", EdgeSeconds = 35, FailsChallenges = 0.9, Luck = 0.2, Slips = 1, BegEvery = 240, Offers = "decline" };
     public static readonly SimulatedUser[] All = [Obedient, Beggar, Soft, Silent, Weak];
 }
 
