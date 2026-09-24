@@ -237,7 +237,8 @@ async function buildCss() {
   try {
     await fs.access(cssEntryFile);
     const relativeCssEntry = path.relative(tmpDir, cssEntryFile).replace(/\\/g, "/");
-    imports.push(`@import "${relativeCssEntry}";`);
+    // Hand-written rules sit in the components layer, so utility classes on an element win over them.
+    imports.push(`@import "${relativeCssEntry}" layer(components);`);
   } catch {
     // Tailwind utility-only extensions do not need an authored CSS file.
   }

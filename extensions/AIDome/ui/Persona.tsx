@@ -1,7 +1,7 @@
-import React from "react";
+import React, { useEffect, useSyncExternalStore } from "react";
+import { navigateToUrl } from "@cove/runtime/components";
 import { guidedApi } from "./GuidedClient";
-
-const { useEffect, useState } = React;
+import { Row, SaveState, Section, Select, Slider, inputCls, secondaryBtn } from "./Ui";
 
 type Frequency = "Never" | "Rarely" | "Normally" | "Often";
 type Length = "Shorter" | "Normal" | "Longer";
@@ -20,362 +20,357 @@ type Endings = {
   ruins: "Never" | "PunishmentOnly" | "Sometimes" | "Often";
   orgasmEveryDays: number;
 };
-type Settings = { persona: Persona; endings: Endings; lengths: Lengths; segments: Record<string, Preference> };
-
-const denialChoices: [Endings["denial"], string][] = [
-  ["Never", "Never: let me cum at the end unless I promised otherwise"],
-  ["Rarely", "Rarely"],
-  ["Normal", "Sometimes"],
-  ["Often", "Often"],
-  ["Mostly", "Mostly: orgasms are a rare treat"],
-];
-const ruinChoices: [Endings["ruins"], string][] = [
-  ["Never", "Never"],
-  ["PunishmentOnly", "Only as a price or a punishment"],
-  ["Sometimes", "Sometimes, when she feels like it"],
-  ["Often", "Often"],
-];
-
-const lengthDials: { key: keyof Lengths; label: string; min: number; max: number }[] = [
-  { key: "length1", label: "Length 1", min: 3, max: 60 },
-  { key: "length5", label: "Length 5", min: 10, max: 180 },
-  { key: "length10", label: "Length 10", min: 20, max: 360 },
-];
+export type DommeSettings = { persona: Persona; endings: Endings; lengths: Lengths; segments: Record<string, Preference> };
 type SegmentInfo = { id: string; name: string; goal: string; tags: string[] };
+type Status = "idle" | "saving" | "saved" | "error";
 
-const dials: { key: keyof Persona; label: string; hint: string }[] = [
-  {
-    key: "harshness",
-    label: "Harshness",
-    hint: "How harsh she sounds when her mood is neutral. Her mood moves it during a session.",
-  },
-  {
-    key: "humiliation",
-    label: "Humiliation",
-    hint: "How much she belittles you, and what she calls you when you leave names empty.",
-  },
-  {
-    key: "manipulation",
-    label: "Mind games",
-    hint: "Lying about the ending, false finishes, keeping you guessing.",
-  },
-  {
-    key: "talkativeness",
-    label: "Talkativeness",
-    hint: "How much she says besides her orders: teasing, remarks, stories.",
-  },
-];
-
-const frequencies: Frequency[] = ["Never", "Rarely", "Normally", "Often"];
-const lengths: Length[] = ["Shorter", "Normal", "Longer"];
+const defaultEndings: Endings = { denial: "Normal", ruins: "Sometimes", orgasmEveryDays: 0 };
+const defaultLengths: Lengths = { length1: 10, length5: 35, length10: 90 };
 
 /**
- * Her persona and how she plans: set once, used by every session. Each session she drifts a
- * little around these settings, and remembers how the last one went.
+ * Her settings as one object shared by every panel that edits a part of it, so two panels never
+ * save over each other. Changes apply at once and save shortly after the last one.
  */
-export function HerSettings() {
-  const [settings, setSettings] = useState<Settings | null>(null);
-  const [segments, setSegments] = useState<SegmentInfo[]>([]);
-  const [names, setNames] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
-  useEffect(() => {
-    let active = true;
-    guidedApi("/domme-settings")
-      .then((value) => {
-        if (!active) return;
-        setSettings(value.settings);
-        setSegments(value.segments || []);
-        setNames((value.settings.persona.names || []).join(", "));
-      })
-      .catch((e) => {
-        if (active) setError((e as Error).message);
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
-  if (!settings) return <p>{error || "Loading her settings…"}</p>;
-  const persona = settings.persona;
-  const minutes = settings.lengths || { length1: 10, length5: 35, length10: 90 };
-  const endings: Endings = settings.endings || { denial: "Normal", ruins: "Sometimes", orgasmEveryDays: 0 };
-  const setEndings = (patch: Partial<Endings>) => {
-    setSettings({ ...settings, endings: { ...endings, ...patch } });
-    setNotice("");
+class SettingsStore {
+  private state: { settings: DommeSettings | null; segments: SegmentInfo[]; status: Status; error: string } = {
+    settings: null,
+    segments: [],
+    status: "idle",
+    error: "",
   };
-  const setLength = (key: keyof Lengths, value: number) => {
-    setSettings({ ...settings, lengths: { ...minutes, [key]: value } });
-    setNotice("");
+  private listeners = new Set<() => void>();
+  private loading: Promise<void> | null = null;
+  private timer: ReturnType<typeof setTimeout> | null = null;
+  private revision = 0;
+
+  subscribe = (listener: () => void) => {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
   };
-  const setPersona = (patch: Partial<Persona>) => {
-    setSettings({ ...settings, persona: { ...persona, ...patch } });
-    setNotice("");
-  };
-  const preference = (id: string): Preference =>
-    settings.segments[id] || { frequency: "Normally", length: "Normal" };
-  const setPreference = (id: string, patch: Partial<Preference>) => {
-    setSettings({
-      ...settings,
-      segments: { ...settings.segments, [id]: { ...preference(id), ...patch } },
-    });
-    setNotice("");
-  };
-  const save = async () => {
-    setBusy(true);
-    setError("");
-    setNotice("");
+  get = () => this.state;
+  private set(patch: Partial<SettingsStore["state"]>) {
+    this.state = { ...this.state, ...patch };
+    for (const listener of this.listeners) listener();
+  }
+
+  load() {
+    if (this.state.settings || this.loading) return;
+    this.loading = guidedApi("/domme-settings")
+      .then((value) => this.set({ settings: value.settings, segments: value.segments || [], error: "" }))
+      .catch((e) => this.set({ error: (e as Error).message, status: "error" }))
+      .finally(() => (this.loading = null));
+  }
+
+  update(change: (settings: DommeSettings) => DommeSettings, delay = 600) {
+    if (!this.state.settings) return;
+    this.set({ settings: change(this.state.settings), status: "saving", error: "" });
+    if (this.timer) clearTimeout(this.timer);
+    this.timer = setTimeout(() => void this.save(), delay);
+  }
+
+  private async save() {
+    const revision = ++this.revision;
     try {
-      const body: Settings = {
-        ...settings,
-        persona: {
-          ...persona,
-          names: names
-            .split(",")
-            .map((x) => x.trim())
-            .filter(Boolean),
-        },
-      };
-      const saved = await guidedApi("/domme-settings", body, "PUT");
-      setSettings(saved);
-      setNames((saved.persona.names || []).join(", "));
-      setNotice("Saved. New sessions use these settings.");
+      const saved = await guidedApi("/domme-settings", this.state.settings, "PUT");
+      if (revision === this.revision) this.set({ settings: saved, status: "saved" });
     } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setBusy(false);
+      if (revision === this.revision) this.set({ status: "error", error: (e as Error).message });
     }
+  }
+
+  /** Tests start from nothing. */
+  reset() {
+    if (this.timer) clearTimeout(this.timer);
+    this.timer = null;
+    this.loading = null;
+    this.revision++;
+    this.state = { settings: null, segments: [], status: "idle", error: "" };
+  }
+}
+
+export const dommeSettings = new SettingsStore();
+
+function useSettings() {
+  const state = useSyncExternalStore(dommeSettings.subscribe, dommeSettings.get, dommeSettings.get);
+  useEffect(() => dommeSettings.load(), []);
+  return state;
+}
+
+function Loading({ error }: { error: string }) {
+  return error ? (
+    <p role="alert" className="text-sm text-red-400">
+      {error}
+    </p>
+  ) : (
+    <p className="text-sm text-secondary">Loading…</p>
+  );
+}
+
+// ── Her persona ──
+
+const dials: { key: "harshness" | "humiliation" | "manipulation" | "talkativeness"; label: string; hint: string }[] = [
+  { key: "harshness", label: "Harshness", hint: "How harsh she sounds when her mood is neutral. Her mood moves it during a session." },
+  { key: "humiliation", label: "Humiliation", hint: "How much she belittles you, and what she calls you when you leave names empty." },
+  { key: "manipulation", label: "Mind games", hint: "Lying about the ending, false finishes, keeping you guessing." },
+  { key: "talkativeness", label: "Talkativeness", hint: "How much she says besides her orders: teasing, remarks, stories." },
+];
+
+/** Who she is in every session: how she talks and plays, not how strict a session is. */
+export function HerPersonaPanel() {
+  const { settings, status, error } = useSettings();
+  const [names, setNames] = React.useState<string | null>(null);
+  if (!settings) return <Loading error={error} />;
+  const persona = settings.persona;
+  const setPersona = (patch: Partial<Persona>) => dommeSettings.update((s) => ({ ...s, persona: { ...s.persona, ...patch } }));
+  const commitNames = () => {
+    if (names === null) return;
+    setPersona({ names: names.split(",").map((x) => x.trim()).filter(Boolean) });
+    setNames(null);
   };
   return (
-    <div className="aidomme-card aidomme-her-settings">
-      <h2>Her persona</h2>
-      <p className="aidomme-muted">
-        Who she is, in every session. How strict a session is comes from the
-        session settings; these decide how she talks and plays with you.
+    <div className="aidomme-settings-panel space-y-3">
+      <p className="text-sm text-secondary">
+        Who she is in every session. How strict a session is comes from the session's own settings; these decide how she
+        talks and plays with you. Each session she drifts a little around them.
       </p>
-      <fieldset disabled={busy}>
-        {dials.map((dial) => (
-          <label key={dial.key} className="aidomme-dial">
-            <span>
-              {dial.label} <output>{persona[dial.key] as number}</output>
-            </span>
-            <input
-              type="range"
-              min={0}
-              max={10}
-              value={persona[dial.key] as number}
-              aria-label={dial.label}
-              onChange={(e) =>
-                setPersona({ [dial.key]: Number(e.target.value) } as Partial<Persona>)
-              }
-            />
-            <small className="aidomme-muted">{dial.hint}</small>
-          </label>
-        ))}
-        <label className="aidomme-dial">
-          <span>
-            Session to session variety <output>{persona.variance}</output>
-          </span>
-          <input
-            type="range"
-            min={0}
-            max={3}
-            value={persona.variance}
-            aria-label="Session to session variety"
-            onChange={(e) => setPersona({ variance: Number(e.target.value) })}
-          />
-          <small className="aidomme-muted">
-            How far she strays from these settings from one session to the next.
-          </small>
-        </label>
-        <label>
-          What she calls you
-          <input
-            value={names}
-            placeholder="Her choice"
-            aria-label="What she calls you"
-            onChange={(e) => {
-              setNames(e.target.value);
-              setNotice("");
-            }}
-          />
-          <small className="aidomme-muted">Separate names with commas.</small>
-        </label>
-      </fieldset>
-
-      <h2>How your sessions end</h2>
-      <p className="aidomme-muted">
-        Your general preferences. Each session's Denial setting still moves her
-        within them, and what you do still changes her mind. Promises and
-        denial you agree to always come first.
-      </p>
-      <fieldset disabled={busy}>
-        <label>
-          Denial at the end of a session
-          <select
-            aria-label="Denial at the end of a session"
-            value={endings.denial}
-            onChange={(e) => setEndings({ denial: e.target.value as Endings["denial"] })}
-          >
-            {denialChoices.map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Ruined orgasms
-          <select
-            aria-label="Ruined orgasms"
-            value={endings.ruins}
-            onChange={(e) => setEndings({ ruins: e.target.value as Endings["ruins"] })}
-          >
-            {ruinChoices.map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="aidomme-dial">
-          <span>
-            Days between orgasms{" "}
-            <output>{endings.orgasmEveryDays > 0 ? `about ${endings.orgasmEveryDays}` : "no preference"}</output>
-          </span>
-          <input
-            type="range"
-            min={0}
-            max={30}
-            value={endings.orgasmEveryDays}
-            aria-label="Days between orgasms"
-            onChange={(e) => setEndings({ orgasmEveryDays: Number(e.target.value) })}
-          />
-          <small className="aidomme-muted">
-            Well before this she mostly says no; after it she comes round.
-          </small>
-        </label>
-      </fieldset>
-
-      <h2>Session length</h2>
-      <p className="aidomme-muted">
-        Roughly how many minutes of play each Length means to you; the lengths
-        between follow. She still runs on what you do, not the clock: a session
-        full of edges ends sooner than one full of slow teasing, and she learns
-        your pace from the sessions you finish.
-      </p>
-      <fieldset disabled={busy}>
-        {lengthDials.map((dial) => (
-          <label key={dial.key} className="aidomme-dial">
-            <span>
-              {dial.label} <output>{minutes[dial.key]} min</output>
-            </span>
-            <input
-              type="range"
-              min={dial.min}
-              max={dial.max}
-              step={dial.max > 60 ? 5 : 1}
-              value={minutes[dial.key]}
-              aria-label={`${dial.label} in minutes`}
-              onChange={(e) => setLength(dial.key, Number(e.target.value))}
-            />
-          </label>
-        ))}
-      </fieldset>
-
-      <h2>What she plans</h2>
-      <p className="aidomme-muted">
-        A session is a series of segments she chooses as she goes. Tell her
-        which ones you want more or less of, and how long they should run.
-      </p>
-      <fieldset disabled={busy}>
-        <table className="aidomme-segments">
-          <thead>
-            <tr>
-              <th>Segment</th>
-              <th>How often</th>
-              <th>Length</th>
-            </tr>
-          </thead>
-          <tbody>
-            {segments.map((segment) => (
-              <tr key={segment.id}>
-                <td>
-                  <strong>{segment.name}</strong>
-                  <br />
-                  <small className="aidomme-muted">{segment.goal}</small>
-                </td>
-                <td>
-                  <select
-                    aria-label={`${segment.name}: how often`}
-                    value={preference(segment.id).frequency}
-                    onChange={(e) =>
-                      setPreference(segment.id, {
-                        frequency: e.target.value as Frequency,
-                      })
-                    }
-                  >
-                    {frequencies.map((x) => (
-                      <option key={x}>{x}</option>
-                    ))}
-                  </select>
-                </td>
-                <td>
-                  <select
-                    aria-label={`${segment.name}: length`}
-                    value={preference(segment.id).length}
-                    disabled={preference(segment.id).frequency === "Never"}
-                    onChange={(e) =>
-                      setPreference(segment.id, { length: e.target.value as Length })
-                    }
-                  >
-                    {lengths.map((x) => (
-                      <option key={x}>{x}</option>
-                    ))}
-                  </select>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </fieldset>
-      <div className="aidomme-actions">
-        <button disabled={busy} onClick={() => void save()}>
-          Save her settings
-        </button>
-      </div>
-      {error && <p role="alert">{error}</p>}
-      {notice && <p role="status">{notice}</p>}
+      {dials.map((dial) => (
+        <Row key={dial.key} label={dial.label} hint={dial.hint}>
+          <Slider label={dial.label} value={persona[dial.key]} min={0} max={10} onChange={(v) => setPersona({ [dial.key]: v })} />
+        </Row>
+      ))}
+      <Row label="Session to session variety" hint="How far she strays from these settings from one session to the next.">
+        <Slider
+          label="Session to session variety"
+          value={persona.variance}
+          min={0}
+          max={3}
+          onChange={(v) => setPersona({ variance: v })}
+          format={(v) => ["None", "A little", "Some", "A lot"][v] ?? String(v)}
+        />
+      </Row>
+      <Row label="What she calls you" hint="Separate names with commas. Leave empty and she chooses, depending on humiliation.">
+        <input
+          aria-label="What she calls you"
+          className={inputCls}
+          placeholder="Her choice"
+          value={names ?? persona.names.join(", ")}
+          onChange={(e) => setNames(e.target.value)}
+          onBlur={commitNames}
+          onKeyDown={(e) => e.key === "Enter" && commitNames()}
+        />
+      </Row>
+      <SaveState status={status} error={error} />
     </div>
   );
 }
+
+// ── How sessions end ──
+
+const denialChoices = [
+  ["Never", "Never, unless I promised"],
+  ["Rarely", "Rarely"],
+  ["Normal", "Sometimes"],
+  ["Often", "Often"],
+  ["Mostly", "Mostly: orgasms are a treat"],
+] as const;
+const ruinChoices = [
+  ["Never", "Never"],
+  ["PunishmentOnly", "Only as a price or punishment"],
+  ["Sometimes", "Sometimes, her choice"],
+  ["Often", "Often"],
+] as const;
+
+/** His general preferences for endings; each session's Denial setting and limits apply on top. */
+export function EndingsPanel() {
+  const { settings, status, error } = useSettings();
+  if (!settings) return <Loading error={error} />;
+  const endings = settings.endings ?? defaultEndings;
+  const setEndings = (patch: Partial<Endings>) =>
+    dommeSettings.update((s) => ({ ...s, endings: { ...(s.endings ?? defaultEndings), ...patch } }));
+  return (
+    <div className="aidomme-settings-panel space-y-3">
+      <p className="text-sm text-secondary">
+        Your general preferences. Each session's Denial setting still moves her within them, and what you do still changes her
+        mind. Promises and denial you agree to always come first.
+      </p>
+      <Row label="Denial at the end of a session" hint="Never means she lets you cum at the end unless you promised otherwise.">
+        <Select label="Denial at the end of a session" value={endings.denial} options={denialChoices} onChange={(v) => setEndings({ denial: v })} />
+      </Row>
+      <Row label="Ruined orgasms" hint="A price or punishment covers deals you accept, what you owe, and punishment sessions.">
+        <Select label="Ruined orgasms" value={endings.ruins} options={ruinChoices} onChange={(v) => setEndings({ ruins: v })} />
+      </Row>
+      <Row label="Days between orgasms" hint="Well before this she mostly says no; after it she comes round.">
+        <Slider
+          label="Days between orgasms"
+          value={endings.orgasmEveryDays}
+          min={0}
+          max={30}
+          onChange={(v) => setEndings({ orgasmEveryDays: v })}
+          format={(v) => (v === 0 ? "No preference" : v === 1 ? "1 day" : `${v} days`)}
+        />
+      </Row>
+      <SaveState status={status} error={error} />
+    </div>
+  );
+}
+
+// ── Session length ──
+
+const lengthDials: { key: keyof Lengths; label: string; min: number; max: number; step: number }[] = [
+  { key: "length1", label: "Length 1", min: 3, max: 60, step: 1 },
+  { key: "length5", label: "Length 5", min: 10, max: 180, step: 5 },
+  { key: "length10", label: "Length 10", min: 20, max: 360, step: 5 },
+];
+
+/** What the Length setting means to him, in minutes of play. */
+export function LengthsPanel() {
+  const { settings, status, error } = useSettings();
+  if (!settings) return <Loading error={error} />;
+  const lengths = settings.lengths ?? defaultLengths;
+  return (
+    <div className="aidomme-settings-panel space-y-3">
+      <p className="text-sm text-secondary">
+        Roughly how many minutes of play each Length means to you; the lengths between follow. She still runs on what you do,
+        not the clock: a session full of edges ends sooner than one full of slow teasing. She learns your pace from the sessions
+        you finish.
+      </p>
+      {lengthDials.map((dial) => (
+        <Row key={dial.key} label={dial.label}>
+          <Slider
+            label={`${dial.label} in minutes`}
+            value={lengths[dial.key]}
+            min={dial.min}
+            max={dial.max}
+            step={dial.step}
+            onChange={(v) => dommeSettings.update((s) => ({ ...s, lengths: { ...(s.lengths ?? defaultLengths), [dial.key]: v } }))}
+            format={(v) => `${v} min`}
+          />
+        </Row>
+      ))}
+      <SaveState status={status} error={error} />
+    </div>
+  );
+}
+
+// ── What she plans ──
+
+const frequencies = [
+  ["Never", "Never"],
+  ["Rarely", "Rarely"],
+  ["Normally", "Normally"],
+  ["Often", "Often"],
+] as const;
+const lengthChoices = [
+  ["Shorter", "Shorter"],
+  ["Normal", "Normal"],
+  ["Longer", "Longer"],
+] as const;
+
+/** How often she uses each kind of segment, and how long it runs. */
+export function SegmentsPanel() {
+  const { settings, segments, status, error } = useSettings();
+  if (!settings) return <Loading error={error} />;
+  const preference = (id: string): Preference => settings.segments[id] || { frequency: "Normally", length: "Normal" };
+  const setPreference = (id: string, patch: Partial<Preference>) =>
+    dommeSettings.update((s) => ({
+      ...s,
+      segments: { ...s.segments, [id]: { ...(s.segments[id] || { frequency: "Normally", length: "Normal" }), ...patch } },
+    }));
+  return (
+    <div className="aidomme-settings-panel space-y-3">
+      <p className="text-sm text-secondary">
+        A session is a series of segments she chooses as she goes. Tell her which ones you want more or less of, and how long
+        they should run.
+      </p>
+      <div className="overflow-hidden rounded-xl border border-border">
+        <div className="hidden grid-cols-[minmax(0,1fr)_9rem_9rem] gap-3 bg-card/60 px-4 py-2 text-xs font-medium uppercase tracking-wide text-muted sm:grid">
+          <span>Segment</span>
+          <span>How often</span>
+          <span>Length</span>
+        </div>
+        {segments.map((segment) => {
+          const p = preference(segment.id);
+          return (
+            <div
+              key={segment.id}
+              className="grid grid-cols-2 items-center gap-3 border-t border-border bg-card px-4 py-3 first:border-t-0 sm:grid-cols-[minmax(0,1fr)_9rem_9rem]"
+            >
+              <div className="col-span-2 min-w-0 sm:col-span-1">
+                <div className="text-sm font-medium text-foreground">{segment.name}</div>
+                <div className="text-xs text-secondary">{segment.goal}</div>
+              </div>
+              <Select
+                label={`${segment.name}: how often`}
+                value={p.frequency}
+                options={frequencies}
+                onChange={(v) => setPreference(segment.id, { frequency: v })}
+              />
+              <Select
+                label={`${segment.name}: length`}
+                value={p.length}
+                options={lengthChoices}
+                disabled={p.frequency === "Never"}
+                onChange={(v) => setPreference(segment.id, { length: v })}
+              />
+            </div>
+          );
+        })}
+      </div>
+      <SaveState status={status} error={error} />
+    </div>
+  );
+}
+
+/** The way into the tuning lab, from Cove's settings. */
+export function TuningLabLinkPanel() {
+  return (
+    <div className="aidomme-settings-panel flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <p className="text-sm text-secondary">
+        Her methods, punishment endings and deals: what they ask of you, how intense they are, and how many points each is worth.
+        Adjust them, compare them, and calibrate the points to how they feel for you.
+      </p>
+      <button type="button" className={`${secondaryBtn} shrink-0`} onClick={() => navigateToUrl("/aidome-tuning")}>
+        Open the tuning lab
+      </button>
+    </div>
+  );
+}
+
+// ── Debug ──
 
 /** Debug sessions only: her plan, what she leans toward for the ending, and why. */
 export function PlanDebug({ plan }: { plan: any }) {
   if (!plan) return null;
   const persona = plan.persona || {};
+  const statusCls: Record<string, string> = {
+    done: "text-muted line-through decoration-muted/40",
+    now: "font-semibold text-accent",
+    planned: "text-foreground",
+  };
   return (
-    <details className="aidomme-plan-debug">
-      <summary>Her plan (debug)</summary>
-      <p>
-        Mood <b>{plan.mood}</b> ({plan.moodCause}), annoyance {plan.annoyance}.
-        Points {plan.points} of {plan.budget}.
-      </p>
-      <p>
-        Tonight: harshness {persona.harshness}, humiliation {persona.humiliation},
-        mind games {persona.manipulation}, talkativeness {persona.talkativeness}.
-      </p>
-      <p>
-        Ending she leans toward: <b>{plan.ending}</b> ({plan.endingReason}).{" "}
-        {plan.presentation === "Honest"
-          ? "Her hints will be honest."
-          : plan.presentation === "Lie"
-            ? "Her hints may be lies."
-            : "She will keep it to herself."}
-      </p>
-      <ol className="aidomme-plan-segments">
+    <details className="space-y-3">
+      <summary className="cursor-pointer text-sm font-medium text-foreground">Her plan (debug)</summary>
+      <div className="mt-3 grid gap-2 text-sm text-secondary sm:grid-cols-2">
+        <p>
+          Mood <b className="text-foreground">{plan.mood}</b> ({plan.moodCause}), annoyance {plan.annoyance}. Points {plan.points} of{" "}
+          {plan.budget}.
+        </p>
+        <p>
+          Tonight: harshness {persona.harshness}, humiliation {persona.humiliation}, mind games {persona.manipulation},
+          talkativeness {persona.talkativeness}.
+        </p>
+        <p className="sm:col-span-2">
+          Ending she leans toward: <b className="text-foreground">{plan.ending}</b> ({plan.endingReason}).{" "}
+          {plan.presentation === "Honest"
+            ? "Her hints will be honest."
+            : plan.presentation === "Lie"
+              ? "Her hints may be lies."
+              : "She will keep it to herself."}
+        </p>
+      </div>
+      <ol className="mt-2 space-y-1 text-sm">
         {(plan.segments || []).map((segment: any, i: number) => (
-          <li key={i} className={`is-${segment.status}`}>
+          <li key={i} className={statusCls[segment.status] ?? ""}>
             <b>{segment.name}</b> {Math.round(segment.share * 100)}%
             {segment.steps > 0 && `, ${segment.steps} step${segment.steps === 1 ? "" : "s"}`}
             {segment.origin !== "plan" && <em> ({segment.origin})</em>}
@@ -384,14 +379,13 @@ export function PlanDebug({ plan }: { plan: any }) {
         ))}
       </ol>
       {plan.revisions?.length > 0 && (
-        <>
-          <p>How the plan changed:</p>
-          <ul>
+        <Section title="How the plan changed">
+          <ul className="space-y-1 text-xs text-secondary">
             {plan.revisions.map((revision: string, i: number) => (
               <li key={i}>{revision}</li>
             ))}
           </ul>
-        </>
+        </Section>
       )}
     </details>
   );

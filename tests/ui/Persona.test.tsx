@@ -7,11 +7,11 @@ import {
   screen,
   waitFor,
 } from "../../../cove/ui/node_modules/@testing-library/react";
-import { HerSettings, PlanDebug } from "../../extensions/AIDome/ui/Persona";
+import { EndingsPanel, HerPersonaPanel, LengthsPanel, PlanDebug, SegmentsPanel, TuningLabLinkPanel, dommeSettings } from "../../extensions/AIDome/ui/Persona";
 
-const runtime = vi.hoisted(() => ({ fetch: vi.fn() }));
+const runtime = vi.hoisted(() => ({ fetch: vi.fn(), navigate: vi.fn() }));
 vi.mock("@cove/runtime/api", () => ({ extensionFetch: runtime.fetch }));
-vi.mock("@cove/runtime/components", () => ({ getActiveMedia: () => null }));
+vi.mock("@cove/runtime/components", () => ({ getActiveMedia: () => null, navigateToUrl: runtime.navigate }));
 
 const stored = () => ({
   settings: {
@@ -27,6 +27,8 @@ const stored = () => ({
 });
 
 beforeEach(() => {
+  dommeSettings.reset();
+  runtime.navigate.mockReset();
   runtime.fetch.mockReset();
   runtime.fetch.mockImplementation(async (path: string, options: any) => {
     if (path.endsWith("/domme-settings") && options?.method === "PUT") return Response.json(JSON.parse(options.body));
@@ -36,22 +38,32 @@ beforeEach(() => {
 });
 afterEach(() => cleanup());
 
-it("edits her persona and segment preferences, and saves them together", async () => {
-  render(<HerSettings />);
+it("saves each panel's edits into one settings object, automatically", async () => {
+  render(
+    <>
+      <HerPersonaPanel />
+      <EndingsPanel />
+      <LengthsPanel />
+      <SegmentsPanel />
+    </>,
+  );
   const harsh = (await screen.findByRole("slider", { name: "Harshness" })) as HTMLInputElement;
   expect(harsh.value).toBe("5");
   fireEvent.change(harsh, { target: { value: "8" } });
   expect((screen.getByRole("combobox", { name: "Torment: how often" }) as HTMLSelectElement).value).toBe("Rarely");
   fireEvent.change(screen.getByRole("combobox", { name: "Edge ladder: how often" }), { target: { value: "Often" } });
-  fireEvent.change(screen.getByRole("textbox", { name: "What she calls you" }), { target: { value: "pet,  toy , " } });
+  const names = screen.getByRole("textbox", { name: "What she calls you" });
+  fireEvent.change(names, { target: { value: "pet,  toy , " } });
+  fireEvent.blur(names);
   fireEvent.change(screen.getByRole("slider", { name: "Length 5 in minutes" }), { target: { value: "45" } });
   fireEvent.change(screen.getByRole("combobox", { name: "Ruined orgasms" }), { target: { value: "PunishmentOnly" } });
   fireEvent.change(screen.getByRole("combobox", { name: "Denial at the end of a session" }), { target: { value: "Mostly" } });
   fireEvent.change(screen.getByRole("slider", { name: "Days between orgasms" }), { target: { value: "10" } });
-  fireEvent.click(screen.getByRole("button", { name: "Save her settings" }));
-  await screen.findByText("Saved. New sessions use these settings.");
-  const [, options] = runtime.fetch.mock.calls.find(([, o]) => o?.method === "PUT")!;
-  const body = JSON.parse(options.body);
+  await waitFor(() => expect(screen.getAllByText("Saved. New sessions use these settings.").length).toBeGreaterThan(0), { timeout: 3000 });
+  const puts = runtime.fetch.mock.calls.filter(([, o]) => o?.method === "PUT");
+  // One save for the burst of edits, with every panel's change in it.
+  expect(puts).toHaveLength(1);
+  const body = JSON.parse(puts[0][1].body);
   expect(body.persona).toMatchObject({ harshness: 8, names: ["pet", "toy"] });
   expect(body.lengths).toEqual({ length1: 10, length5: 45, length10: 90 });
   expect(body.endings).toEqual({ denial: "Mostly", ruins: "PunishmentOnly", orgasmEveryDays: 10 });
@@ -67,11 +79,17 @@ it("keeps the edit and shows her refusal when saving fails", async () => {
       ? Response.json({ message: "Persona settings run from 0 to 10." }, { status: 400 })
       : Response.json(stored()),
   );
-  render(<HerSettings />);
+  render(<HerPersonaPanel />);
   fireEvent.change(await screen.findByRole("slider", { name: "Talkativeness" }), { target: { value: "9" } });
-  fireEvent.click(screen.getByRole("button", { name: "Save her settings" }));
-  await screen.findByRole("alert");
+  await screen.findByRole("alert", {}, { timeout: 3000 });
+  expect(screen.getByRole("alert").textContent).toContain("Persona settings run from 0 to 10.");
   expect((screen.getByRole("slider", { name: "Talkativeness" }) as HTMLInputElement).value).toBe("9");
+});
+
+it("links to the tuning lab", async () => {
+  render(<TuningLabLinkPanel />);
+  fireEvent.click(screen.getByRole("button", { name: "Open the tuning lab" }));
+  expect(runtime.navigate).toHaveBeenCalledWith("/aidome-tuning");
 });
 
 it("shows her plan, the ending she leans toward and how the plan changed", async () => {

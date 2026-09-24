@@ -11,7 +11,8 @@ import { extensionFetch } from "@cove/runtime/api";
 export { TrackerCompanion } from "./Tracker";
 import { TrackerCompanion, openTracker } from "./Tracker";
 import { DefinitionSettings } from "./Configuration";
-import { HerSettings, PlanDebug } from "./Persona";
+import { EndingsPanel, HerPersonaPanel, LengthsPanel, PlanDebug, SegmentsPanel, TuningLabLinkPanel } from "./Persona";
+import { Row, inputCls, primaryBtn, secondaryBtn } from "./Ui";
 import { guidedApi, guidedClient, useGuidedSession } from "./GuidedClient";
 import { FollowUps, LedgerPanel, Obligations, OfferCard, PromiseForm } from "./Ledger";
 import {
@@ -720,46 +721,74 @@ export function AiDomeSettingsPanel() {
   if (!settings)
     return (
       <div className="aidomme-settings-panel">
-        <p className="panel-status">{status || "Loading…"}</p>
+        <p className="text-sm text-secondary">{status || "Loading…"}</p>
       </div>
     );
 
   return (
-    <div className="aidomme-settings-panel">
-      <p className="panel-intro">
-        Optional Orpheus-FastAPI text-to-speech for spoken instructions. Leave
-        the URL blank to disable voice.
+    <div className="aidomme-settings-panel space-y-3">
+      <p className="text-sm text-secondary">
+        Optional: an Orpheus-FastAPI text-to-speech server reads her lines aloud in this browser. Leave the URL blank to turn
+        narration off.
       </p>
-      <Field label="TTS server URL">
-        <TextInput
+      <Row label="TTS server URL" hint="For example http://localhost:5005.">
+        <input
+          aria-label="TTS server URL"
+          className={inputCls}
           value={settings.ttsBaseUrl ?? ""}
-          onChange={(v: string) => setSettings({ ...settings, ttsBaseUrl: v })}
           placeholder="http://localhost:5005"
+          onChange={(e) => setSettings({ ...settings, ttsBaseUrl: e.target.value })}
         />
-      </Field>
-      <Field label="Voice">
-        <TextInput
+      </Row>
+      <Row label="Voice" hint="tara, leah, jess, leo, dan, mia, zac or zoe.">
+        <input
+          aria-label="Voice"
+          className={inputCls}
           value={settings.ttsVoice ?? ""}
-          onChange={(v: string) => setSettings({ ...settings, ttsVoice: v })}
           placeholder="mia"
+          onChange={(e) => setSettings({ ...settings, ttsVoice: e.target.value })}
         />
-      </Field>
-      <Field label="Request timeout (seconds)">
-        <NumberInput
-          value={settings.ttsTimeoutSeconds ?? 30}
-          onChange={(v: number | undefined) =>
-            setSettings({ ...settings, ttsTimeoutSeconds: v ?? 30 })
-          }
+      </Row>
+      <Row label="Request timeout" hint="Seconds to wait for the server before giving up on a line.">
+        <input
+          aria-label="Request timeout (seconds)"
+          type="number"
           min={1}
+          className={inputCls}
+          value={settings.ttsTimeoutSeconds ?? 30}
+          onChange={(e) => setSettings({ ...settings, ttsTimeoutSeconds: Number(e.target.value) || 30 })}
         />
-      </Field>
-      <div className="panel-actions">
-        <SaveButton loading={busy} onClick={save} />
-        <button className="btn btn-ghost" disabled={busy} onClick={testVoice}>
+      </Row>
+      <div className="flex flex-wrap items-center gap-2">
+        <button type="button" className={primaryBtn} disabled={busy} onClick={() => void save()}>
+          {busy ? "Saving…" : "Save"}
+        </button>
+        <button type="button" className={secondaryBtn} disabled={busy} onClick={() => void testVoice()}>
           Test voice
         </button>
+        {status && <span className="text-sm text-secondary">{status}</span>}
       </div>
-      {status && <p className="panel-status">{status}</p>}
+    </div>
+  );
+}
+
+// ═══════════════════════════ TUNING LAB ═══════════════════════════
+/** A workbench for her methods, punishment endings and deals, reached from Cove's settings. */
+export function TuningLabPage() {
+  return (
+    <div className="aidomme-shell mx-auto max-w-[1400px] space-y-5 p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold text-foreground">AI Domme tuning lab</h1>
+          <p className="mt-1 text-sm text-secondary">
+            Adjust her methods, punishment endings and deals, and calibrate what each is worth in session points.
+          </p>
+        </div>
+        <button type="button" className={secondaryBtn} onClick={() => navigateToUrl("/settings/extensions/aidome")}>
+          Her settings
+        </button>
+      </div>
+      <DefinitionSettings />
     </div>
   );
 }
@@ -769,7 +798,11 @@ export default {
     TrackerCompanion,
     CommandCenterPage,
     AiDomeSettingsPanel,
-    HerSettingsPanel: HerSettings,
-    DefinitionsSettingsPanel: DefinitionSettings,
+    TuningLabPage,
+    HerPersonaPanel,
+    EndingsPanel,
+    LengthsPanel,
+    SegmentsPanel,
+    TuningLabLinkPanel,
   },
 };

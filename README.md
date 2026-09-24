@@ -72,7 +72,7 @@ Before a session you can promise her something: no orgasm, and/or a long, intens
 or teasing session, for the next session or for some days. She accepts or asks for more, and names
 the stakes. During a session she may offer a deal when you beg, ask for a rest or lose a game:
 edges now, edges owed, denial days, a punishment session or ending, or a ruined orgasm. Her deals
-come from a library you can tune in Cove's settings (Settings, Extensions, AI Domme).
+come from a library you can tune in the tuning lab (Cove's settings, AI Domme tab, Open the tuning lab).
 
 What you owe is kept in a permanent ledger and folded into your next sessions. Breaches are found
 from what the tracker recorded, even when AI Domme was closed. An orgasm that breaks a promise or a
@@ -90,8 +90,10 @@ Everything you set once is in Cove's settings, under its own AI Domme tab (the A
 to it): her persona (harshness, humiliation, mind games, talkativeness, what she calls you, how much
 she varies from session to session), how your sessions end (how much denial, whether and when she
 ruins, roughly how many days between orgasms), how many minutes a length 1, 5 and 10 session means
-to you, how often she uses each kind of segment and how long it runs, her methods, punishment
-endings and deals, and the narration voice. Each session's own settings (Denial, limits such as
+to you, how often she uses each kind of segment and how long it runs, and the narration voice.
+Changes save automatically. The same tab opens the tuning lab: a page for her methods, punishment
+endings and deals, showing what each is worth in session points, where you can override the shared
+defaults and calibrate. Each session's own settings (Denial, limits such as
 "no ruined orgasm tonight") apply on top. Sessions still run on points (what you do), so the minutes are a target: she converts them
 at your pace, which she learns from the sessions you finish. Session settings decide how strict a session is;
 the persona decides how she talks.
@@ -101,6 +103,8 @@ teasing, stories, comments on what is on screen). Stock lines don't repeat withi
 are tracked across sessions so they stay rare. A debug session shows her plan and how it changed.
 
 ## Upgrading an existing install
+
+Version 0.12.1 restyles the settings to match Cove and brings the tuning lab back as a page.
 
 Version 0.12.0 moves the Tuning page into Cove's settings (an AI Domme tab) and adds ending
 preferences. No migration.

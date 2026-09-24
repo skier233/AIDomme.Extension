@@ -497,3 +497,14 @@ From the user's first live sessions and transcript reading:
   spent she recomputes the odds from what actually happened and compares the same draw: below
   the odds, she lets him cum. A draw of 0.45 with projected odds of 39% leans toward denial, but
   if he earns odds of 50% by the end, he cums. Asking mid-session is a separate, fresh roll.
+
+## 17. Settings layout (0.12.1)
+
+The first settings tab rendered unstyled: the build scopes AI Domme's CSS to a few root classes
+and the new panels carried none of them. Panels now follow the sibling extensions: the host draws
+each panel's card and title; a panel's root carries `aidomme-settings-panel`; rows are cards with
+the label and hint on the left and the control on the right, in Cove's theme tokens; edits save
+automatically through one shared settings store. The hand-written stylesheet is imported into the
+components layer so utility classes win over it. The settings tab has five panels (persona, how
+sessions end, session length, what she plans, narration voice) and a link to the tuning lab, a
+page again (`/aidome-tuning`) for methods, punishment endings and deals with a points readout.

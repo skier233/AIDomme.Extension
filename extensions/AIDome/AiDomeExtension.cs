@@ -43,7 +43,7 @@ public sealed class AiDomeExtension : FullExtensionBase
 
     public override string Id => "cove.community.aidome";
     public override string Name => "AI Domme";
-    public override string Version => "0.12.0";
+    public override string Version => "0.12.1";
     public override string Description => "A rule-driven domme for guided edging sessions on your Cove library, with an app-wide edge tracker, orgasm permission, games and persistent commitments.";
     public override string Author => "Cove Community";
     public override string Url => "https://github.com/yourcove/AIDome.Extension";
@@ -101,9 +101,14 @@ public sealed class AiDomeExtension : FullExtensionBase
                 description: "Her persona, how your sessions end, session length, her methods and deals, and narration.",
                 searchKeywords: ["ai domme", "domme", "persona", "denial", "ruin", "orgasm", "methods", "offers", "deals", "tts"],
                 aliases: ["aidome", "aidomme"])
-            .AddSettingsPanel(new UISettingsPanel("aidome-her", "Her persona and preferences", Id, "HerSettingsPanel", 10, TargetTab: SettingsTab))
-            .AddSettingsPanel(new UISettingsPanel("aidome-definitions", "Methods, punishment endings and deals", Id, "DefinitionsSettingsPanel", 20, TargetTab: SettingsTab))
-            .AddSettingsPanel(new UISettingsPanel("aidome-settings", "Narration voice", Id, "AiDomeSettingsPanel", 40, TargetTab: SettingsTab))
+            .AddSettingsPanel(new UISettingsPanel("aidome-persona", "Her persona", Id, "HerPersonaPanel", 10, TargetTab: SettingsTab))
+            .AddSettingsPanel(new UISettingsPanel("aidome-endings", "How your sessions end", Id, "EndingsPanel", 20, TargetTab: SettingsTab))
+            .AddSettingsPanel(new UISettingsPanel("aidome-lengths", "Session length", Id, "LengthsPanel", 30, TargetTab: SettingsTab))
+            .AddSettingsPanel(new UISettingsPanel("aidome-segments", "What she plans", Id, "SegmentsPanel", 40, TargetTab: SettingsTab))
+            .AddSettingsPanel(new UISettingsPanel("aidome-tuning", "Tuning lab", Id, "TuningLabLinkPanel", 50, TargetTab: SettingsTab))
+            .AddSettingsPanel(new UISettingsPanel("aidome-settings", "Narration voice", Id, "AiDomeSettingsPanel", 60, TargetTab: SettingsTab))
+            // The tuning lab is a full page; the settings tab links to it.
+            .AddPage("aidome-tuning", "AI Domme tuning lab", "TuningLabPage", icon: "sliders-horizontal", showInNav: false)
             .AddSlot("app-floating-ui", "TrackerCompanion")
             .AddKeyboardAction("tracker-edge", "Record edge", ["Alt+E"], [new("global"), new("overlay")], group: "AI Domme")
             .AddKeyboardAction("tracker-orgasm", "Record orgasm", ["Alt+O"], [new("global"), new("overlay")], group: "AI Domme")
