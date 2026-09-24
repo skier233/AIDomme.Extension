@@ -4,7 +4,7 @@
 Mode FreePlay; intensity 5, length 4, denial 5, meanness 5
 Persona tonight: harshness 3, humiliation 2, manipulation 3, talkativeness 7
 Mood: Relentless (Temperament), annoyance 0
-Ending she leans toward: Denied (odds 49%); she will keep it to herself
+Ending she leans toward: Denied (61% chance she lets him cum; the draw made at the start says no); she will keep it to herself
 No plan of segments: he sets the pace, she decides the ending.
 
 ## Session
@@ -17,44 +17,34 @@ No plan of segments: he sets the pace, she decides the ending.
 [02:05] Him: (edge)
 [02:05] Her: That's 2 for me.
 [02:37] Her (aside): Look what's happening now. Don't you dare look away.
-[03:00] Him: May I cum?
-[03:00] Her: No.
 [03:04] Him: (edge)
-[03:04] Her: 3. Keep going.
-[03:34] Him: (edge)
-[03:49] Her (aside): Look at Mia. Imagine them watching you right now.
-[04:05] Him: May I cum?
-[04:05] Her: No. Not for free. Earn it. Edge 10 more times for me, and then you may cum.
-[04:05] Him: I accept.
-[04:05] Her: Deal. Now earn it.
-[04:05] Her: Earn it. Ten more edges. Your way, but record every one.
-[04:12] Him: (edge)
-[04:12] Her: Good. 9 to go.
-[04:31] Her (aside): You've asked me 2 times tonight. I've enjoyed saying no every time.
-[04:34] Him: (edge)
-[04:34] Her: 8 more.
-[05:04] Him: (edge)
-[05:04] Her: Keep paying. 7 left.
-[05:14] Her (aside): All that asking. Did it help? No. It never does.
-[05:39] Him: May I cum?
-[05:39] Note: refused: Pay what you agreed to first.
-[05:42] Him: (edge)
-[06:21] Her (aside): Not long now. I know what happens next. You don't.
-[06:29] Him: (edge)
-[07:15] Him: (edge)
-[07:20] Her (aside): Mia is having more fun than you are.
-[07:31] Him: May I cum?
-[07:31] Note: refused: Pay what you agreed to first.
-[07:42] Him: (edge)
-[08:05] Him: (edge)
-[08:28] Her (aside): Keep your eyes on Mia. Don't look away.
-[08:36] Him: (edge)
-[08:37] Him: May I cum?
-[08:37] Note: refused: Pay what you agreed to first.
-[09:17] Him: (edge)
-[09:17] Her: Good. That's what it cost.
-[09:17] Her: You've begged enough. Stroke however you like. You have 32 seconds to cum. Record it when you do.
-[09:37] Him: (cums, with permission)
-[09:37] Her: That was beautiful. Good pet.
+[03:04] Her: Another one. 3. Again.
+[03:49] Her (aside): Every stroke tonight is mine, not yours. Remember that.
+[03:59] Him: (edge)
+[04:41] Her (aside): Keep your eyes on Mia. Don't look away.
+[04:43] Him: (edge)
+[04:43] Her: Good. That's 5.
+[05:25] Her (aside): Take your time. The longer you go, the better I like it.
+[05:36] Him: (edge)
+[06:05] Her (aside): Do you know how much I enjoy this?
+[06:07] Him: (edge)
+[06:07] Her: 7. Keep going.
+[06:50] Him: (edge)
+[06:52] Her (aside): Mia is having more fun than you are.
+[07:32] Her (aside): You look so desperate. It suits you.
+[07:44] Him: (edge)
+[07:44] Him: May I cum?
+[07:44] Her: Not a chance.
+[08:27] Her (aside): I could do this all night. I might.
+[08:50] Him: (edge)
+[09:00] Her (aside): Good pet. Keep going just like that.
+[09:38] Him: May I cum?
+[09:38] Her: Not yet... unless you pay for it. You may cum. Then you're locked away for 4 days. No exceptions.
+[09:38] Note: offer: Pay in days, Denial x4, worth 56 points
+[09:38] Him: I accept.
+[09:38] Her: Deal.
+[09:38] Her: You've been so good for me. Stroke however you like. You have a minute and a half to cum. Record it when you do.
+[09:52] Him: (cums, with permission)
+[09:52] Her: Good boy. That's all for tonight.
 
-Outcome: AllowedOrgasm; 14 edges; 111/72 points; asked to cum 2 times, to rest 0 times.
+Outcome: AllowedOrgasm; 10 edges; 97/230 points; asked to cum 2 times, to rest 0 times.

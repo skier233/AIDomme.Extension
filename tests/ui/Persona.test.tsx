@@ -17,6 +17,7 @@ const stored = () => ({
   settings: {
     persona: { harshness: 5, humiliation: 3, manipulation: 5, talkativeness: 5, variance: 2, names: ["pet"] },
     lengths: { length1: 10, length5: 35, length10: 90 },
+    endings: { denial: "Normal", ruins: "Sometimes", orgasmEveryDays: 0 },
     segments: { torment: { frequency: "Rarely", length: "Shorter" } },
   },
   segments: [
@@ -44,12 +45,16 @@ it("edits her persona and segment preferences, and saves them together", async (
   fireEvent.change(screen.getByRole("combobox", { name: "Edge ladder: how often" }), { target: { value: "Often" } });
   fireEvent.change(screen.getByRole("textbox", { name: "What she calls you" }), { target: { value: "pet,  toy , " } });
   fireEvent.change(screen.getByRole("slider", { name: "Length 5 in minutes" }), { target: { value: "45" } });
+  fireEvent.change(screen.getByRole("combobox", { name: "Ruined orgasms" }), { target: { value: "PunishmentOnly" } });
+  fireEvent.change(screen.getByRole("combobox", { name: "Denial at the end of a session" }), { target: { value: "Mostly" } });
+  fireEvent.change(screen.getByRole("slider", { name: "Days between orgasms" }), { target: { value: "10" } });
   fireEvent.click(screen.getByRole("button", { name: "Save her settings" }));
   await screen.findByText("Saved. New sessions use these settings.");
   const [, options] = runtime.fetch.mock.calls.find(([, o]) => o?.method === "PUT")!;
   const body = JSON.parse(options.body);
   expect(body.persona).toMatchObject({ harshness: 8, names: ["pet", "toy"] });
   expect(body.lengths).toEqual({ length1: 10, length5: 45, length10: 90 });
+  expect(body.endings).toEqual({ denial: "Mostly", ruins: "PunishmentOnly", orgasmEveryDays: 10 });
   expect(body.segments).toMatchObject({
     torment: { frequency: "Rarely", length: "Shorter" },
     "edge-ladder": { frequency: "Often", length: "Normal" },

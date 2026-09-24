@@ -100,6 +100,11 @@ public sealed class SessionState
     public List<MethodInfo> Methods { get; set; } = [];
     /// <summary>What each Length means to him, in minutes; with his pace it sets the points budget.</summary>
     public SessionLengths Lengths { get; set; } = new();
+    /// <summary>How he wants sessions to end, in general (the session's Denial and limits apply on top).</summary>
+    public EndingPreferences Endings { get; set; } = new();
+
+    /// <summary>Whether she may ruin an orgasm tonight at all: his general preference, then this session's limit.</summary>
+    [JsonIgnore] public bool RuinsAllowed => Endings.Ruins != RuinPreference.Never && !Contract.Limits.NoRuin;
 
     public DateTime StartedAtUtc { get; set; }
     public bool Ended { get; set; }

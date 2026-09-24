@@ -4,7 +4,7 @@
 Mode FreePlay; intensity 5, length 4, denial 5, meanness 5
 Persona tonight: harshness 7, humiliation 2, manipulation 5, talkativeness 4
 Mood: Neutral (Temperament), annoyance 0
-Ending she leans toward: Denied (odds 54%); she will keep it to herself
+Ending she leans toward: Denied (68% chance she lets him cum; the draw made at the start says no); she will keep it to herself
 No plan of segments: he sets the pace, she decides the ending.
 
 ## Session
@@ -29,8 +29,42 @@ No plan of segments: he sets the pace, she decides the ending.
 [06:52] Her (aside): That's the difference between us.
 [07:06] Him: (edge)
 [07:06] Her: 9. Don't you dare go over.
-[07:06] Her: Time's up, and you don't get to cum. Accept it.
-[07:11] Him: (done)
-[07:11] Her: You're dismissed. Stay frustrated.
+[08:01] Him: (edge)
+[08:53] Her (aside): You'd stop right now if I told you to. You know you would.
+[09:05] Him: (edge)
+[09:05] Her: Mm. 11.
+[09:37] Him: (edge)
+[09:37] Her: That's 12. I could do this all night.
+[10:17] Him: (edge)
+[10:49] Her (aside): I have one rule, and I'll only say it once.
+[11:03] Her (aside): Your pleasure is a privilege, not a right.
+[11:04] Him: (edge)
+[11:17] Her (aside): Every time you forget that, I'll remind you. Slowly.
+[11:31] Her (aside): Tonight is one of those reminders.
+[11:42] Him: (edge)
+[12:44] Him: (edge)
+[12:44] Her: Good. That's 16.
+[13:48] Him: (edge)
+[14:03] Her (aside): Take your time. The longer you go, the better I like it.
+[14:38] Him: (edge)
+[14:38] Her: That's 18 for me.
+[15:10] Him: (edge)
+[15:51] Her (aside): I love it when you're this frustrated.
+[16:10] Him: (edge)
+[16:10] Her: 20 edges tonight. You're going to feel every one of them later.
+[16:57] Him: (edge)
+[17:46] Her (aside): I could do this all night. I might.
+[18:03] Him: (edge)
+[18:34] Him: (edge)
+[19:33] Him: (edge)
+[19:36] Her (aside): Tonight, when you're lying in bed, you're going to feel it.
+[19:48] Her (aside): That dull ache. That throb when you think about this.
+[20:00] Her (aside): You'll want to touch. You'll think about sneaking one.
+[20:12] Her (aside): And you won't, because you know I'd find out.
+[20:26] Him: (edge)
+[21:23] Him: (edge)
+[21:23] Her: That's all. No orgasm for you tonight.
+[21:28] Him: (done)
+[21:28] Her: Keep your hands off until I say otherwise.
 
-Outcome: Denied; 9 edges; 76/72 points; asked to cum 0 times, to rest 0 times.
+Outcome: Denied; 26 edges; 235/230 points; asked to cum 0 times, to rest 0 times.

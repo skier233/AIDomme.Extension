@@ -142,7 +142,7 @@ public sealed class PlanEngine(IRandom r, SegmentCatalogue catalogue)
     private double Weight(SessionState s, SessionPlan plan, SegmentType t, SegmentType? prev, double progress)
     {
         var preference = plan.Preferences.TryGetValue(t.Id, out var p) ? p : new();
-        double w = preference.Frequency switch { Frequency.Rarely => 0.35, Frequency.Often => 2.2, _ => 1.0 };
+        double w = t.Weight * preference.Frequency switch { Frequency.Rarely => 0.35, Frequency.Often => 2.2, _ => 1.0 };
 
         string position = progress < 0.15 ? "start" : progress > 0.7 ? "late" : "middle";
         w *= t.Position.TryGetValue(position, out var pw) ? pw : 1;

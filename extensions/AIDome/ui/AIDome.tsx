@@ -44,6 +44,7 @@ type Contract = {
     cei: boolean;
     selfOral: boolean;
     allowedMethodIds: number[];
+    noRuin?: boolean;
   };
   punishment: boolean;
   debug: boolean;
@@ -153,7 +154,16 @@ function SetupScreen() {
         </section>
       )}
       <section className="aidomme-card">
-        <h2>How do you want to play?</h2>
+        <div className="aidomme-heading-row">
+          <h2>How do you want to play?</h2>
+          <button
+            type="button"
+            className="aidomme-link"
+            onClick={() => navigateToUrl("/settings/extensions/aidome")}
+          >
+            Her settings
+          </button>
+        </div>
         <div className="aidomme-modes" role="group" aria-label="Session mode">
           {setup.modes.map((preset: any) => (
             <button
@@ -389,6 +399,14 @@ function LimitsEditor({
           </label>
         ))}
       </div>
+      <label className="aidomme-check" title="Overrides your general ending settings for this session only. A ruin you owe waits for another night.">
+        <input
+          type="checkbox"
+          checked={!!limits.noRuin}
+          onChange={(e) => set({ noRuin: e.target.checked })}
+        />
+        No ruined orgasm tonight
+      </label>
       {contract.methods === "Domme" && eligible.length > 0 && (
         <details>
           <summary>
@@ -746,27 +764,12 @@ export function AiDomeSettingsPanel() {
   );
 }
 
-// ═══════════════════════════ TUNING PAGE ═══════════════════════════
-export function TuningLabPage() {
-  return (
-    <div className="aidomme-shell">
-      <div className="aidomme-page-header">
-        <h1>AI Domme tuning</h1>
-        <span className="aidomme-muted">
-          Her persona, what she plans, your methods, punishment endings and calibration
-        </span>
-      </div>
-      <HerSettings />
-      <DefinitionSettings />
-    </div>
-  );
-}
-
 export default {
   components: {
     TrackerCompanion,
     CommandCenterPage,
     AiDomeSettingsPanel,
-    TuningLabPage,
+    HerSettingsPanel: HerSettings,
+    DefinitionsSettingsPanel: DefinitionSettings,
   },
 };

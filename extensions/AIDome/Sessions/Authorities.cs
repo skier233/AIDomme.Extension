@@ -1,16 +1,18 @@
 namespace AIDome.Sessions;
 
-/// <summary>How a step wants its method chosen when the domme picks it.</summary>
 /// <summary>
 /// What a step wants from a method. <paramref name="MinCloseness"/> is set when he must reach the
 /// edge on it: a method that can barely get him there (a gentle finger, a teasing pinch) is never
-/// chosen for edging while a closer one is available.
+/// chosen for edging while a closer one is available. <paramref name="MaxCloseness"/> asks for the
+/// opposite on purpose: edging the hard way, on an intense grip that only just gets him there.
 /// </summary>
 public sealed record MethodPreference(int IntensityCeiling, bool Tease = false, bool Torture = false, bool Closeness = false, bool Basic = false,
-    int MinCloseness = 0)
+    int MinCloseness = 0, int MaxCloseness = 10)
 {
     /// <summary>How close a method must get him (Closeness 0–10) for her to ask for edges on it.</summary>
     public const int EdgeReach = 5;
+    /// <summary>Edging the hard way: possible (Closeness at least 1) but a struggle (at most 4).</summary>
+    public const int HardReachMin = 1, HardReachMax = 4;
 }
 
 /// <summary>Who chooses the stimulation method.</summary>
@@ -122,6 +124,11 @@ public sealed class DommeMethods(IRandom random) : IMethodAuthority
             if (reach.Count == 0) reach = all.OrderByDescending(m => m.Closeness).Take(3).ToList();
             pool = reach;
         }
+        if (p.MaxCloseness < 10)
+        {
+            var hard = all.Where(m => m.Closeness >= p.MinCloseness && m.Closeness <= p.MaxCloseness && m.Intensity <= Math.Min(10, p.IntensityCeiling + 2)).ToList();
+            if (hard.Count > 0) pool = hard;
+        }
 
         // Once lube is on, dry methods are impractical.
         if (state.LubeActive)
@@ -185,7 +192,18 @@ public sealed class DommePermission : IPermissionAuthority
         double progress = Math.Clamp(atProgress, 0, 1);
         chance *= progress >= 1 ? 1 : 0.1 + 0.9 * progress * progress;
         double? hours = s.HoursSinceLastOrgasmAtStart is double h ? h + (s.LastActivityUtc - s.StartedAtUtc).TotalHours : null;
-        chance *= hours switch { null => 1, < 12 => 0.7, < 24 => 0.85, > 72 => 1.15, _ => 1 };
+        var prefs = s.Endings;
+        if (prefs.OrgasmEveryDays > 0 && hours is double since)
+        {
+            // His cadence: well short of it she mostly says no; past it she comes round.
+            double ratio = since / 24 / prefs.OrgasmEveryDays;
+            chance *= ratio switch { < 0.5 => 0.25, < 0.8 => 0.55, < 1 => 0.8, < 1.5 => 1.15, _ => 1.35 };
+        }
+        else chance *= hours switch { null => 1, < 12 => 0.7, < 24 => 0.85, > 72 => 1.15, _ => 1 };
+        chance *= prefs.Denial switch
+        {
+            DenialPreference.Rarely => 1.5, DenialPreference.Often => 0.6, DenialPreference.Mostly => 0.3, _ => 1,
+        };
         chance *= s.Mood.Mood switch
         {
             DommeMood.Cruel => 0.7, DommeMood.Teasing => 0.85, DommeMood.Relentless => 0.9, DommeMood.Playful => 1.1, _ => 1,
@@ -193,6 +211,8 @@ public sealed class DommePermission : IPermissionAuthority
         if (s.Retaliation.Active) chance *= 0.3;
         if (s.Contract.Punishment) chance *= 0.6;
         if (requested) chance -= 6 * Math.Max(0, s.RequestsThisSession - 1);
+        // He never wants to be denied: at the end she lets him cum (a promise or window still wins).
+        if (prefs.Denial == DenialPreference.Never && !requested && progress >= 1) return 100;
         return Math.Clamp(chance + s.PermissionModifier, 1, 95);
     }
 }

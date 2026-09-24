@@ -786,7 +786,7 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
             return;
         }
         s.PermissionGranted = true;
-        s.FinishRuinOwed = !ruinNow && s.OwedRuins > 0;
+        s.FinishRuinOwed = !ruinNow && s.OwedRuins > 0 && s.RuinsAllowed;
         s.FinishRuined = ruinNow || s.FinishRuinOwed;
         var finishing = planner.Finishing(s, s.FinishRuined);
         var tags = new List<string> { requested ? "requested" : "her-decision", s.Ending.Told(orgasm: true) };

@@ -286,6 +286,17 @@
       "variants": ["Now something you won't be able to sit still for.", "Time to squirm for me.", "This part isn't for your pleasure. It's for mine.", "Let's see how long before you're begging me to stop."]
     },
     {
+      "id": "segment.hard-edge",
+      "act": "SegmentStart",
+      "when": ["#segment:hard-edge"],
+      "weight": 3,
+      "variants": [
+        "You're going to edge for me on a grip that barely gets you there. Take your time. You'll need it.",
+        "Now you earn an edge the hard way.",
+        "This one's going to take a while, and you'll feel every second of it."
+      ]
+    },
+    {
       "id": "segment.hated-grip",
       "act": "SegmentStart",
       "when": ["#segment:hated-grip"],

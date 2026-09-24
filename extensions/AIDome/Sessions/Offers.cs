@@ -165,6 +165,8 @@ public static class Offers
             // Paying edges now for mercy from edges is no mercy; a ruined "now" only applies to an orgasm.
             if (buys == OfferBuys.Mercy && t.Kind == OfferKind.EdgesNow) continue;
             if (buys != OfferBuys.Orgasm && t.Kind == OfferKind.RuinNow) continue;
+            // Ruin as a price only where he allows ruins at all.
+            if (t.Kind is OfferKind.Ruin or OfferKind.RuinNow && !s.RuinsAllowed) continue;
             double w = 1;
             if (t.Moods.Contains(s.Mood.Mood)) w *= 2.5;
             w *= t.Flavor switch

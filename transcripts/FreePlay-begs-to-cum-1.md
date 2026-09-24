@@ -4,7 +4,7 @@
 Mode FreePlay; intensity 5, length 4, denial 5, meanness 5
 Persona tonight: harshness 7, humiliation 2, manipulation 5, talkativeness 4
 Mood: Neutral (Temperament), annoyance 0
-Ending she leans toward: Denied (odds 54%); she will keep it to herself
+Ending she leans toward: Denied (68% chance she lets him cum; the draw made at the start says no); she will keep it to herself
 No plan of segments: he sets the pace, she decides the ending.
 
 ## Session
@@ -15,21 +15,39 @@ No plan of segments: he sets the pace, she decides the ending.
 [01:31] Her (aside): What would you give up for one orgasm? Don't answer. I already know.
 [01:32] Him: (edge)
 [02:14] Him: (edge)
-[02:14] Him: May I cum?
-[02:14] Her: Denied. Keep going.
-[02:50] Her (aside): You look so desperate. It suits you.
+[02:50] Her (aside): I'm watching every edge you record.
 [03:16] Him: (edge)
-[03:33] Him: May I cum?
-[03:33] Her: Asking again won't change my answer.
-[03:48] Him: (edge)
-[04:10] Her (aside): I wonder if I'll let you cum tonight. I haven't decided. Or maybe I have.
-[04:23] Him: (edge)
-[04:41] Him: May I cum?
-[04:41] Her: No. Not for free. You may cum. Then you're locked away for 3 days. No exceptions.
-[04:49] Him: I accept.
-[04:49] Her: Deal.
-[04:49] Her: Permission granted. Stroke however you like. You have 51 seconds to cum. Record it when you do.
-[05:15] Him: (cums, with permission)
-[05:15] Her: Good boy. That's all for tonight.
+[03:55] Him: (edge)
+[04:02] Her (aside): Your hands, my rules. Don't forget that.
+[04:28] Him: (edge)
+[05:04] Him: (edge)
+[05:04] Her: Another one. 7. Again.
+[06:03] Him: (edge)
+[06:16] Her (aside): Do you know what I'll do when you leave tonight?
+[06:28] Her (aside): Nothing. I won't think about you at all.
+[06:40] Her (aside): But you'll think about me. In bed, in the shower, tomorrow at work.
+[06:52] Her (aside): That's the difference between us.
+[07:06] Him: (edge)
+[07:06] Her: 9. Don't you dare go over.
+[07:06] Him: May I cum?
+[07:06] Her: You think begging helps? It makes it worse.
+[08:01] Him: (edge)
+[08:01] Her: Mm. 10.
+[08:49] Him: May I cum?
+[08:49] Her: Asking again won't change my answer.
+[08:53] Him: (edge)
+[08:57] Her (aside): I have one rule, and I'll only say it once.
+[09:11] Her (aside): Your pleasure is a privilege, not a right.
+[09:25] Her (aside): Every time you forget that, I'll remind you. Slowly.
+[09:33] Him: (edge)
+[09:39] Her (aside): Tonight is one of those reminders.
+[09:55] Him: May I cum?
+[09:55] Her: You want it that badly? Then pay. You may cum. Then you're locked away for 4 days. No exceptions.
+[09:55] Note: offer: Pay in days, Denial x4, worth 56 points
+[10:10] Him: I accept.
+[10:10] Her: Mmm. Done. Don't forget you owe me.
+[10:10] Her: Fine. Stroke however you like. You have 48 seconds to cum. Record it when you do.
+[10:24] Him: (cums, with permission)
+[10:24] Her: Good pet. That's all for tonight.
 
-Outcome: AllowedOrgasm; 6 edges; 53/72 points; asked to cum 3 times, to rest 0 times.
+Outcome: AllowedOrgasm; 12 edges; 108/230 points; asked to cum 3 times, to rest 0 times.

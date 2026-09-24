@@ -53,6 +53,11 @@ public sealed record StepTemplate
     public int[] Hold { get; init; } = [0, 0];
     public double HoldChance { get; init; }
     public MethodPolicy Method { get; init; } = new();
+    /// <summary>
+    /// For steps that ask for edges: "" (a method that gets him there) or "hard" (on purpose, an
+    /// intense grip that barely does: slow, overwhelming, and he has to earn it).
+    /// </summary>
+    public string Reach { get; init; } = "";
 }
 
 /// <summary>What happens when he begs for a rest during a segment of this type.</summary>
@@ -100,6 +105,8 @@ public sealed record SegmentType
     public Dictionary<string, int> Persona { get; init; } = [];
     /// <summary>False for types only revisions insert (a punishment).</summary>
     public bool Planned { get; init; } = true;
+    /// <summary>A base multiplier on how often she plans it (a rare treat or a rare cruelty).</summary>
+    public double Weight { get; init; } = 1;
     public StepTemplate Step { get; init; } = new();
 
     public bool Has(string tag) => Tags.Contains(tag, StringComparer.OrdinalIgnoreCase);
@@ -177,6 +184,8 @@ public sealed class SegmentCatalogue
                 if (range is not [var min, var max] || min < 0 || max < min) problems.Add($"{at}: a step range must be [min, max].");
             if (s.Method.Policy is not ("same" or "rotate" or "swap" or "favorite" or "hated")) problems.Add($"{at}: unknown method policy '{s.Method.Policy}'.");
             if (s.Method.Prefer is not ("tease" or "torture" or "closeness" or "basic" or "any")) problems.Add($"{at}: unknown method preference '{s.Method.Prefer}'.");
+            if (s.Reach is not ("" or "hard")) problems.Add($"{at}: unknown reach '{s.Reach}'.");
+            if (t.Weight <= 0) problems.Add($"{at}: weight must be positive.");
         }
         foreach (var (key, tags) in Requires)
         {

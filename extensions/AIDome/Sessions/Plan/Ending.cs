@@ -85,12 +85,23 @@ public static class EndingAuthority
             lean.Reason = $"{chance:0}% chance she lets him cum; the draw made at the start says no";
             return;
         }
-        lean.Kind = s.OwedRuins > 0 || lean.RuinDraw < RuinChance(s) ? EndingKind.Ruined : EndingKind.Full;
-        lean.Reason = s.OwedRuins > 0 ? "an owed ruin"
+        bool owedRuin = s.OwedRuins > 0 && s.RuinsAllowed;
+        lean.Kind = owedRuin || lean.RuinDraw < RuinChance(s) ? EndingKind.Ruined : EndingKind.Full;
+        lean.Reason = owedRuin ? "an owed ruin"
             : $"{chance:0}% chance she lets him cum; the draw made at the start says yes"
               + (lean.Kind == EndingKind.Ruined ? $", and her {RuinChance(s):P0} ruin chance came up" : "");
     }
 
-    /// <summary>How likely an allowed orgasm is ruined by her choice.</summary>
-    public static double RuinChance(SessionState s) => 0.03 + s.Mean * 0.022 + (s.Contract.Punishment ? 0.15 : 0);
+    /// <summary>How likely an allowed orgasm is ruined by her own choice, within his preference.</summary>
+    public static double RuinChance(SessionState s)
+    {
+        if (!s.RuinsAllowed) return 0;
+        double chance = 0.03 + s.Mean * 0.022 + (s.Contract.Punishment ? 0.15 : 0);
+        return s.Endings.Ruins switch
+        {
+            RuinPreference.PunishmentOnly => s.Contract.Punishment ? chance : 0,
+            RuinPreference.Often => Math.Min(0.8, chance * 2),
+            _ => chance,
+        };
+    }
 }

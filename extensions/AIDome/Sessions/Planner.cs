@@ -101,7 +101,10 @@ public sealed class SegmentPlanner(IRandom r, Authorities a) : IPlanner
 
         // Steps that ask for edges need a method that can get him there.
         bool edging = tpl.Kind is StepKind.Edges or StepKind.Hold or StepKind.MaxEdges;
-        var method = Method(s, tpl.Method, seg, edging ? MethodPreference.EdgeReach : 0);
+        bool hard = edging && tpl.Reach == "hard";
+        var method = Method(s, tpl.Method, seg,
+            hard ? MethodPreference.HardReachMin : edging ? MethodPreference.EdgeReach : 0,
+            hard ? MethodPreference.HardReachMax : 10);
         int speed = Speed(s, tpl, seg, type);
         Directive d = tpl.Kind switch
         {
@@ -141,15 +144,16 @@ public sealed class SegmentPlanner(IRandom r, Authorities a) : IPlanner
     }
 
     /// <summary>A method by the segment's policy, within the session's intensity plus the policy's ceiling.</summary>
-    private MethodInfo Method(SessionState s, MethodPolicy policy, PlannedSegment seg, int minCloseness = 0)
+    private MethodInfo Method(SessionState s, MethodPolicy policy, PlannedSegment seg, int minCloseness = 0, int maxCloseness = 10)
     {
         if (!a.Methods.DommeChooses) return MethodInfo.UserChoice(s.Methods);
         int ceiling = Math.Clamp(s.Intensity + policy.Ceiling, 2, 10);
         var preference = new MethodPreference(ceiling, Tease: policy.Prefer == "tease", Torture: policy.Prefer == "torture",
-            Closeness: policy.Prefer == "closeness", Basic: policy.Prefer == "basic", MinCloseness: minCloseness);
+            Closeness: policy.Prefer == "closeness", Basic: policy.Prefer == "basic", MinCloseness: minCloseness, MaxCloseness: maxCloseness);
+        bool Reaches(MethodInfo m) => m.Closeness >= minCloseness && m.Closeness <= maxCloseness;
         MethodInfo? fixedMethod = seg.MethodId is int id ? s.Methods.FirstOrDefault(m => m.Id == id) : null;
-        // A method kept for the segment still has to reach the edge when this step asks for one.
-        if (fixedMethod is not null && fixedMethod.Closeness < minCloseness && s.Methods.Any(m => m.Closeness >= minCloseness)) fixedMethod = null;
+        // A method kept for the segment still has to fit this step's reach.
+        if (fixedMethod is not null && !Reaches(fixedMethod) && s.Methods.Any(Reaches)) fixedMethod = null;
         switch (policy.Policy)
         {
             case "same" when fixedMethod is not null:
@@ -166,7 +170,7 @@ public sealed class SegmentPlanner(IRandom r, Authorities a) : IPlanner
             case "hated":
             {
                 if (fixedMethod is not null) return fixedMethod;
-                var pool = s.Methods.Where(m => m.Intensity <= Math.Min(10, ceiling + 1)).OrderByDescending(m => m.TortLevel).Take(3).ToList();
+                var pool = s.Methods.Where(m => m.Intensity <= Math.Min(10, ceiling + 1) && Reaches(m)).OrderByDescending(m => m.TortLevel).Take(3).ToList();
                 var chosen = pool.Count > 0 ? r.Pick(pool) : a.Methods.Choose(s, preference);
                 seg.MethodId = chosen.Id;
                 return chosen;

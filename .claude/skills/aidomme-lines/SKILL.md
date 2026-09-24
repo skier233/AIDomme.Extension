@@ -88,7 +88,8 @@ Properties (all read by the plan engine; no code per segment): `tags`, `intensit
 `needs` (pacing, edges, methods, games), `share` of the points budget, `steps`, `position`
 weights for start/middle/late, `follows` multipliers by the previous segment's tags, `followUp`
 tags the next segment must have, `onRestBeg`, `persona` minimum dials, and `step` (kind, speed,
-seconds, count, hold, method policy). A rest-like segment should have `"start": 0`. A new tag is
+seconds, count, hold, method policy, and `reach: "hard"` to edge on purpose on a grip that barely
+gets him there), and a base `weight` for rare segments. A rest-like segment should have `"start": 0`. A new tag is
 fine; `follows`, `followUp`, mood lenses and `requires` may only refer to tags some segment has.
 Give a new segment a `SegmentStart` line module (`"when": ["#segment:<id>"]`) and, if its steps
 need their own wrapper, an `Instruct` module with `"segment=<id>"`.

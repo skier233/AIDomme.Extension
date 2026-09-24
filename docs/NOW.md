@@ -339,7 +339,7 @@ contracts, and mode 4 as the resting state. Do not build until Phase 3 is done.
 Answered 2026-09-22:
 
 1. **Homework stays.** Rebuild it on the planner in Phase 4.
-2. **Tuning page**: useful, keep it as its own page, low priority.
+2. **Tuning page**: useful; since 0.12.0 it is the AI Domme tab in Cove's settings, with her persona and ending preferences.
 3. **Legacy SQLite import has run** on the real install. Importer and SQLite package removed in
    Phase 0.
 5. **Unauthorized orgasms are self-reported** as accidental or intentional, in that session or the

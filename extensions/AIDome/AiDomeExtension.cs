@@ -43,7 +43,7 @@ public sealed class AiDomeExtension : FullExtensionBase
 
     public override string Id => "cove.community.aidome";
     public override string Name => "AI Domme";
-    public override string Version => "0.11.0";
+    public override string Version => "0.12.0";
     public override string Description => "A rule-driven domme for guided edging sessions on your Cove library, with an app-wide edge tracker, orgasm permission, games and persistent commitments.";
     public override string Author => "Cove Community";
     public override string Url => "https://github.com/yourcove/AIDome.Extension";
@@ -90,11 +90,20 @@ public sealed class AiDomeExtension : FullExtensionBase
         if (_runtimes is not null) await _runtimes.DisposeAsync();
     }
 
+    /// <summary>AI Domme's own tab in Cove's settings (/settings/extensions/aidome).</summary>
+    public const string SettingsTab = "extensions/aidome";
+
     public override UIManifest GetUIManifest()
         => ManifestBuilder()
             .AddPage("aidome", "AI Domme", "CommandCenterPage", icon: "flame", showInNav: true, navOrder: 90)
-            .AddPage("aidome-tuning", "AI Domme Tuning", "TuningLabPage", icon: "sliders-horizontal", showInNav: false)
-            .AddSettingsPanel(new UISettingsPanel("aidome-settings", "AI Domme", Id, "AiDomeSettingsPanel", 40))
+            // Everything the user sets once lives in Cove's settings, under its own tab.
+            .AddSettingsTab(SettingsTab, "AI Domme", order: 110, icon: "flame",
+                description: "Her persona, how your sessions end, session length, her methods and deals, and narration.",
+                searchKeywords: ["ai domme", "domme", "persona", "denial", "ruin", "orgasm", "methods", "offers", "deals", "tts"],
+                aliases: ["aidome", "aidomme"])
+            .AddSettingsPanel(new UISettingsPanel("aidome-her", "Her persona and preferences", Id, "HerSettingsPanel", 10, TargetTab: SettingsTab))
+            .AddSettingsPanel(new UISettingsPanel("aidome-definitions", "Methods, punishment endings and deals", Id, "DefinitionsSettingsPanel", 20, TargetTab: SettingsTab))
+            .AddSettingsPanel(new UISettingsPanel("aidome-settings", "Narration voice", Id, "AiDomeSettingsPanel", 40, TargetTab: SettingsTab))
             .AddSlot("app-floating-ui", "TrackerCompanion")
             .AddKeyboardAction("tracker-edge", "Record edge", ["Alt+E"], [new("global"), new("overlay")], group: "AI Domme")
             .AddKeyboardAction("tracker-orgasm", "Record orgasm", ["Alt+O"], [new("global"), new("overlay")], group: "AI Domme")

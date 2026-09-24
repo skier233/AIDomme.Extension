@@ -475,3 +475,25 @@ From the user's first live sessions and transcript reading:
 - **Offers**: each refused or lapsed offer raises her next price for the same thing by a third,
   only deals that can cost more are considered, sterner flavors gain weight, and she may repeat the
   refused deal dearer. Lines say so only when the price really went up.
+
+## 16. Second feedback round (0.12.0)
+
+- **Edging the hard way, on purpose.** Edge steps normally need a method with Closeness 5+. A
+  segment's step may now declare `reach: "hard"`: an intense grip that only just gets him there
+  (Closeness 1 to 4, never 0). The new "Edge the hard way" segment uses it; it is tagged `punish`,
+  so it is also a punishment option, and carries a base `weight` of 0.4 so she plans it rarely
+  otherwise. `weight` is a new general segment property.
+- **Ending preferences** (long-term, in Cove settings): denial at the end (Never, Rarely, Normal,
+  Often, Mostly), ruins (Never, only as a price or punishment, Sometimes, Often) and roughly how
+  many days between orgasms. They shape her odds and ruin chance; "Never" denial means she lets
+  him cum at the end unless a promise or denial window he agreed to says otherwise. Session
+  specific: the Denial slider as before, and a "No ruined orgasm tonight" limit (an owed ruin
+  waits). Ruin deals are never offered where ruins are off.
+- **Settings location.** The hidden Tuning page is gone; its content, her persona and preferences
+  and the narration voice are panels in an AI Domme tab of Cove's settings
+  (/settings/extensions/aidome), linked from the AI Domme page.
+- **How the ending is decided** (unchanged, now documented): one random draw is made when the
+  session starts. Her lean compares it with the odds projected to the end. When the budget is
+  spent she recomputes the odds from what actually happened and compares the same draw: below
+  the odds, she lets him cum. A draw of 0.45 with projected odds of 39% leans toward denial, but
+  if he earns odds of 50% by the end, he cums. Asking mid-session is a separate, fresh roll.

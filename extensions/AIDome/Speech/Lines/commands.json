@@ -111,6 +111,14 @@
       ]
     },
     {
+      "id": "instruct.hard-edge", "act": "Instruct", "when": ["step.category!=Rest", "segment=hard-edge"], "weight": 3,
+      "variants": [
+        "[Instruction] It'll take a while. Don't you dare stop.",
+        "[Instruction] Every stroke is too much and not enough. Keep going.",
+        "The hard way. [Instruction]"
+      ]
+    },
+    {
       "id": "instruct.torment.body", "act": "Instruct", "when": ["step.category!=Rest", "segment=torment|hated-grip|punish"], "weight": 1.2,
       "variants": [
         "[Instruction] Feel the heat spread all through you.",

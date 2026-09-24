@@ -4,7 +4,7 @@
 Mode FreePlay; intensity 5, length 4, denial 5, meanness 5
 Persona tonight: harshness 7, humiliation 2, manipulation 5, talkativeness 4
 Mood: Neutral (Temperament), annoyance 0
-Ending she leans toward: Denied (odds 54%); she will keep it to herself
+Ending she leans toward: Denied (68% chance she lets him cum; the draw made at the start says no); she will keep it to herself
 No plan of segments: he sets the pace, she decides the ending.
 
 ## Session
@@ -18,30 +18,34 @@ No plan of segments: he sets the pace, she decides the ending.
 [02:50] Her (aside): I'm watching every edge you record.
 [03:16] Him: (edge)
 [03:55] Him: (edge)
-[04:00] Him: May I cum?
-[04:00] Her: No. And that's going to cost you.
-[04:08] Her (aside): I have one rule, and I'll only say it once.
-[04:22] Her (aside): Your pleasure is a privilege, not a right.
+[04:02] Her (aside): Your hands, my rules. Don't forget that.
 [04:28] Him: (edge)
-[04:36] Her (aside): Every time you forget that, I'll remind you. Slowly.
-[04:50] Her (aside): Tonight is one of those reminders.
-[05:05] Him: (edge)
-[05:05] Her: Another one. 7. Again.
-[05:25] Him: (came without permission)
-[05:25] Her: You couldn't hold it. Pathetic. This just got much worse for you.
-[05:25] Her: Keep going. You already came without permission, so don't bother asking again.
-[05:41] Him: (edge)
-[06:36] Him: (edge)
-[07:13] Her (aside): Don't mistake this for affection.
-[07:40] Him: (edge)
-[07:40] Her: That's 10 for me.
-[07:59] Him: May I cum?
-[07:59] Her: You think begging helps? It makes it worse.
-[08:12] Him: (edge)
-[09:05] Him: (edge)
-[09:14] Her (aside): I love having you like this.
-[09:25] Her: Enough of that. All that begging. The answer was always going to be no.
-[09:29] Him: (done)
-[09:29] Her: You're dismissed. Stay frustrated.
+[05:04] Him: (edge)
+[05:04] Her: Another one. 7. Again.
+[06:03] Him: (edge)
+[06:16] Her (aside): Do you know what I'll do when you leave tonight?
+[06:28] Her (aside): Nothing. I won't think about you at all.
+[06:40] Her (aside): But you'll think about me. In bed, in the shower, tomorrow at work.
+[06:52] Her (aside): That's the difference between us.
+[07:06] Him: (edge)
+[07:06] Her: 9. Don't you dare go over.
+[07:06] Him: May I cum?
+[07:06] Her: You think begging helps? It makes it worse.
+[08:01] Him: (edge)
+[08:01] Her: Mm. 10.
+[08:53] Her (aside): Let me tell you about someone else I used to play with.
+[08:53] Him: (edge)
+[09:07] Her (aside): He begged. Every session, the moment it got hard, he begged.
+[09:21] Her (aside): So I made a rule: every time he asked, I added ten minutes.
+[09:26] Him: (edge)
+[09:35] Her (aside): He learned to stay quiet. You're learning too.
+[10:20] Him: (edge)
+[11:08] Him: (edge)
+[11:08] Her: 14 edges tonight. You're going to feel every one of them later.
+[11:16] Her (aside): I love having you like this.
+[11:42] Him: May I cum?
+[11:42] Her: You've begged enough. Stroke however you like. You have 48 seconds to cum. Record it when you do.
+[12:10] Him: (cums, with permission)
+[12:10] Her: Enjoy it while it lasts. I'll want more next time.
 
-Outcome: UnauthorizedOrgasm; 12 edges; 102/72 points; asked to cum 2 times, to rest 0 times.
+Outcome: AllowedOrgasm; 14 edges; 127/230 points; asked to cum 2 times, to rest 0 times.

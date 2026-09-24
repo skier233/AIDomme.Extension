@@ -247,6 +247,10 @@ kbd {
 .aidomme-beat.is-beating { background: #38bdf8; box-shadow: 0 0 8px #38bdf8; }
 
 /* ── Her persona and plan ── */
+.aidomme-heading-row { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+.aidomme-heading-row h2 { margin: 0; }
+.aidomme-link { background: none; border: 0; padding: 0; color: var(--color-accent, #4f8ff7); cursor: pointer; text-decoration: underline; }
+.aidomme-her-settings select { display: block; margin-top: 2px; }
 .aidomme-her-settings fieldset { border: 0; padding: 0; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
 .aidomme-her-settings h2 { font-size: 1.05rem; margin: 0.4rem 0 0.2rem; }
 .aidomme-dial { display: flex; flex-direction: column; gap: 2px; }

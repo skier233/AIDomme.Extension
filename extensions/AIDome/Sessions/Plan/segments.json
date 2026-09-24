@@ -163,6 +163,21 @@
       "step": { "kind": "Timed", "speed": [6, 9], "seconds": [30, 75], "method": { "policy": "hated", "prefer": "torture", "ceiling": 4 } }
     },
     {
+      "id": "hard-edge",
+      "name": "Edge the hard way",
+      "goal": "Edge on an intense grip that barely gets him there. Slow, overwhelming, and he has to earn it.",
+      "tags": ["torture", "edging", "punish"],
+      "intensity": 9,
+      "needs": ["edges", "pacing", "methods"],
+      "share": [0.05, 0.12],
+      "steps": [1, 2],
+      "weight": 0.4,
+      "position": { "start": 0.0, "middle": 0.7, "late": 1.3 },
+      "follows": { "edging": 1.2, "rest": 1.2, "torture": 0.2 },
+      "persona": { "harsh": 4 },
+      "step": { "kind": "Edges", "speed": [6, 9], "count": [1, 1], "reach": "hard", "method": { "policy": "hated", "prefer": "torture", "ceiling": 3 } }
+    },
+    {
       "id": "burst",
       "name": "Burst",
       "goal": "Out of nowhere: full speed, very short, then stop.",

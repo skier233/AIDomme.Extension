@@ -38,6 +38,8 @@ public sealed record SessionLimits
     public bool SelfOral { get; init; }
     /// <summary>Restricts the method pool; empty means every method the limits allow.</summary>
     public int[] AllowedMethodIds { get; init; } = [];
+    /// <summary>No ruined orgasm this session, whatever his general preference; an owed ruin waits.</summary>
+    public bool NoRuin { get; init; }
 }
 
 /// <summary>What the commitments in force ask of a session's character.</summary>

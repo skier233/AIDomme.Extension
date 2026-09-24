@@ -15,7 +15,26 @@ type Persona = {
   names: string[];
 };
 type Lengths = { length1: number; length5: number; length10: number };
-type Settings = { persona: Persona; lengths: Lengths; segments: Record<string, Preference> };
+type Endings = {
+  denial: "Never" | "Rarely" | "Normal" | "Often" | "Mostly";
+  ruins: "Never" | "PunishmentOnly" | "Sometimes" | "Often";
+  orgasmEveryDays: number;
+};
+type Settings = { persona: Persona; endings: Endings; lengths: Lengths; segments: Record<string, Preference> };
+
+const denialChoices: [Endings["denial"], string][] = [
+  ["Never", "Never: let me cum at the end unless I promised otherwise"],
+  ["Rarely", "Rarely"],
+  ["Normal", "Sometimes"],
+  ["Often", "Often"],
+  ["Mostly", "Mostly: orgasms are a rare treat"],
+];
+const ruinChoices: [Endings["ruins"], string][] = [
+  ["Never", "Never"],
+  ["PunishmentOnly", "Only as a price or a punishment"],
+  ["Sometimes", "Sometimes, when she feels like it"],
+  ["Often", "Often"],
+];
 
 const lengthDials: { key: keyof Lengths; label: string; min: number; max: number }[] = [
   { key: "length1", label: "Length 1", min: 3, max: 60 },
@@ -80,6 +99,11 @@ export function HerSettings() {
   if (!settings) return <p>{error || "Loading her settings…"}</p>;
   const persona = settings.persona;
   const minutes = settings.lengths || { length1: 10, length5: 35, length10: 90 };
+  const endings: Endings = settings.endings || { denial: "Normal", ruins: "Sometimes", orgasmEveryDays: 0 };
+  const setEndings = (patch: Partial<Endings>) => {
+    setSettings({ ...settings, endings: { ...endings, ...patch } });
+    setNotice("");
+  };
   const setLength = (key: keyof Lengths, value: number) => {
     setSettings({ ...settings, lengths: { ...minutes, [key]: value } });
     setNotice("");
@@ -176,6 +200,60 @@ export function HerSettings() {
             }}
           />
           <small className="aidomme-muted">Separate names with commas.</small>
+        </label>
+      </fieldset>
+
+      <h2>How your sessions end</h2>
+      <p className="aidomme-muted">
+        Your general preferences. Each session's Denial setting still moves her
+        within them, and what you do still changes her mind. Promises and
+        denial you agree to always come first.
+      </p>
+      <fieldset disabled={busy}>
+        <label>
+          Denial at the end of a session
+          <select
+            aria-label="Denial at the end of a session"
+            value={endings.denial}
+            onChange={(e) => setEndings({ denial: e.target.value as Endings["denial"] })}
+          >
+            {denialChoices.map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Ruined orgasms
+          <select
+            aria-label="Ruined orgasms"
+            value={endings.ruins}
+            onChange={(e) => setEndings({ ruins: e.target.value as Endings["ruins"] })}
+          >
+            {ruinChoices.map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="aidomme-dial">
+          <span>
+            Days between orgasms{" "}
+            <output>{endings.orgasmEveryDays > 0 ? `about ${endings.orgasmEveryDays}` : "no preference"}</output>
+          </span>
+          <input
+            type="range"
+            min={0}
+            max={30}
+            value={endings.orgasmEveryDays}
+            aria-label="Days between orgasms"
+            onChange={(e) => setEndings({ orgasmEveryDays: Number(e.target.value) })}
+          />
+          <small className="aidomme-muted">
+            Well before this she mostly says no; after it she comes round.
+          </small>
         </label>
       </fieldset>
 

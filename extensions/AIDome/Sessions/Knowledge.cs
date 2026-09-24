@@ -74,10 +74,55 @@ public sealed record SessionLengths
     }
 }
 
-/// <summary>The user's settings for her: her persona, what a session length means, and how often and how long she uses each segment type.</summary>
+/// <summary>When she may ruin an orgasm.</summary>
+public enum RuinPreference
+{
+    /// <summary>Never: no ruin deals, no ruin stakes, and she never chooses one.</summary>
+    Never,
+    /// <summary>Only as a price or a punishment: deals he accepts, what he owes, punishment sessions.</summary>
+    PunishmentOnly,
+    /// <summary>As a price, a punishment, or now and then her own choice.</summary>
+    Sometimes,
+    /// <summary>Her own choice more often.</summary>
+    Often,
+}
+
+/// <summary>How much she leans toward denial at the end of a session.</summary>
+public enum DenialPreference
+{
+    /// <summary>She lets him cum at the end unless a promise or a denial window he agreed to says otherwise.</summary>
+    Never,
+    Rarely,
+    Normal,
+    Often,
+    /// <summary>Orgasms are rare treats.</summary>
+    Mostly,
+}
+
+/// <summary>
+/// How he wants his sessions to end, in general. Each session's Denial setting still moves her
+/// within these, and what he does still changes her mind.
+/// </summary>
+public sealed record EndingPreferences
+{
+    public DenialPreference Denial { get; init; } = DenialPreference.Normal;
+    public RuinPreference Ruins { get; init; } = RuinPreference.Sometimes;
+    /// <summary>Roughly how many days he wants between orgasms (0: no preference).</summary>
+    public int OrgasmEveryDays { get; init; }
+
+    public EndingPreferences Validate()
+    {
+        if (!Enum.IsDefined(Denial) || !Enum.IsDefined(Ruins)) throw new ArgumentException("Unknown ending preference.");
+        if (OrgasmEveryDays is < 0 or > 60) throw new ArgumentException("Days between orgasms run from 0 (no preference) to 60.");
+        return this;
+    }
+}
+
+/// <summary>The user's settings for her: her persona, how sessions end, what a session length means, and how often and how long she uses each segment type.</summary>
 public sealed record DommeSettings
 {
     public PersonaSettings Persona { get; init; } = new();
+    public EndingPreferences Endings { get; init; } = new();
     public SessionLengths Lengths { get; init; } = new();
     public Dictionary<string, SegmentPreference> Segments { get; init; } = new(StringComparer.OrdinalIgnoreCase);
 
@@ -93,7 +138,7 @@ public sealed record DommeSettings
                 throw new ArgumentException($"Invalid preference for '{id}'.");
             segments[id] = preference;
         }
-        return new() { Persona = (Persona ?? new()).Validate(), Lengths = (Lengths ?? new()).Validate(), Segments = segments };
+        return new() { Persona = (Persona ?? new()).Validate(), Endings = (Endings ?? new()).Validate(), Lengths = (Lengths ?? new()).Validate(), Segments = segments };
     }
 }
 

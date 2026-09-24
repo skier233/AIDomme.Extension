@@ -4,67 +4,64 @@
 Mode OwnMethods; intensity 5, length 4, denial 5, meanness 5
 Persona tonight: harshness 4, humiliation 5, manipulation 7, talkativeness 3
 Mood: Neutral (Temperament), annoyance 0
-Ending she leans toward: Denied (odds 54%); she will keep it to herself
-  - Edge ladder (edge-ladder), 30% of the budget: One edge at a time, each one faster than the last.
-  - Long hold (long-hold), 23% of the budget: Get to the edge and stay there far longer than is comfortable.
-  - A game (game), 7% of the budget: A game with real stakes. She enjoys it more than he does.
-  - As many as you can (max-edges), 33% of the budget: Give her as many edges as he can in the time, at her tempo.
-  - Don't you dare (no-edge), 9% of the budget: Stroke hard for a set time without reaching the edge. An edge fails it.
+Ending she leans toward: Full (68% chance she lets him cum; the draw made at the start says yes); she will be honest about it
+  - Edge ladder (edge-ladder), 13% of the budget: One edge at a time, each one faster than the last.
+  - Steady stroking (stroke-steady), 10% of the budget: Plain, steady stroking on a good grip: keep him hard and building.
+  - A game (game), 4% of the budget: A game with real stakes. She enjoys it more than he does.
+  - As many as you can (max-edges), 10% of the budget: Give her as many edges as he can in the time, at her tempo.
+  - Long hold (long-hold), 7% of the budget: Get to the edge and stay there far longer than is comfortable.
+  - A game (game), 6% of the budget: A game with real stakes. She enjoys it more than he does.
+  - As many as you can (max-edges), 10% of the budget: Give her as many edges as he can in the time, at her tempo.
+  - Burst (burst), 4% of the budget: Out of nowhere: full speed, very short, then stop.
+  - Don't you dare (no-edge), 10% of the budget: Stroke hard for a set time without reaching the edge. An edge fails it.
+  - Edging (edge-steady), 10% of the budget: Bring him to the edge and back, again and again, on grips that get him there.
+  - Tempo crawl (tempo-crawl), 11% of the budget: Maddeningly slow strokes, one beat at a time, until he aches.
+  - Rapid-fire edges (rapid-fire), 19% of the budget: Edge after edge on intense grips, no time to recover.
   - The ending (ending), 0% of the budget: She decides how this ends.
 
 ## Session
   -- segment: Edge ladder --
 [00:00] Her: So this is the first time. Listen carefully and do exactly what I say, and we'll get along fine.
-[00:00] Her: We'll start easy. Don't get used to it.
-[00:00] Her: Now. Stroke however you like, slowly, and bring yourself to the edge.
+[00:00] Her: We're climbing now. Every edge faster than the last.
+[00:00] Her: Stroke however you like, slowly, and bring yourself to the edge.
 [00:43] Him: (edge)
-[00:43] Her: Once more. Stroke however you like, at a steady pace, and edge for me.
+[00:43] Her: Stroke however you like, at a steady pace, and bring yourself to the edge. The next one's faster still.
 [01:13] Him: (edge)
-[01:13] Her: Faster this time. Stroke however you like, a little faster, and edge for me.
+[01:13] Her: Faster this time. Stroke however you like, a little faster, and bring yourself to the edge.
 [01:36] Him: (edge)
-  -- segment: Long hold --
-[01:36] Her: This time you're going to hold it. For a long time.
-[01:36] Her: Stroke however you like, fast, and bring yourself to the edge. When you get there, hold it for 42 seconds.
-[01:56] Her (aside): Keep that pace.
-[02:07] Him: (edge)
-[02:07] Her: Hold it... Hold it right there for 42 seconds. Don't go over. Feel how badly you want to go over.
-[02:07] Him: May I cum?
-[02:07] Her: No.
+[01:36] Her: A little faster again. Stroke however you like, nice and fast, and edge for me.
+[01:56] Her (aside): Don't slow down.
+[02:04] Him: (edge)
+[02:04] Her: Now. Stroke however you like, as fast as you can, and edge for me.
+[02:26] Him: (edge)
+  -- segment: Steady stroking --
+[02:26] Her: Next. Stroke however you like, at a steady pace, for two minutes.
+[03:23] Her (aside): Stay on the beat.
+[04:18] Her: Same grip. Keep going. Stroke however you like, slowly, for two minutes.
+[05:11] Her (aside): Do you know how much I enjoy this?
   -- segment: A game --
-[02:49] Her: Let's make this interesting. I'm flipping a coin. Call it. Right, and 6 points off your session. Wrong, and 3 extra edges.
-[02:56] Him: (answers: Heads)
+[06:02] Her: Game time. I'm thinking of a number between 1 and 6. Guess it and 20 seconds of rest and I go easier on you for the rest of tonight. Miss, and you edge once for every step you were off.
+[06:02] Note: NumberGuess stakes: win +8 points, 20s rest; lose nothing
+[06:09] Him: (answers: 1)
+[06:09] Her: 1. Lucky you.
+[06:09] Her: Your reward. Hands off for 20 seconds.
+[06:09] Note: game won: +8 points, 20s rest
   -- segment: As many as you can --
-[02:56] Her: Heads. You win. This time.
-[02:56] Her: Stroke however you like, nice and fast, for a minute. Every edge you give me counts. Let it build.
-[03:17] Him: (edge)
-[03:17] Her: That's 1.
-[03:27] Him: May I cum?
-[03:27] Her: Not yet... unless you pay for it. Earn it. Edge 10 more times for me, and then you may cum.
-[03:34] Him: I accept.
-[03:34] Her: Deal. Now earn it.
-[03:34] Her: Pay up. Stroke however you like, a little faster: ten more edges.
-[04:05] Her (aside): I love having you like this.
-[04:06] Him: (edge)
-[04:28] Him: (edge)
-[04:35] Him: May I cum?
-[04:35] Note: refused: Pay what you agreed to first.
-[04:52] Him: (edge)
-[05:15] Him: (edge)
-[05:56] Him: (edge)
-[06:18] Him: May I cum?
-[06:18] Note: refused: Pay what you agreed to first.
-[06:25] Him: (edge)
-[06:28] Her (aside): More. Come on.
-[07:04] Him: (edge)
-[07:45] Him: (edge)
-[07:54] Him: May I cum?
-[07:54] Note: refused: Pay what you agreed to first.
-[08:10] Her (aside): Stay on the beat.
-[08:19] Him: (edge)
-[08:40] Him: (edge)
-[08:40] Her: Paid in full.
-[08:40] Her: You've begged enough. Stroke however you like, a little faster. You have a minute to cum. Record it when you do.
-[08:55] Him: (cums, with permission)
-[08:55] Her: Enjoy it while it lasts. I'll want more next time.
+[06:29] Her: I want a number. As many edges as you can manage.
+[06:29] Her: Right. Stroke however you like, fast, for two minutes. Every edge you give me counts.
+[06:47] Him: (edge)
+[06:47] Her: 1. More.
+[07:06] Her (aside): Every time you think you know what I'm going to do, I do something else. Remember that.
+[07:07] Him: (edge)
+[07:07] Her: That's 2.
+[07:36] Him: (edge)
+[07:36] Her: 3. Keep going.
+[07:36] Him: May I cum?
+[07:36] Her: Go on then. Stroke however you like, a little faster. You have 42 seconds to cum. Record it when you do.
+[08:01] Him: (cums, with permission)
+[08:01] Her: Enjoy it while it lasts. I'll want more next time.
 
-Outcome: AllowedOrgasm; 15 edges; 123/72 points; asked to cum 2 times, to rest 0 times.
+Outcome: AllowedOrgasm; 8 edges; 83/230 points; asked to cum 1 times, to rest 0 times.
+
+## How the plan changed
+  - 6.5 min, step 9: running long at 27%: shortened the rest
