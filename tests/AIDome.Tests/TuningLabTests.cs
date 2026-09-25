@@ -92,6 +92,33 @@ public sealed class TuningLabTests
     }
 
     [Fact]
+    public void Skipping_NeverShowsTheSamePairAgain_AndAnswersDontCircleTheSameMethods()
+    {
+        List<StimMethod> many = [.. Methods,
+            new() { Id = 20, Name = "Twist Head", Description = "Twist the head of your cock.", Intensity = 6, TortLevel = 4, Closeness = 6, RequiresLube = true },
+            new() { Id = 25, Name = "One-Direction Stroke", Description = "Only stroke down/up your cock.", Intensity = 8, TortLevel = 5, Closeness = 5, RequiresLube = true },
+            new() { Id = 30, Name = "Single Finger Tease", Description = "Move one finger up and down your cock gently.", Intensity = 1, Tease = 9, TortLevel = 1 }];
+        var history = new List<TuningComparisonEntry>();
+        var shown = new List<(string, string)>();
+        var subjectPairs = new List<string>();
+        var random = new Random(5);
+        for (int turn = 0; turn < 20; turn++)
+        {
+            var recent = new LabRecent(history.TakeLast(6).Select(x => (x.WinnerKey, x.LoserKey)).Concat(shown.TakeLast(8)));
+            var view = TuningLab.View(TuningLab.Stim, many, [], history, 7, 4, random, recent);
+            var (a, b) = (view.Left!.Candidate.Key, view.Right!.Candidate.Key);
+            Assert.DoesNotContain(shown, s => (s.Item1 == a && s.Item2 == b) || (s.Item1 == b && s.Item2 == a));
+            shown.Add((a, b));
+            subjectPairs.Add(string.Join("|", new[] { LabRecent.Subject(a), LabRecent.Subject(b) }.Order()));
+            // Every other turn he answers; otherwise he skips.
+            if (turn % 2 == 0) history.Add(Said(a, b, 2));
+        }
+        // The same two methods, whatever the amounts, don't come back within a few matchups.
+        for (int i = 1; i < subjectPairs.Count; i++)
+            Assert.DoesNotContain(subjectPairs[i], subjectPairs.Skip(Math.Max(0, i - 3)).Take(Math.Min(3, i)));
+    }
+
+    [Fact]
     public void Endings_AreComparedWithEachOther_AndRanked()
     {
         List<PunishmentEnder> enders =

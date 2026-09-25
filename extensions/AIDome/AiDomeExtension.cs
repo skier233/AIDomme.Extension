@@ -222,8 +222,8 @@ public sealed class AiDomeExtension : FullExtensionBase
         group.MapPost("/configuration/optimize", async (GuidedConfiguration config, CancellationToken ct) =>
             await TrackerResultAsync(async () => await config.OptimizeAsync(ct)));
         // The tuning lab: the next side-by-side matchup, recording a choice, taking the last one back.
-        group.MapGet("/configuration/lab", async (string? mode, GuidedConfiguration config, CancellationToken ct) =>
-            await TrackerResultAsync(async () => await config.LabAsync(mode ?? TuningLab.Stim, ct)));
+        group.MapGet("/configuration/lab", async (string? mode, string? recent, GuidedConfiguration config, CancellationToken ct) =>
+            await TrackerResultAsync(async () => await config.LabAsync(mode ?? TuningLab.Stim, ct, recent)));
         group.MapPost("/configuration/optimize-deals", async (GuidedConfiguration config, CancellationToken ct) =>
             await TrackerResultAsync(async () => await config.OptimizeDealsAsync(ct)));
         group.MapGet("/configuration/lab/suggestions", async (GuidedConfiguration config, CancellationToken ct) =>

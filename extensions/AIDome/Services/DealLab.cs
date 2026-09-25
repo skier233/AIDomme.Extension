@@ -100,8 +100,9 @@ public static class DealLab
     }
 
     public static TuningLabView View(IReadOnlyList<OfferDefinition> offers, IReadOnlyList<StimMethod> methods, IReadOnlyList<TuningComparisonEntry> history,
-        int? userId, double pointsPerMinute, Random random)
+        int? userId, double pointsPerMinute, Random random, LabRecent? recent = null)
     {
+        recent ??= LabRecent.None;
         var modeHistory = history.Where(x => x.Mode == Mode).ToList();
         var deals = Candidates(offers);
         // Method assignments anchor the scale: the timed ones, in points.
@@ -123,19 +124,18 @@ public static class DealLab
         {
             if (Parse(a.Key) is { } x && Parse(b.Key) is { } y && x.Id == y.Id) return double.NegativeInfinity; // same deal, bigger amount: obvious
             double p = Harder(a, b);
-            return (1 - Math.Abs(2 * p - 1)) * (1 + 0.65 * (1 / Math.Sqrt(a.Wins + a.Losses + 1.0) + 1 / Math.Sqrt(b.Wins + b.Losses + 1.0)));
+            return recent.Penalty(a.Key, b.Key) * (1 - Math.Abs(2 * p - 1)) * (1 + 0.65 * (1 / Math.Sqrt(a.Wins + a.Losses + 1.0) + 1 / Math.Sqrt(b.Wins + b.Losses + 1.0)));
         }
-        (LabCandidate, LabCandidate)? best = null;
-        double bestImpact = double.NegativeInfinity;
+        var scored = new List<((LabCandidate, LabCandidate), double)>();
         bool anchor = anchors.Count > 0 && random.NextDouble() < 0.25;
         for (int i = 0; i < 1500 && deals.Count > 1; i++)
         {
             var a = deals[random.Next(deals.Count)];
             var b = anchor ? anchors[random.Next(anchors.Count)] : deals[random.Next(deals.Count)];
             if (a.Key == b.Key) continue;
-            double impact = Impact(a, b);
-            if (impact > bestImpact) (bestImpact, best) = (impact, (a, b));
+            scored.Add(((a, b), Impact(a, b)));
         }
+        var best = LabRecent.PickAmong(scored, random);
         LabSide? left = null, right = null;
         if (best is { } pair)
         {

@@ -14,6 +14,7 @@ that can be narrated through an optional local TTS server.
 - [docs/CURRENT-STATE-ASSESSMENT.md](docs/CURRENT-STATE-ASSESSMENT.md) is the 2026-09-22 review of
   the code inherited from the previous iteration.
 - [docs/PHASE-4.md](docs/PHASE-4.md) is the design of her plan and her voice, and what landed.
+- [docs/CONFIGURATION.md](docs/CONFIGURATION.md) lists where every setting and default lives: your settings in the UI, and the extension's own defaults in the repository.
 
 ## Layout
 

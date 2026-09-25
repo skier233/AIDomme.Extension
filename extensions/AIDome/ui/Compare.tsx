@@ -122,6 +122,10 @@ export function CompareLab() {
   const [suggested, setSuggested] = useState<MethodRow[] | null>(null);
   const [notice, setNotice] = useState("");
   const loadId = React.useRef(0);
+  // The pairs shown lately (newest last): the server never offers the same one straight back, and
+  // avoids the same two methods, endings or deals again so soon.
+  const shown = React.useRef<string[]>([]);
+  const labUrl = (m: Mode) => `/lab?mode=${m}&recent=${encodeURIComponent(shown.current.join(","))}`;
   const [lab, setLab] = useState<Lab | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -134,6 +138,7 @@ export function CompareLab() {
     try {
       const next = await operation();
       setLab(next);
+      if (next.left && next.right) shown.current = [...shown.current, `${next.left.candidate.key}|${next.right.candidate.key}`].slice(-8);
       // What Apply would set takes a moment to work out: it arrives after the next matchup.
       if (next.mode === "Stim") {
         const id = ++loadId.current;
@@ -151,12 +156,18 @@ export function CompareLab() {
   }, []);
 
   useEffect(() => {
-    void run(() => request(`/lab?mode=${mode}`));
+    void run(() => request(labUrl(mode)));
   }, [mode, run]);
 
   const choose = (winner: Side, loser: Side, strength: 1 | 2 | 3) =>
     void run(() =>
-      request("/comparisons", "POST", { mode, winnerKey: winner.candidate.key, loserKey: loser.candidate.key, strength }),
+      request("/comparisons", "POST", {
+        mode,
+        winnerKey: winner.candidate.key,
+        loserKey: loser.candidate.key,
+        strength,
+        recent: shown.current.join(","),
+      }),
     );
 
   const applyDeals = async () => {
@@ -166,7 +177,7 @@ export function CompareLab() {
     try {
       const result = await request("/optimize-deals", "POST");
       setNotice(`Repriced ${result.deals.length} deal${result.deals.length === 1 ? "" : "s"} from your answers.`);
-      setLab(await request(`/lab?mode=${mode}`));
+      setLab(await request(labUrl(mode)));
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -179,7 +190,7 @@ export function CompareLab() {
     setError("");
     try {
       setOptimized(await request("/optimize", "POST"));
-      setLab(await request(`/lab?mode=${mode}`));
+      setLab(await request(labUrl(mode)));
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -204,6 +215,7 @@ export function CompareLab() {
               aria-pressed={mode === key}
               className={`rounded-md px-3 py-1.5 ${mode === key ? "bg-accent text-white" : "text-secondary hover:text-foreground"}`}
               onClick={() => {
+                shown.current = [];
                 setMode(key);
                 setOptimized(null);
                 setNotice("");
@@ -252,7 +264,7 @@ export function CompareLab() {
         </p>
       )}
       <div className="flex flex-wrap gap-2">
-        <button type="button" className={secondaryBtn} disabled={busy} onClick={() => void run(() => request(`/lab?mode=${mode}`))}>
+        <button type="button" className={secondaryBtn} disabled={busy} onClick={() => void run(() => request(labUrl(mode)))}>
           Skip this one
         </button>
         <button

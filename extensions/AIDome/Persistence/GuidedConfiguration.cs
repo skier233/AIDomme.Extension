@@ -88,11 +88,12 @@ public sealed class GuidedConfiguration(GuidedRuntimes runtimes)
 
     // ── The tuning lab: side-by-side comparisons ──
 
-    public async Task<TuningLabView> LabAsync(string mode, CancellationToken ct)
+    /// <param name="recent">The pairs the page just showed, "a|b,c|d" (newest last), so the next one is different.</param>
+    public async Task<TuningLabView> LabAsync(string mode, CancellationToken ct, string? recent = null)
     {
         if (!TuningLab.IsMode(mode)) throw new TrackerValidationException("Mode must be Stim, Ender or Offer.");
         await using var db = runtimes.Current.Factory.Open();
-        return await LabViewAsync(db, mode, ct);
+        return await LabViewAsync(db, mode, ct, recent);
     }
 
     /// <summary>Records which of two assignments he would rather be given (the winner is the easier one).</summary>
@@ -110,7 +111,7 @@ public sealed class GuidedConfiguration(GuidedRuntimes runtimes)
             Strength = request.Strength, TimestampUtc = DateTime.UtcNow,
         });
         await db.SaveChangesAsync(ct);
-        return await LabViewAsync(db, request.Mode, ct);
+        return await LabViewAsync(db, request.Mode, ct, request.Recent);
     }
 
     /// <summary>Takes back his most recent comparison in a mode.</summary>
@@ -151,12 +152,15 @@ public sealed class GuidedConfiguration(GuidedRuntimes runtimes)
         return new { Deals = changed };
     }
 
-    private static async Task<TuningLabView> LabViewAsync(GuidedData db, string mode, CancellationToken ct)
-        => mode == DealLab.Mode
-            ? DealLab.View(await db.OfferDefinitionsAsync(ct), await db.MethodsAsync(ct), await db.TuningComparisons.AsNoTracking().ToListAsync(ct),
-                db.UserId, await RecallStore.PaceAsync(db, ct), Random.Shared)
-            : TuningLab.View(mode, await db.MethodsAsync(ct), await db.EndersAsync(ct), await db.TuningComparisons.AsNoTracking().ToListAsync(ct),
-            db.UserId, await RecallStore.PaceAsync(db, ct), Random.Shared);
+    private static async Task<TuningLabView> LabViewAsync(GuidedData db, string mode, CancellationToken ct, string? shown = null)
+    {
+        var history = await db.TuningComparisons.AsNoTracking().ToListAsync(ct);
+        // His last few answers in this mode, and what the page just showed, are not asked again straight away.
+        var recent = LabRecent.From(shown, history.Where(x => x.Mode == mode && x.UserId == db.UserId).OrderBy(x => x.Id).TakeLast(6));
+        return mode == DealLab.Mode
+            ? DealLab.View(await db.OfferDefinitionsAsync(ct), await db.MethodsAsync(ct), history, db.UserId, await RecallStore.PaceAsync(db, ct), Random.Shared, recent)
+            : TuningLab.View(mode, await db.MethodsAsync(ct), await db.EndersAsync(ct), history, db.UserId, await RecallStore.PaceAsync(db, ct), Random.Shared, recent);
+    }
 
     public async Task<object> OptimizeAsync(CancellationToken ct)
     {

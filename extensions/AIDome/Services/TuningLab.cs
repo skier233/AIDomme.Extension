@@ -27,7 +27,70 @@ public sealed record TuningLabView(
     public IReadOnlyList<LabDealRow> Deals { get; init; } = [];
 }
 
-public sealed record ComparisonRequest(string Mode, string WinnerKey, string LoserKey, int Strength);
+/// <summary>An answer. <paramref name="Recent"/> lists the pairs the page just showed ("a|b,c|d", newest last), so the next is something else.</summary>
+public sealed record ComparisonRequest(string Mode, string WinnerKey, string LoserKey, int Strength, string? Recent = null);
+
+/// <summary>
+/// What he has just seen or answered, so the next matchup is something else: neither the same pair
+/// nor the same two subjects (methods, endings or deals, whatever the amounts) come back while they
+/// are recent, and a subject shown lately is avoided a little.
+/// </summary>
+public sealed class LabRecent
+{
+    private readonly HashSet<string> pairs = [];
+    private readonly HashSet<string> subjectPairs = [];
+    private readonly Dictionary<string, int> subjects = [];
+
+    public LabRecent(IEnumerable<(string A, string B)> recent)
+    {
+        foreach (var (a, b) in recent)
+        {
+            pairs.Add(Join(a, b));
+            subjectPairs.Add(Join(Subject(a), Subject(b)));
+            foreach (var s in new[] { Subject(a), Subject(b) }) subjects[s] = subjects.GetValueOrDefault(s) + 1;
+        }
+    }
+
+    public static LabRecent None { get; } = new([]);
+
+    /// <summary>Pairs from the page ("a|b,c|d") and his last answers in the mode, newest last.</summary>
+    public static LabRecent From(string? shown, IEnumerable<TuningComparisonEntry> answered)
+    {
+        var fromPage = (shown ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries)
+            .Select(x => x.Split('|')).Where(x => x.Length == 2).Select(x => (x[0], x[1])).TakeLast(8);
+        return new(answered.Select(x => (x.WinnerKey, x.LoserKey)).Concat(fromPage));
+    }
+
+    /// <summary>What a method, ending or deal is, whatever the amount.</summary>
+    public static string Subject(string key)
+    {
+        var parts = key.Split(':');
+        return parts[0] is "stim" or "offer" && parts.Length > 1 ? $"{parts[0]}:{parts[1]}" : key;
+    }
+
+    private static string Join(string a, string b) => string.CompareOrdinal(a, b) < 0 ? $"{a}|{b}" : $"{b}|{a}";
+
+    /// <summary>A multiplier on how worth asking a pair is: 0 for a repeat, small for the same subjects again.</summary>
+    public double Penalty(string a, string b)
+    {
+        string sa = Subject(a), sb = Subject(b);
+        if (pairs.Contains(Join(a, b)) || subjectPairs.Contains(Join(sa, sb))) return 0;
+        return Math.Pow(0.5, Math.Min(3, subjects.GetValueOrDefault(sa))) * Math.Pow(0.5, Math.Min(3, subjects.GetValueOrDefault(sb)));
+    }
+
+    /// <summary>One of the best few, weighted by how worth asking each is, rather than always the very best.</summary>
+    public static (LabCandidate, LabCandidate)? PickAmong(List<((LabCandidate, LabCandidate) Pair, double Impact)> scored, Random random, int top = 6)
+    {
+        var best = scored.Where(x => x.Impact > 0 && double.IsFinite(x.Impact))
+            .GroupBy(x => Join(x.Pair.Item1.Key, x.Pair.Item2.Key)).Select(g => g.First())
+            .OrderByDescending(x => x.Impact).Take(top).ToList();
+        if (best.Count == 0) return null;
+        double total = best.Sum(x => x.Impact), roll = random.NextDouble() * total;
+        foreach (var x in best)
+            if ((roll -= x.Impact) <= 0) return x.Pair;
+        return best[^1].Pair;
+    }
+}
 
 /// <summary>
 /// The calibration lab, ported from the original app: the user is shown two assignments side by
@@ -78,8 +141,9 @@ public static class TuningLab
 
     /// <summary>Builds the lab's view: the fitted model, the next matchup and the method table.</summary>
     public static TuningLabView View(string mode, IReadOnlyList<StimMethod> methods, IReadOnlyList<PunishmentEnder> enders,
-        IReadOnlyList<TuningComparisonEntry> history, int? userId, double pointsPerMinute, Random random)
+        IReadOnlyList<TuningComparisonEntry> history, int? userId, double pointsPerMinute, Random random, LabRecent? recent = null)
     {
+        recent ??= LabRecent.None;
         var modeHistory = history.Where(x => x.Mode == mode).ToList();
         var candidates = Candidates(mode, methods, enders);
         var known = candidates.Select(x => x.Key).ToHashSet();
@@ -104,7 +168,7 @@ public static class TuningLab
         }).ToList();
 
         LabSide? left = null, right = null;
-        if (NextPair(mode, candidates, model, random) is { } pair)
+        if (NextPair(mode, candidates, model, random, recent) is { } pair)
         {
             double p = model.ProbHarder(pair.Item1.Key, pair.Item2.Key);
             (left, right) = (new LabSide(pair.Item1, p), new LabSide(pair.Item2, 1 - p));
@@ -147,17 +211,17 @@ public static class TuningLab
 
     // ── Choosing the next matchup ──
 
-    private static (LabCandidate, LabCandidate)? NextPair(string mode, List<LabCandidate> candidates, Model model, Random random)
+    private static (LabCandidate, LabCandidate)? NextPair(string mode, List<LabCandidate> candidates, Model model, Random random, LabRecent recent)
     {
         if (candidates.Count < 2) return null;
         (LabCandidate, LabCandidate)? pair = null;
         if (mode == Stim)
         {
             double roll = random.NextDouble();
-            if (roll < 0.30) pair = Targeted(candidates, model, (a, b) => Model.SameMethodCrossType(a.Key, b.Key));
-            else if (roll < 0.55) pair = Targeted(candidates, model, (a, b) => Model.SameScaleCrossMethod(a.Key, b.Key));
+            if (roll < 0.30) pair = Targeted(candidates, model, recent, random, (a, b) => Model.SameMethodCrossType(a.Key, b.Key));
+            else if (roll < 0.55) pair = Targeted(candidates, model, recent, random, (a, b) => Model.SameScaleCrossMethod(a.Key, b.Key));
         }
-        pair ??= ByImpact(mode, candidates, model, random) ?? Exploration(mode, candidates, model);
+        pair ??= ByImpact(mode, candidates, model, recent, random) ?? Exploration(mode, candidates, model, recent);
         if (pair is null)
         {
             var a = candidates[random.Next(candidates.Count)];
@@ -170,53 +234,49 @@ public static class TuningLab
 
     private static int Seen(LabCandidate c) => c.Wins + c.Losses;
 
-    private static double Impact(string mode, LabCandidate a, LabCandidate b, Model model)
+    private static double Impact(string mode, LabCandidate a, LabCandidate b, Model model, LabRecent recent)
     {
         if (Model.Redundant(a.Key, b.Key)) return double.NegativeInfinity;
+        double fresh = recent.Penalty(a.Key, b.Key);
+        if (fresh <= 0) return double.NegativeInfinity;
         double uncertainty = model.Uncertainty(a.Key, b.Key);
         double evidence = 1 / Math.Sqrt(Seen(a) + 1.0) + 1 / Math.Sqrt(Seen(b) + 1.0);
         double sameScale = mode == Stim && Model.SameScaleCrossMethod(a.Key, b.Key) ? 0.75 : 0;
         double crossType = mode == Stim && Model.SameMethodCrossType(a.Key, b.Key) ? 0.45 : 0;
         double close = 1 / (1 + Math.Abs(a.Points - b.Points));
-        return uncertainty * (1 + 0.65 * evidence + sameScale + crossType + 0.25 * close);
+        return fresh * uncertainty * (1 + 0.65 * evidence + sameScale + crossType + 0.25 * close);
     }
 
-    private static (LabCandidate, LabCandidate)? ByImpact(string mode, List<LabCandidate> candidates, Model model, Random random)
+    private static (LabCandidate, LabCandidate)? ByImpact(string mode, List<LabCandidate> candidates, Model model, LabRecent recent, Random random)
     {
-        (LabCandidate, LabCandidate)? best = null;
-        double bestImpact = double.NegativeInfinity;
+        var scored = new List<((LabCandidate, LabCandidate), double)>();
         int samples = Math.Min(2500, candidates.Count * 16);
         for (int i = 0; i < samples; i++)
         {
             int x = random.Next(candidates.Count), y = random.Next(candidates.Count);
             if (x == y) continue;
-            double impact = Impact(mode, candidates[x], candidates[y], model);
-            if (impact > bestImpact) (bestImpact, best) = (impact, (candidates[x], candidates[y]));
+            scored.Add(((candidates[x], candidates[y]), Impact(mode, candidates[x], candidates[y], model, recent)));
         }
-        return best;
+        return LabRecent.PickAmong(scored, random);
     }
 
-    private static (LabCandidate, LabCandidate)? Exploration(string mode, List<LabCandidate> candidates, Model model)
+    private static (LabCandidate, LabCandidate)? Exploration(string mode, List<LabCandidate> candidates, Model model, LabRecent recent)
     {
         foreach (var anchor in candidates.OrderBy(Seen).Take(30))
-            if (candidates.Where(c => c.Key != anchor.Key && !Model.Redundant(anchor.Key, c.Key))
-                    .OrderByDescending(c => Impact(mode, anchor, c, model)).FirstOrDefault() is { } match)
+            if (candidates.Where(c => c.Key != anchor.Key && !Model.Redundant(anchor.Key, c.Key) && recent.Penalty(anchor.Key, c.Key) > 0)
+                    .OrderByDescending(c => Impact(mode, anchor, c, model, recent)).FirstOrDefault() is { } match)
                 return (anchor, match);
         return null;
     }
 
-    private static (LabCandidate, LabCandidate)? Targeted(List<LabCandidate> candidates, Model model, Func<LabCandidate, LabCandidate, bool> fits)
+    private static (LabCandidate, LabCandidate)? Targeted(List<LabCandidate> candidates, Model model, LabRecent recent, Random random,
+        Func<LabCandidate, LabCandidate, bool> fits)
     {
-        (LabCandidate, LabCandidate)? best = null;
-        double bestImpact = double.NegativeInfinity;
+        var scored = new List<((LabCandidate, LabCandidate), double)>();
         foreach (var a in candidates.OrderBy(Seen).Take(80))
             foreach (var b in candidates)
-            {
-                if (a.Key == b.Key || !fits(a, b)) continue;
-                double impact = Impact(Stim, a, b, model);
-                if (impact > bestImpact) (bestImpact, best) = (impact, (a, b));
-            }
-        return best;
+                if (a.Key != b.Key && fits(a, b)) scored.Add(((a, b), Impact(Stim, a, b, model, recent)));
+        return LabRecent.PickAmong(scored, random);
     }
 
     /// <summary>The original app's intensity model: per-method rates from metadata, corrected by the comparisons.</summary>

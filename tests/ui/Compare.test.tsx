@@ -40,7 +40,9 @@ it("records the one he would rather do as the easier, with how strongly, and can
   fireEvent.click(await screen.findByRole("button", { name: "Much rather: Figure Eight for a minute" }));
   await screen.findByText("31 comparisons (1 from this account)");
   const [, init] = api.fetch.mock.calls.find(([path, i]) => path.endsWith("/comparisons") && i.method === "POST")!;
-  expect(JSON.parse(init.body)).toEqual({ mode: "Stim", winnerKey: "stim:1:time:60", loserKey: "stim:4:time:60", strength: 3 });
+  expect(JSON.parse(init.body)).toMatchObject({ mode: "Stim", winnerKey: "stim:1:time:60", loserKey: "stim:4:time:60", strength: 3 });
+  // What the page just showed goes along, so the next matchup is something else.
+  expect(JSON.parse(init.body).recent).toBe("stim:4:time:60|stim:1:time:60");
   fireEvent.click(screen.getByRole("button", { name: "Undo my last answer" }));
   await waitFor(() => expect(api.fetch.mock.calls.some(([path, i]) => path.includes("/comparisons/last?mode=Stim") && i.method === "DELETE")).toBe(true));
   expect(screen.getByText("Palm")).toBeTruthy();
