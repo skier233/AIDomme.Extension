@@ -8,8 +8,8 @@ public sealed record LabCandidate(string Key, string Group, string Title, string
 /// <summary>A side of a matchup, with the model's belief that it is the harder of the two.</summary>
 public sealed record LabSide(LabCandidate Candidate, double HarderChance);
 
-/// <summary>What a method is worth now, and what the comparisons so far suggest.</summary>
-public sealed record LabMethodRow(int Id, string Name, double CurrentPerMinute, double LearnedPerMinute, double? CurrentPerEdge, double? LearnedPerEdge, int Comparisons);
+/// <summary>What a method is worth now, and (when asked for) what Apply would set from the comparisons so far.</summary>
+public sealed record LabMethodRow(int Id, string Name, double CurrentPerMinute, double? SuggestedPerMinute, double? CurrentPerEdge, double? SuggestedPerEdge, int Comparisons);
 
 public sealed record TuningLabView(
     string Mode,
@@ -21,7 +21,11 @@ public sealed record TuningLabView(
     IReadOnlyList<LabMethodRow> Methods,
     IReadOnlyList<LabCandidate> Enders,
     int OptimizeNeeds,
-    double PointsPerMinute);
+    double PointsPerMinute)
+{
+    /// <summary>For deals: each deal's value now and what the answers suggest.</summary>
+    public IReadOnlyList<LabDealRow> Deals { get; init; } = [];
+}
 
 public sealed record ComparisonRequest(string Mode, string WinnerKey, string LoserKey, int Strength);
 
@@ -39,7 +43,13 @@ public static class TuningLab
     private const double PointsScale = 800;
     private static readonly int[] TimeSteps = [15, 30, 45, 60, 75, 90, 105, 120];
 
-    public static bool IsMode(string mode) => mode is Stim or Ender;
+    public static bool IsMode(string mode) => mode is Stim or Ender or DealLab.Mode;
+
+    /// <summary>Every option that may appear in a mode's matchups (deals are also set against timed method assignments).</summary>
+    public static HashSet<string> Keys(string mode, IReadOnlyList<StimMethod> methods, IReadOnlyList<PunishmentEnder> enders, IReadOnlyList<OfferDefinition> offers)
+        => mode == DealLab.Mode
+            ? DealLab.Candidates(offers).Concat(Candidates(Stim, methods, []).Where(x => x.Group == "Timed")).Select(x => x.Key).ToHashSet()
+            : Candidates(mode, methods, enders).Select(x => x.Key).ToHashSet();
 
     public static List<LabCandidate> Candidates(string mode, IReadOnlyList<StimMethod> methods, IReadOnlyList<PunishmentEnder> enders)
     {
@@ -100,16 +110,7 @@ public static class TuningLab
             (left, right) = (new LabSide(pair.Item1, p), new LabSide(pair.Item2, 1 - p));
         }
 
-        var rows = new List<LabMethodRow>();
-        if (mode == Stim)
-            foreach (var m in methods)
-            {
-                var (time, edge) = StimMethodPointMath.GetSeedMultipliers(m);
-                var (learnedTime, learnedEdge) = model.Rates(m.Id);
-                int seen = modeHistory.Count(x => x.WinnerKey.StartsWith($"stim:{m.Id}:") || x.LoserKey.StartsWith($"stim:{m.Id}:"));
-                rows.Add(new(m.Id, m.Name, time * 60, learnedTime * PointsScale / 120 * 60,
-                    m.Closeness >= 3 ? edge : null, m.Closeness >= 3 ? learnedEdge * PointsScale / 5 : null, seen));
-            }
+        var rows = mode == Stim ? MethodRows(methods, modeHistory, null) : [];
 
         var keys = candidates.Select(x => x.Key).ToList();
         int stimHistory = history.Count(x => x.Mode == Stim);
@@ -117,6 +118,32 @@ public static class TuningLab
             left, right, rows, mode == Ender ? candidates.OrderByDescending(x => x.Points).ToList() : [],
             Math.Max(0, 25 - stimHistory), pointsPerMinute);
     }
+
+    /// <summary>
+    /// What Apply would set for each method: the optimizer's fit over every stim comparison, anchored
+    /// to the point scale the methods use now. It takes a second or two, so the lab asks for it
+    /// separately from the next matchup. (The live model only chooses matchups: its rates are
+    /// relative, not points.)
+    /// </summary>
+    public static IReadOnlyList<LabMethodRow> Suggestions(IReadOnlyList<StimMethod> methods, IReadOnlyList<TuningComparisonEntry> history)
+    {
+        IReadOnlyDictionary<int, (double TimePointsPerSecond, double EdgePointsPerEdge)>? fit = null;
+        try { fit = StimMultiplierOptimizer.Optimize(methods, history).Multipliers; }
+        catch (InvalidOperationException) { /* too few answers yet */ }
+        return MethodRows(methods, history.Where(x => x.Mode == Stim).ToList(), fit);
+    }
+
+    private static List<LabMethodRow> MethodRows(IReadOnlyList<StimMethod> methods, List<TuningComparisonEntry> stimHistory,
+        IReadOnlyDictionary<int, (double TimePointsPerSecond, double EdgePointsPerEdge)>? fit)
+        => methods.Select(m =>
+        {
+            var (time, edge) = StimMethodPointMath.GetSeedMultipliers(m);
+            var f = fit?.GetValueOrDefault(m.Id);
+            bool edges = m.Closeness >= 3;
+            int seen = stimHistory.Count(x => x.WinnerKey.StartsWith($"stim:{m.Id}:") || x.LoserKey.StartsWith($"stim:{m.Id}:"));
+            return new LabMethodRow(m.Id, m.Name, time * 60, f is { } s ? s.TimePointsPerSecond * 60 : null,
+                edges ? edge : null, edges && f is { } e ? e.EdgePointsPerEdge : null, seen);
+        }).ToList();
 
     // ── Choosing the next matchup ──
 

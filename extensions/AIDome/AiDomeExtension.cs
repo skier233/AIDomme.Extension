@@ -43,7 +43,7 @@ public sealed class AiDomeExtension : FullExtensionBase
 
     public override string Id => "cove.community.aidome";
     public override string Name => "AI Domme";
-    public override string Version => "0.14.0";
+    public override string Version => "0.15.0";
     public override string Description => "A rule-driven domme for guided edging sessions on your Cove library, with an app-wide edge tracker, orgasm permission, games and persistent commitments.";
     public override string Author => "Cove Community";
     public override string Url => "https://github.com/yourcove/AIDome.Extension";
@@ -224,6 +224,10 @@ public sealed class AiDomeExtension : FullExtensionBase
         // The tuning lab: the next side-by-side matchup, recording a choice, taking the last one back.
         group.MapGet("/configuration/lab", async (string? mode, GuidedConfiguration config, CancellationToken ct) =>
             await TrackerResultAsync(async () => await config.LabAsync(mode ?? TuningLab.Stim, ct)));
+        group.MapPost("/configuration/optimize-deals", async (GuidedConfiguration config, CancellationToken ct) =>
+            await TrackerResultAsync(async () => await config.OptimizeDealsAsync(ct)));
+        group.MapGet("/configuration/lab/suggestions", async (GuidedConfiguration config, CancellationToken ct) =>
+            await TrackerResultAsync(async () => await config.SuggestionsAsync(ct)));
         group.MapPost("/configuration/comparisons", async (ComparisonRequest body, GuidedConfiguration config, CancellationToken ct) =>
             await TrackerResultAsync(async () => await config.CompareAsync(body, ct)));
         group.MapDelete("/configuration/comparisons/last", async (string? mode, GuidedConfiguration config, CancellationToken ct) =>

@@ -19,7 +19,7 @@ const lab = (yours = 0) => ({
   optimizeNeeds: 0,
   left: side("stim:4:time:60", "Palm for a minute", 0.6),
   right: side("stim:1:time:60", "Figure Eight for a minute", 0.4),
-  methods: [{ id: 4, name: "Palm", currentPerMinute: 5, learnedPerMinute: 8, currentPerEdge: null, learnedPerEdge: null, comparisons: 3 }],
+  methods: [{ id: 4, name: "Palm", currentPerMinute: 5, suggestedPerMinute: null, currentPerEdge: null, suggestedPerEdge: null, comparisons: 3 }],
   enders: [],
 });
 
@@ -28,6 +28,8 @@ beforeEach(() => {
   api.fetch.mockImplementation(async (path: string, init: any) => {
     if (path.endsWith("/comparisons") && init.method === "POST") return Response.json(lab(1));
     if (path.includes("/comparisons/last") && init.method === "DELETE") return Response.json(lab(0));
+    if (path.endsWith("/lab/suggestions"))
+      return Response.json([{ id: 4, name: "Palm", currentPerMinute: 5, suggestedPerMinute: 7.5, currentPerEdge: null, suggestedPerEdge: null, comparisons: 3 }]);
     return Response.json(lab(0));
   });
 });
@@ -42,4 +44,21 @@ it("records the one he would rather do as the easier, with how strongly, and can
   fireEvent.click(screen.getByRole("button", { name: "Undo my last answer" }));
   await waitFor(() => expect(api.fetch.mock.calls.some(([path, i]) => path.includes("/comparisons/last?mode=Stim") && i.method === "DELETE")).toBe(true));
   expect(screen.getByText("Palm")).toBeTruthy();
+  // What Apply would set arrives after the matchup.
+  await screen.findByText("7.5");
+  expect(screen.getByText("+50%")).toBeTruthy();
+});
+
+it("compares deals and applies what the answers suggest", async () => {
+  const deals = { ...lab(0), mode: "Offer", methods: [], deals: [{ id: 3, name: "Pay in days", kind: "Denial days", currentLow: 14, currentHigh: 98, suggestedLow: 28, suggestedHigh: 196, factor: 2, comparisons: 4 }] };
+  api.fetch.mockImplementation(async (path: string, init: any) => {
+    if (path.endsWith("/optimize-deals")) return Response.json({ deals: [deals.deals[0]] });
+    return Response.json(deals);
+  });
+  render(<CompareLab />);
+  fireEvent.click(await screen.findByRole("button", { name: "Deals" }));
+  await screen.findByText("Which price would you rather pay?");
+  expect(screen.getByText("28–196")).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Apply to my deals" }));
+  await screen.findByText("Repriced 1 deal from your answers.");
 });

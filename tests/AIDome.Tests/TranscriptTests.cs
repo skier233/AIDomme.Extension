@@ -59,14 +59,12 @@ public sealed class TranscriptTests(ITestOutputHelper output)
     /// a Cove database, that account's real settings (see <see cref="RealSettings"/>).
     /// </summary>
     public static SessionState NewSession(SessionMode mode, int seed, bool punishment = false, PersonaSettings? persona = null, Recall? recall = null,
-        SessionObligations? owed = null, int? length = null)
+        SessionObligations? owed = null, int? length = null, SessionPreferences? preferences = null)
     {
         var real = RealSettings.FromEnvironment;
         recall ??= real is null ? new() : real.Recall;
         if (real is not null && recall.PointsPerMinute is null) recall = recall with { PointsPerMinute = real.Recall.PointsPerMinute, PaceSessions = real.Recall.PaceSessions };
-        var preferences = real is null
-            ? new SessionPreferences { Intensity = 5, Length = length ?? 4, Denial = 5, Mean = 5 }
-            : real.Defaults with { Length = length ?? real.Defaults.Length };
+        preferences ??= Base with { Length = length ?? Base.Length };
         var contract = (mode == SessionMode.Custom
             ? SessionContract.Preset(SessionMode.FullGuided) with { Edges = Authority.User, Games = true }
             : SessionContract.Preset(mode)) with
@@ -88,6 +86,25 @@ public sealed class TranscriptTests(ITestOutputHelper output)
         };
     }
 
+    /// <summary>The session sliders the runs start from: his usual ones with real settings, otherwise middling.</summary>
+    public static SessionPreferences Base => RealSettings.FromEnvironment?.Defaults ?? new() { Intensity = 5, Length = 4, Denial = 5, Mean = 5 };
+
+    /// <summary>
+    /// Each mode and user runs three ways: the base sliders, then harder, meaner and shorter, then
+    /// gentler, longer and with more denial, so transcripts cover more than one kind of session.
+    /// </summary>
+    public static SessionPreferences Variant(int seed)
+    {
+        var b = Base;
+        static int C(int v) => Math.Clamp(v, 1, 10);
+        return seed switch
+        {
+            2 => new() { Intensity = C(b.Intensity + 3), Length = C(b.Length - 2), Denial = C(b.Denial - 2), Mean = C(b.Mean + 3) },
+            3 => new() { Intensity = C(b.Intensity - 2), Length = C(b.Length + 3), Denial = C(b.Denial + 3), Mean = C(b.Mean - 2) },
+            _ => b,
+        };
+    }
+
     private static readonly SessionMode[] Modes = [SessionMode.FullGuided, SessionMode.OwnMethods, SessionMode.FreePlay, SessionMode.Custom];
 
     public static IEnumerable<(string Name, SimulationResult Result)> Runs()
@@ -96,11 +113,11 @@ public sealed class TranscriptTests(ITestOutputHelper output)
             foreach (var user in SimulatedUser.All)
                 for (int seed = 1; seed <= 3; seed++)
                 {
-                    var s = NewSession(mode, seed * 31 + (int)mode);
+                    var s = NewSession(mode, seed * 31 + (int)mode, preferences: Variant(seed));
                     yield return ($"{mode}-{user.Name.Replace(' ', '-')}-{seed}", Simulation.Run(s, user, seed, screen: seed == 2 ? OnScreen : null));
                 }
         for (int seed = 1; seed <= 2; seed++)
-            yield return ($"Punishment-obedient-{seed}", Simulation.Run(NewSession(SessionMode.FullGuided, seed + 500, punishment: true), SimulatedUser.Obedient, seed));
+            yield return ($"Punishment-obedient-{seed}", Simulation.Run(NewSession(SessionMode.FullGuided, seed + 500, punishment: true, preferences: Variant(seed)), SimulatedUser.Obedient, seed));
         var persona = new PersonaSettings { Harshness = 9, Humiliation = 8, Manipulation = 8, Talkativeness = 8 };
         yield return ("Harsh-talkative-obedient", Simulation.Run(NewSession(SessionMode.FullGuided, 77, persona: persona), SimulatedUser.Obedient, 7, screen: OnScreen));
         var gentle = new PersonaSettings { Harshness = 2, Humiliation = 0, Manipulation = 2, Talkativeness = 3 };

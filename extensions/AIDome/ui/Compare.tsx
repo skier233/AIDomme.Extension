@@ -17,13 +17,25 @@ type MethodRow = {
   id: number;
   name: string;
   currentPerMinute: number;
-  learnedPerMinute: number;
+  suggestedPerMinute: number | null;
   currentPerEdge: number | null;
-  learnedPerEdge: number | null;
+  suggestedPerEdge: number | null;
   comparisons: number;
 };
+type DealRow = {
+  id: number;
+  name: string;
+  kind: string;
+  currentLow: number;
+  currentHigh: number;
+  suggestedLow: number;
+  suggestedHigh: number;
+  factor: number;
+  comparisons: number;
+};
+type Mode = "Stim" | "Ender" | "Offer";
 type Lab = {
-  mode: "Stim" | "Ender";
+  mode: Mode;
   comparisons: number;
   yourComparisons: number;
   confidence: number;
@@ -31,6 +43,7 @@ type Lab = {
   right: Side | null;
   methods: MethodRow[];
   enders: Candidate[];
+  deals?: DealRow[];
   optimizeNeeds: number;
   pointsPerMinute: number;
 };
@@ -47,7 +60,8 @@ const strengths: [1 | 2 | 3, string][] = [
   [3, "Much rather"],
 ];
 
-function Change({ now, learned }: { now: number; learned: number }) {
+function Change({ now, learned }: { now: number; learned: number | null }) {
+  if (learned == null) return null;
   const diff = learned - now;
   const pct = now > 0 ? Math.round((diff / now) * 100) : 0;
   if (Math.abs(pct) < 5) return <span className="text-muted">about the same</span>;
@@ -55,7 +69,7 @@ function Change({ now, learned }: { now: number; learned: number }) {
 }
 
 /** One side of the matchup: what he would be told to do, and the buttons to choose it. */
-function Card({ side, onChoose, busy }: { side: Side; onChoose: (strength: 1 | 2 | 3) => void; busy: boolean }) {
+function Card({ side, onChoose, busy, verb }: { side: Side; onChoose: (strength: 1 | 2 | 3) => void; busy: boolean; verb: string }) {
   const c = side.candidate;
   return (
     <div className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-5">
@@ -79,7 +93,7 @@ function Card({ side, onChoose, busy }: { side: Side; onChoose: (strength: 1 | 2
       <p className="text-xs text-muted">
         The lab thinks this is the {side.harderChance >= 0.5 ? "harder" : "easier"} one ({Math.round(Math.max(side.harderChance, 1 - side.harderChance) * 100)}%).
       </p>
-      <div className="mt-auto text-xs font-medium uppercase tracking-wide text-muted">I'd rather do this one</div>
+      <div className="mt-auto text-xs font-medium uppercase tracking-wide text-muted">I'd rather {verb} this one</div>
       <div className="grid grid-cols-3 gap-2">
         {strengths.map(([strength, label]) => (
           <button
@@ -104,7 +118,10 @@ function Card({ side, onChoose, busy }: { side: Side; onChoose: (strength: 1 | 2
  * the answers suggest, and "Apply" runs the optimizer to set his methods' points from them.
  */
 export function CompareLab() {
-  const [mode, setMode] = useState<"Stim" | "Ender">("Stim");
+  const [mode, setMode] = useState<Mode>("Stim");
+  const [suggested, setSuggested] = useState<MethodRow[] | null>(null);
+  const [notice, setNotice] = useState("");
+  const loadId = React.useRef(0);
   const [lab, setLab] = useState<Lab | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -117,6 +134,14 @@ export function CompareLab() {
     try {
       const next = await operation();
       setLab(next);
+      // What Apply would set takes a moment to work out: it arrives after the next matchup.
+      if (next.mode === "Stim") {
+        const id = ++loadId.current;
+        setSuggested(null);
+        request("/lab/suggestions")
+          .then((rows: MethodRow[]) => id === loadId.current && setSuggested(rows))
+          .catch(() => undefined);
+      }
       if (next.methods.length) setMethodNames(Object.fromEntries(next.methods.map((m) => [String(m.id), m.name])));
     } catch (e) {
       setError((e as Error).message);
@@ -133,6 +158,21 @@ export function CompareLab() {
     void run(() =>
       request("/comparisons", "POST", { mode, winnerKey: winner.candidate.key, loserKey: loser.candidate.key, strength }),
     );
+
+  const applyDeals = async () => {
+    setBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      const result = await request("/optimize-deals", "POST");
+      setNotice(`Repriced ${result.deals.length} deal${result.deals.length === 1 ? "" : "s"} from your answers.`);
+      setLab(await request(`/lab?mode=${mode}`));
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const optimize = async () => {
     setBusy(true);
@@ -155,6 +195,7 @@ export function CompareLab() {
             [
               ["Stim", "Methods"],
               ["Ender", "Punishment endings"],
+              ["Offer", "Deals"],
             ] as const
           ).map(([key, label]) => (
             <button
@@ -165,6 +206,7 @@ export function CompareLab() {
               onClick={() => {
                 setMode(key);
                 setOptimized(null);
+                setNotice("");
               }}
             >
               {label}
@@ -189,17 +231,20 @@ export function CompareLab() {
       </div>
 
       <div className="rounded-2xl border border-accent/30 bg-accent/10 px-5 py-4">
-        <p className="text-base font-medium text-foreground">Which would you rather be told to do?</p>
+        <p className="text-base font-medium text-foreground">
+          {mode === "Offer" ? "Which price would you rather pay?" : "Which would you rather be told to do?"}
+        </p>
         <p className="mt-1 text-sm text-secondary">
           Pick the easier one for you, and how strongly. Every answer teaches the lab how hard each{" "}
-          {mode === "Stim" ? "method, time and number of edges" : "punishment ending"} really is for you.
+          {mode === "Stim" ? "method, time and number of edges" : mode === "Ender" ? "punishment ending" : "deal"} really is for you.
+          {mode === "Offer" && " Some matchups set a deal against a method, so deals are priced on the same scale as everything else."}
         </p>
       </div>
 
       {lab?.left && lab.right ? (
         <div className="grid gap-4 md:grid-cols-2">
-          <Card side={lab.left} busy={busy} onChoose={(s) => choose(lab.left!, lab.right!, s)} />
-          <Card side={lab.right} busy={busy} onChoose={(s) => choose(lab.right!, lab.left!, s)} />
+          <Card side={lab.left} busy={busy} verb={mode === "Offer" ? "take" : "do"} onChoose={(s) => choose(lab.left!, lab.right!, s)} />
+          <Card side={lab.right} busy={busy} verb={mode === "Offer" ? "take" : "do"} onChoose={(s) => choose(lab.right!, lab.left!, s)} />
         </div>
       ) : (
         <p className="rounded-2xl border border-dashed border-border px-4 py-6 text-sm text-secondary">
@@ -220,11 +265,12 @@ export function CompareLab() {
         </button>
       </div>
       {error && <Notice tone="error">{error}</Notice>}
+      {notice && <Notice tone="ok">{notice}</Notice>}
 
       {lab && mode === "Stim" && (
         <Section
           title="What your methods are worth"
-          hint="Now: what a method earns in a session today. Suggested: what your answers so far point to. Apply sets your methods from all your answers."
+          hint="Now: what a method earns in a session today. Suggested: exactly what Apply would set, from all your answers so far (it updates a moment after each answer)."
           aside={
             <button type="button" className={primaryBtn} disabled={busy || lab.optimizeNeeds > 0} onClick={() => void optimize()}>
               {lab.optimizeNeeds > 0 ? `${lab.optimizeNeeds} more answers to apply` : "Apply to my methods"}
@@ -244,23 +290,29 @@ export function CompareLab() {
                 </tr>
               </thead>
               <tbody>
-                {[...lab.methods]
-                  .sort((a, b) => b.learnedPerMinute - a.learnedPerMinute)
+                {[...(suggested ?? lab.methods)]
+                  .sort((a, b) => (b.suggestedPerMinute ?? b.currentPerMinute) - (a.suggestedPerMinute ?? a.currentPerMinute))
                   .map((m) => (
                     <tr key={m.id} className="border-t border-border bg-card">
                       <td className="px-3 py-2 text-foreground">{m.name}</td>
                       <td className="px-3 py-2 text-right tabular-nums text-secondary">{m.currentPerMinute.toFixed(1)}</td>
                       <td className="px-3 py-2 text-right tabular-nums text-foreground">
-                        {m.learnedPerMinute.toFixed(1)} <Change now={m.currentPerMinute} learned={m.learnedPerMinute} />
+                        {m.suggestedPerMinute != null ? (
+                          <>
+                            {m.suggestedPerMinute.toFixed(1)} <Change now={m.currentPerMinute} learned={m.suggestedPerMinute} />
+                          </>
+                        ) : (
+                          <span className="text-muted">{suggested ? "n/a" : "…"}</span>
+                        )}
                       </td>
                       <td className="px-3 py-2 text-right tabular-nums text-secondary">{m.currentPerEdge?.toFixed(1) ?? "n/a"}</td>
                       <td className="px-3 py-2 text-right tabular-nums text-foreground">
-                        {m.learnedPerEdge != null && m.currentPerEdge != null ? (
+                        {m.suggestedPerEdge != null && m.currentPerEdge != null ? (
                           <>
-                            {m.learnedPerEdge.toFixed(1)} <Change now={m.currentPerEdge} learned={m.learnedPerEdge} />
+                            {m.suggestedPerEdge.toFixed(1)} <Change now={m.currentPerEdge} learned={m.suggestedPerEdge} />
                           </>
                         ) : (
-                          "n/a"
+                          <span className="text-muted">{m.currentPerEdge == null || suggested ? "n/a" : "…"}</span>
                         )}
                       </td>
                       <td className="px-3 py-2 text-right tabular-nums text-secondary">{m.comparisons}</td>
@@ -303,6 +355,53 @@ export function CompareLab() {
                     </tr>
                   );
                 })}
+              </tbody>
+            </table>
+          </div>
+        </Section>
+      )}
+
+      {lab && mode === "Offer" && lab.deals && (
+        <Section
+          title="What her deals are worth"
+          hint="In session points, from the smallest to the largest amount she can ask. Suggested: what your answers point to. Apply reprices the deals you've compared."
+          aside={
+            <button type="button" className={primaryBtn} disabled={busy || !lab.deals.some((d) => d.comparisons > 0)} onClick={() => void applyDeals()}>
+              Apply to my deals
+            </button>
+          }
+        >
+          <div className="overflow-x-auto rounded-xl border border-border">
+            <table className="w-full text-sm">
+              <thead className="bg-card/60 text-left text-xs font-medium uppercase tracking-wide text-muted">
+                <tr>
+                  <th className="px-3 py-2">Deal</th>
+                  <th className="px-3 py-2">Price</th>
+                  <th className="px-3 py-2 text-right">Worth now</th>
+                  <th className="px-3 py-2 text-right">Suggested</th>
+                  <th className="px-3 py-2 text-right">Answers</th>
+                </tr>
+              </thead>
+              <tbody>
+                {lab.deals.map((d) => (
+                  <tr key={d.id} className="border-t border-border bg-card">
+                    <td className="px-3 py-2 text-foreground">{d.name}</td>
+                    <td className="px-3 py-2 text-secondary">{d.kind}</td>
+                    <td className="px-3 py-2 text-right tabular-nums text-secondary">
+                      {Math.round(d.currentLow)}–{Math.round(d.currentHigh)}
+                    </td>
+                    <td className="px-3 py-2 text-right tabular-nums text-foreground">
+                      {d.comparisons > 0 ? (
+                        <>
+                          {Math.round(d.suggestedLow)}–{Math.round(d.suggestedHigh)} <Change now={d.currentHigh} learned={d.suggestedHigh} />
+                        </>
+                      ) : (
+                        <span className="text-muted">n/a</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-right tabular-nums text-secondary">{d.comparisons}</td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>

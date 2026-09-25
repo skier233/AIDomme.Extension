@@ -93,8 +93,10 @@ ruins, roughly how many days between orgasms), how many minutes a length 1, 5 an
 to you, how often she uses each kind of segment and how long it runs, and the narration voice.
 Changes save automatically. The same tab opens the tuning lab. Its Compare view shows two
 assignments side by side ("Palm for a minute" or "3 edges using Figure Eight") and asks which you
-would rather be told to do; your answers show what each method is really worth to you, and Apply
-sets your methods' points from them. Its Edit view changes her methods, punishment endings and deals
+would rather be told to do; your answers show what each method is really worth to you (the
+suggested values are exactly what Apply sets), and Apply sets your methods' points from them. The
+same view compares punishment endings, and her deals ("which price would you rather pay?"), some of
+them against method assignments so deals are priced on the same scale. Its Edit view changes her methods, punishment endings and deals
 directly: add your own ("+ New method"), remove one from your library (it stays in your history and
 can be put back), or override a shared default. Each session's own settings (Denial, limits such as
 "no ruined orgasm tonight") apply on top. Sessions still run on points (what you do), so the minutes are a target: she converts them
@@ -106,6 +108,10 @@ teasing, stories, comments on what is on screen). Stock lines don't repeat withi
 are tracked across sessions so they stay rare. A debug session shows her plan and how it changed.
 
 ## Upgrading an existing install
+
+Version 0.15.0 fixes the tuning lab's suggested method values (they are now exactly what Apply sets,
+on your current point scale) and adds side-by-side comparisons of deals. Simulated transcripts run
+each case at three slider settings.
 
 Version 0.14.0 adds migration `011_removed_definitions`: methods and punishment endings can be
 removed from your library (and restored), and you can add your own methods, endings and deals.

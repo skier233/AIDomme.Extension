@@ -90,7 +90,7 @@ public sealed class GuidedConfiguration(GuidedRuntimes runtimes)
 
     public async Task<TuningLabView> LabAsync(string mode, CancellationToken ct)
     {
-        if (!TuningLab.IsMode(mode)) throw new TrackerValidationException("Mode must be Stim or Ender.");
+        if (!TuningLab.IsMode(mode)) throw new TrackerValidationException("Mode must be Stim, Ender or Offer.");
         await using var db = runtimes.Current.Factory.Open();
         return await LabViewAsync(db, mode, ct);
     }
@@ -102,7 +102,7 @@ public sealed class GuidedConfiguration(GuidedRuntimes runtimes)
         if (request.Strength is < 1 or > 3) throw new TrackerValidationException("Strength runs from 1 to 3.");
         if (request.WinnerKey == request.LoserKey) throw new TrackerValidationException("Compare two different things.");
         await using var db = runtimes.Current.Factory.Open();
-        var known = TuningLab.Candidates(request.Mode, await db.MethodsAsync(ct), await db.EndersAsync(ct)).Select(x => x.Key).ToHashSet();
+        var known = TuningLab.Keys(request.Mode, await db.MethodsAsync(ct), await db.EndersAsync(ct), await db.OfferDefinitionsAsync(ct));
         if (!known.Contains(request.WinnerKey) || !known.Contains(request.LoserKey)) throw new TrackerValidationException("Unknown option.");
         db.Db.Add(new TuningComparisonEntry
         {
@@ -125,8 +125,37 @@ public sealed class GuidedConfiguration(GuidedRuntimes runtimes)
         return await LabViewAsync(db, mode, ct);
     }
 
+    /// <summary>What Apply would set for each method, from every stim comparison so far.</summary>
+    public async Task<IReadOnlyList<LabMethodRow>> SuggestionsAsync(CancellationToken ct)
+    {
+        await using var db = runtimes.Current.Factory.Open();
+        return TuningLab.Suggestions(await db.MethodsAsync(ct), await db.TuningComparisons.AsNoTracking().ToListAsync(ct));
+    }
+
+    /// <summary>Reprices every deal he has compared by the factor his answers suggest, as personal overrides.</summary>
+    public async Task<object> OptimizeDealsAsync(CancellationToken ct)
+    {
+        await using var db = runtimes.Current.Factory.Open();
+        var view = DealLab.View(await db.OfferDefinitionsAsync(ct), await db.MethodsAsync(ct), await db.TuningComparisons.AsNoTracking().ToListAsync(ct),
+            db.UserId, 0, new Random(1));
+        var changed = view.Deals.Where(x => x.Comparisons > 0 && Math.Abs(x.Factor - 1) > 0.01).ToList();
+        if (changed.Count == 0) throw new TrackerValidationException("Compare some deals first.");
+        foreach (var row in changed)
+        {
+            var own = await OverrideAsync<OfferDefinition>(db, row.Id, ct);
+            own.BasePoints = Math.Round(own.BasePoints * row.Factor, 2);
+            own.PointsPerUnit = Math.Round(own.PointsPerUnit * row.Factor, 2);
+            own.PointsPerHoldSecond = Math.Round(own.PointsPerHoldSecond * row.Factor, 3);
+        }
+        await db.SaveChangesAsync(ct);
+        return new { Deals = changed };
+    }
+
     private static async Task<TuningLabView> LabViewAsync(GuidedData db, string mode, CancellationToken ct)
-        => TuningLab.View(mode, await db.MethodsAsync(ct), await db.EndersAsync(ct), await db.TuningComparisons.AsNoTracking().ToListAsync(ct),
+        => mode == DealLab.Mode
+            ? DealLab.View(await db.OfferDefinitionsAsync(ct), await db.MethodsAsync(ct), await db.TuningComparisons.AsNoTracking().ToListAsync(ct),
+                db.UserId, await RecallStore.PaceAsync(db, ct), Random.Shared)
+            : TuningLab.View(mode, await db.MethodsAsync(ct), await db.EndersAsync(ct), await db.TuningComparisons.AsNoTracking().ToListAsync(ct),
             db.UserId, await RecallStore.PaceAsync(db, ct), Random.Shared);
 
     public async Task<object> OptimizeAsync(CancellationToken ct)
