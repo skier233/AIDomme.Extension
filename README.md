@@ -171,3 +171,13 @@ out as readable transcripts, with her plan and each revision:
 ```powershell
 $env:AIDOMME_TRANSCRIPTS="$env:TEMP\aidomme-transcripts"; dotnet test tests/AIDome.Tests --filter "FullyQualifiedName~TranscriptTests"
 ```
+
+To run them with your own settings instead of the defaults (her persona, endings, lengths, segment
+preferences, your method library and deals, your usual session sliders and your pace), point them at
+your Cove database. The connection is opened read-only; nothing in it can change.
+
+```powershell
+$env:AIDOMME_SETTINGS_FROM="Host=127.0.0.1;Port=5430;Username=postgres;Database=cove"
+```
+
+`AIDOMME_SETTINGS_USER` picks an account (the first one with saved settings by default).

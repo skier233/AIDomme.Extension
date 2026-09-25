@@ -105,6 +105,7 @@ need their own wrapper, an `Instruct` module with `"segment=<id>"`.
    `TheShippedLinesAndSegmentsAreValid` checks ids, acts, conditions, slots, dashes and stories.
 4. Read transcripts. Set `AIDOMME_TRANSCRIPTS` to a folder and rerun the same command; each
    simulated session (modes, users who beg, fail, slip, only edge) is written as Markdown with
-   her plan and how it changed. Read several end to end and look for repeats, lines that
+   her plan and how it changed. Set `AIDOMME_SETTINGS_FROM` to the user's Cove connection string
+   to simulate with their real settings and library (read-only). Read several end to end and look for repeats, lines that
    contradict what just happened, awkward joins between chatter and orders, and stories cut off.
 5. Report which modules you added or changed, and quote two or three lines from a transcript.

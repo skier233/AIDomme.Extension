@@ -54,23 +54,37 @@ public sealed class TranscriptTests(ITestOutputHelper output)
         Kind = "video", Id = 42, Title = "Evening", Performers = ["Mia"], Tags = ["Handjob", "POV"], NowTags = ["Teasing"],
     };
 
+    /// <summary>
+    /// A new simulated session: the fixture library and defaults, or, when AIDOMME_SETTINGS_FROM names
+    /// a Cove database, that account's real settings (see <see cref="RealSettings"/>).
+    /// </summary>
     public static SessionState NewSession(SessionMode mode, int seed, bool punishment = false, PersonaSettings? persona = null, Recall? recall = null,
-        SessionObligations? owed = null, int length = 4)
+        SessionObligations? owed = null, int? length = null)
     {
-        recall ??= new();
+        var real = RealSettings.FromEnvironment;
+        recall ??= real is null ? new() : real.Recall;
+        if (real is not null && recall.PointsPerMinute is null) recall = recall with { PointsPerMinute = real.Recall.PointsPerMinute, PaceSessions = real.Recall.PaceSessions };
+        var preferences = real is null
+            ? new SessionPreferences { Intensity = 5, Length = length ?? 4, Denial = 5, Mean = 5 }
+            : real.Defaults with { Length = length ?? real.Defaults.Length };
         var contract = (mode == SessionMode.Custom
             ? SessionContract.Preset(SessionMode.FullGuided) with { Edges = Authority.User, Games = true }
             : SessionContract.Preset(mode)) with
         {
-            Preferences = new() { Intensity = 5, Length = length, Denial = 5, Mean = 5 },
+            Preferences = preferences,
             Punishment = punishment,
-            Persona = SessionPersona.For(persona ?? new(), recall, new SeededRandom(seed + 1000)),
+            Persona = SessionPersona.For(persona ?? real?.Settings.Persona ?? new(), recall, new SeededRandom(seed + 1000)),
             Obligations = owed ?? new(),
         };
         return new()
         {
-            SessionId = seed, Contract = contract.Validate(), Methods = Library.ToList(), OfferTemplates = Offers.ToList(), Recall = recall,
-            Plan = new SessionPlan(),
+            SessionId = seed, Contract = contract.Validate(), Recall = recall,
+            Methods = real?.Methods.ToList() ?? Library.ToList(),
+            OfferTemplates = real?.Offers.ToList() ?? Offers.ToList(),
+            Enders = real?.Enders.ToList() ?? [],
+            Plan = new SessionPlan { Preferences = real?.Settings.Segments ?? new(StringComparer.OrdinalIgnoreCase) },
+            Lengths = real?.Settings.Lengths ?? new(),
+            Endings = real?.Settings.Endings ?? new(),
         };
     }
 
@@ -114,7 +128,13 @@ public sealed class TranscriptTests(ITestOutputHelper output)
         {
             runs++;
             var s = result.State;
-            if (!string.IsNullOrWhiteSpace(folder)) File.WriteAllText(Path.Combine(folder, $"{name}.md"), Simulation.Transcript(result, name));
+            if (!string.IsNullOrWhiteSpace(folder))
+            {
+                var text = Simulation.Transcript(result, name);
+                // With real settings, say so under the title.
+                if (RealSettings.FromEnvironment is { } real) text = text.Insert(text.IndexOf('\n') + 1, $"\n_{real.Describe()}_\n");
+                File.WriteAllText(Path.Combine(folder, $"{name}.md"), text);
+            }
             string context = $"{name}: {string.Join(" / ", result.Lines.TakeLast(6).Select(x => $"{x.Who}: {x.Text}"))}";
 
             Assert.False(s.Active, $"The session did not end. {context}");

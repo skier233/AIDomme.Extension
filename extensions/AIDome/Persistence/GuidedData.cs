@@ -147,7 +147,8 @@ public static class Definitions
     public static List<T> Effective<T>(IQueryable<T> set, int userId) where T : class, IDefinition<T>
         => Resolve(set.AsNoTracking().Where(x => x.UserId == null || x.UserId == userId).ToList());
 
-    private static List<T> Resolve<T>(List<T> rows) where T : class, IDefinition<T>
+    /// <summary>An account's effective definitions from its rows and the shared ones: overrides in place of defaults, then its own.</summary>
+    public static List<T> Resolve<T>(List<T> rows) where T : class, IDefinition<T>
     {
         var overrides = rows.Where(x => x.UserId is not null && x.BaseId is int).ToDictionary(x => x.BaseId!.Value);
         return rows.Where(x => x.UserId is null)
