@@ -79,9 +79,13 @@ public sealed class GuidedData : IAsyncDisposable, IDisposable
     public int SaveChanges() => Db.SaveChanges();
 
     /// <summary>The methods this account uses: shared defaults with personal overrides applied.</summary>
-    public Task<List<StimMethod>> MethodsAsync(CancellationToken ct = default) => Definitions.EffectiveAsync(Db.Set<StimMethod>(), UserId, ct);
-    public List<StimMethod> Methods() => Definitions.Effective(Db.Set<StimMethod>(), UserId);
-    public Task<List<PunishmentEnder>> EndersAsync(CancellationToken ct = default) => Definitions.EffectiveAsync(Db.Set<PunishmentEnder>(), UserId, ct);
+    /// <summary>The methods in this account's library (not the ones the user removed).</summary>
+    public async Task<List<StimMethod>> MethodsAsync(CancellationToken ct = default)
+        => (await Definitions.EffectiveAsync(Db.Set<StimMethod>(), UserId, ct)).Where(x => !x.Removed).ToList();
+    public List<StimMethod> Methods() => Definitions.Effective(Db.Set<StimMethod>(), UserId).Where(x => !x.Removed).ToList();
+    /// <summary>The punishment endings in this account's library (not the ones the user removed).</summary>
+    public async Task<List<PunishmentEnder>> EndersAsync(CancellationToken ct = default)
+        => (await Definitions.EffectiveAsync(Db.Set<PunishmentEnder>(), UserId, ct)).Where(x => !x.Removed).ToList();
     public Task<List<OfferDefinition>> OfferDefinitionsAsync(CancellationToken ct = default) => Definitions.EffectiveAsync(Db.Set<OfferDefinition>(), UserId, ct);
 
     public void Dispose() => scope?.Dispose();

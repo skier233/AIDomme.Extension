@@ -107,6 +107,26 @@ const kinds: [Kind, string, string][] = [
 /** Points a typical session earns per minute of play: the default the session budget starts from. */
 const PointsPerMinute = 4;
 
+/** What a new definition starts as, before the user edits it. */
+const blanks: Record<Kind, Definition> = {
+  methods: {
+    id: 0, name: "New method", description: "", intensity: 5, tease: 0, tortLevel: 0, closeness: 5,
+    requiresLube: false, toyCategory: "None", timePointMultiplier: 0, edgePointMultiplier: 0,
+  },
+  enders: {
+    id: 0, name: "New punishment ending", announcementText: "", instructionText: "", severity: 5, anticipation: 5, humiliation: 3,
+    requiresBondage: false, requiresCEI: false, requiresSelfOral: false, endsInOrgasm: true,
+  },
+  offers: {
+    id: 0, name: "New deal", wording: "Edge [amount] more time[s] for me, and then you may [what].", kind: "EdgesNow",
+    minAmount: 3, maxAmount: 10, minHold: 0, maxHold: 0, basePoints: 0, pointsPerUnit: 4, pointsPerHoldSecond: 0,
+    flavor: "Strict", moods: "", forOrgasm: true, forRest: false, forMercy: false, enabled: true,
+  },
+};
+
+/** Taken out of the library: methods and endings carry a flag; a deal is simply switched off. */
+const isRemoved = (kind: Kind, d: Definition) => (kind === "offers" ? d.enabled === false : !!d.removed);
+
 /** One line under a definition's name in the list: the numbers that matter when comparing them. */
 function summary(kind: Kind, d: Definition): string {
   if (kind === "methods")
@@ -128,7 +148,10 @@ function valueRange(d: Definition): [number, number] {
 function PointsReadout({ kind, draft }: { kind: Kind; draft: Definition }) {
   if (kind === "enders") return null;
   const lines: string[] = [];
-  if (kind === "methods") {
+  if (kind === "methods" && !draft.timePointMultiplier && !draft.edgePointMultiplier) {
+    lines.push("No points set yet: sessions estimate them from its intensity, torture and closeness.");
+    lines.push("Set them here, or compare it in the Compare tab and apply your answers.");
+  } else if (kind === "methods") {
     const minute = (draft.timePointMultiplier ?? 0) * 60;
     lines.push(`A minute on this grip earns about ${minute.toFixed(1)} points; an edge on it earns ${(draft.edgePointMultiplier ?? 0).toFixed(1)}.`);
     lines.push(`A typical session earns about ${PointsPerMinute} points a minute, so a minute here counts as ${(minute / PointsPerMinute).toFixed(1)} minutes of an average session.`);
@@ -185,6 +208,7 @@ export function DefinitionSettings() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [creating, setCreating] = useState(false);
   useEffect(() => {
     let active = true;
     request()
@@ -200,15 +224,16 @@ export function DefinitionSettings() {
   }, []);
   const view = data?.[kind]?.find((x) => x.value.id === selected);
   useEffect(() => {
-    setDraft(view ? { ...view.value } : null);
-  }, [view, kind, selected]);
-  const mutate = async (operation: () => Promise<any>, message: string) => {
+    if (!creating) setDraft(view ? { ...view.value } : null);
+  }, [view, kind, selected, creating]);
+  const mutate = async (operation: () => Promise<any>, message: string, after?: (result: any) => void) => {
     setBusy(true);
     setError("");
     setNotice("");
     try {
-      await operation();
+      const result = await operation();
       setData(await request());
+      after?.(result);
       setNotice(message);
     } catch (e) {
       setError((e as Error).message);
@@ -217,7 +242,39 @@ export function DefinitionSettings() {
     }
   };
   if (!data) return <p className="text-sm text-secondary">{error || "Loading definitions…"}</p>;
-  const list = data[kind] ?? [];
+  const all = data[kind] ?? [];
+  const list = all.filter((x) => !isRemoved(kind, x.value));
+  const removed = all.filter((x) => isRemoved(kind, x.value));
+  const noun = kind === "methods" ? "method" : kind === "enders" ? "punishment ending" : "deal";
+  const setRemoved = (value: boolean) => {
+    if (!draft) return;
+    const operation =
+      kind === "offers"
+        ? () => request(`/offers/${draft.id}`, "PUT", { ...draft, enabled: !value })
+        : () => request(`/${kind}/${draft.id}/${value ? "remove" : "restore"}`, "POST");
+    void mutate(operation, value ? `Removed from your ${noun}s. She won't use it.` : "Back in your library.");
+  };
+  const pick = (id: number) => {
+    setCreating(false);
+    setSelected(id);
+    setNotice("");
+  };
+  const listItem = (x: View) => (
+    <button
+      key={x.value.id}
+      type="button"
+      aria-current={!creating && x.value.id === selected}
+      className={`block w-full rounded-lg px-3 py-2 text-left transition ${!creating && x.value.id === selected ? "bg-accent/15 ring-1 ring-accent/40" : "hover:bg-card-hover"}`}
+      onClick={() => pick(x.value.id)}
+    >
+      <span className="flex items-center justify-between gap-2">
+        <span className="truncate text-sm font-medium text-foreground">{x.value.name}</span>
+        {x.isOverride && <span className="shrink-0 rounded-full bg-accent/20 px-2 py-0.5 text-[11px] font-semibold text-accent">personal</span>}
+        {!x.isOverride && !x.sharedDefault && <span className="shrink-0 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[11px] font-semibold text-emerald-300">yours</span>}
+      </span>
+      <span className="block truncate text-xs text-secondary">{summary(kind, x.value)}</span>
+    </button>
+  );
   const set = (key: string, value: any) => setDraft((d) => (d ? { ...d, [key]: value } : d));
   const groups: Record<string, string[][]> = { text: [], scale: [], choice: [], number: [], checkbox: [] };
   for (const field of fields[kind]) {
@@ -239,6 +296,7 @@ export function DefinitionSettings() {
               className={`rounded-md px-3 py-1.5 ${kind === key ? "bg-accent text-white" : "text-secondary hover:text-foreground"}`}
               onClick={() => {
                 setKind(key);
+                setCreating(false);
                 setSelected(data[key]?.[0]?.value.id || 1);
                 setNotice("");
               }}
@@ -251,41 +309,57 @@ export function DefinitionSettings() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[18rem_minmax(0,1fr)]">
-        <nav aria-label="Definitions" className="max-h-[70vh] space-y-1 overflow-y-auto rounded-2xl border border-border bg-card p-2">
-          {list.length === 0 && <p className="px-3 py-6 text-sm text-secondary">Nothing here yet.</p>}
-          {list.map((x) => (
-            <button
-              key={x.value.id}
-              type="button"
-              aria-current={x.value.id === selected}
-              className={`block w-full rounded-lg px-3 py-2 text-left transition ${x.value.id === selected ? "bg-accent/15 ring-1 ring-accent/40" : "hover:bg-card-hover"}`}
-              onClick={() => {
-                setSelected(x.value.id);
-                setNotice("");
-              }}
-            >
-              <span className="flex items-center justify-between gap-2">
-                <span className="truncate text-sm font-medium text-foreground">{x.value.name}</span>
-                {x.isOverride && <span className="shrink-0 rounded-full bg-accent/20 px-2 py-0.5 text-[11px] font-semibold text-accent">personal</span>}
-              </span>
-              <span className="block truncate text-xs text-secondary">{summary(kind, x.value)}</span>
-            </button>
-          ))}
-        </nav>
+        <div className="space-y-2">
+          <button
+            type="button"
+            className={`${secondaryBtn} w-full justify-center`}
+            disabled={busy}
+            onClick={() => {
+              setCreating(true);
+              setDraft({ ...blanks[kind] });
+              setNotice("");
+            }}
+          >
+            + New {noun}
+          </button>
+          <nav aria-label="Definitions" className="max-h-[70vh] space-y-1 overflow-y-auto rounded-2xl border border-border bg-card p-2">
+            {list.length === 0 && <p className="px-3 py-6 text-sm text-secondary">Nothing here yet.</p>}
+            {list.map(listItem)}
+            {removed.length > 0 && (
+              <>
+                <div className="px-3 pb-1 pt-3 text-xs font-semibold uppercase tracking-wide text-muted">Removed</div>
+                <div className="opacity-60">{removed.map(listItem)}</div>
+              </>
+            )}
+          </nav>
+        </div>
 
         {draft ? (
           <form
             className="space-y-5 rounded-2xl border border-border bg-card p-5"
             onSubmit={(e) => {
               e.preventDefault();
-              void mutate(() => request(`/${kind}/${draft.id}`, "PUT", draft), "Personal override saved.");
+              if (creating)
+                void mutate(() => request(`/${kind}`, "POST", draft), `Added to your ${noun}s.`, (made) => {
+                  setCreating(false);
+                  setSelected(made.id);
+                });
+              else void mutate(() => request(`/${kind}/${draft.id}`, "PUT", draft), view?.sharedDefault ? "Personal override saved." : "Saved.");
             }}
           >
             <fieldset disabled={busy} className="min-w-0 space-y-5 border-0 p-0">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <h2 className="text-lg font-semibold text-foreground">{draft.name || "Untitled"}</h2>
-                <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${view?.isOverride ? "bg-accent/20 text-accent" : "bg-surface text-secondary"}`}>
-                  {view?.isOverride ? "Your personal override" : "Using shared default"}
+                <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${creating || view?.isOverride || !view?.sharedDefault ? "bg-accent/20 text-accent" : "bg-surface text-secondary"}`}>
+                  {creating
+                    ? "New, not saved yet"
+                    : view && isRemoved(kind, view.value)
+                      ? "Removed from your library"
+                      : view?.isOverride
+                        ? "Your personal override"
+                        : view?.sharedDefault
+                          ? "Using shared default"
+                          : "Your own"}
                 </span>
               </div>
 
@@ -362,16 +436,31 @@ export function DefinitionSettings() {
 
               <div className="flex flex-wrap gap-2 border-t border-border pt-4">
                 <button type="submit" className={primaryBtn}>
-                  Save personal override
+                  {creating ? `Add to my ${noun}s` : view?.sharedDefault ? "Save personal override" : "Save"}
                 </button>
-                <button
-                  type="button"
-                  className={secondaryBtn}
-                  disabled={!view?.isOverride || !view.sharedDefault}
-                  onClick={() => void mutate(() => request(`/${kind}/${draft.id}/override`, "DELETE"), "Shared default restored.")}
-                >
-                  Restore shared default
-                </button>
+                {creating ? (
+                  <button type="button" className={secondaryBtn} onClick={() => setCreating(false)}>
+                    Cancel
+                  </button>
+                ) : (
+                  <>
+                    {view?.sharedDefault && (
+                      <button
+                        type="button"
+                        className={secondaryBtn}
+                        disabled={!view?.isOverride}
+                        onClick={() => void mutate(() => request(`/${kind}/${draft.id}/override`, "DELETE"), "Shared default restored.")}
+                      >
+                        Restore shared default
+                      </button>
+                    )}
+                    {view && (
+                      <button type="button" className={`${secondaryBtn} ml-auto`} onClick={() => setRemoved(!isRemoved(kind, view.value))}>
+                        {isRemoved(kind, view.value) ? "Put back in my library" : `Remove this ${noun}`}
+                      </button>
+                    )}
+                  </>
+                )}
               </div>
             </fieldset>
           </form>

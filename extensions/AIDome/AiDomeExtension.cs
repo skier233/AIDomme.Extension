@@ -43,7 +43,7 @@ public sealed class AiDomeExtension : FullExtensionBase
 
     public override string Id => "cove.community.aidome";
     public override string Name => "AI Domme";
-    public override string Version => "0.13.0";
+    public override string Version => "0.14.0";
     public override string Description => "A rule-driven domme for guided edging sessions on your Cove library, with an app-wide edge tracker, orgasm permission, games and persistent commitments.";
     public override string Author => "Cove Community";
     public override string Url => "https://github.com/yourcove/AIDome.Extension";
@@ -140,6 +140,7 @@ public sealed class AiDomeExtension : FullExtensionBase
         Migration("008_voice", GuidedMigrations.Load("008_voice"));
         Migration("009_pace", GuidedMigrations.Load("009_pace"));
         Migration("010_offer_values", GuidedMigrations.Load("010_offer_values"));
+        Migration("011_removed_definitions", GuidedMigrations.Load("011_removed_definitions"));
     }
 
     public override void MapEndpoints(IEndpointRouteBuilder endpoints)
@@ -203,6 +204,21 @@ public sealed class AiDomeExtension : FullExtensionBase
             await TrackerResultAsync(async () => await config.SaveAsync(id, body, ct)));
         group.MapDelete("/configuration/enders/{id:int}/override", async (int id, GuidedConfiguration config, CancellationToken ct) =>
             await TrackerResultAsync(async () => await config.ResetAsync<PunishmentEnder>(id, ct)));
+        // New definitions of the user's own, and taking methods or endings out of the library (and back).
+        group.MapPost("/configuration/methods", async (StimMethod body, GuidedConfiguration config, CancellationToken ct) =>
+            await TrackerResultAsync(async () => await config.CreateAsync(body, ct)));
+        group.MapPost("/configuration/enders", async (PunishmentEnder body, GuidedConfiguration config, CancellationToken ct) =>
+            await TrackerResultAsync(async () => await config.CreateAsync(body, ct)));
+        group.MapPost("/configuration/offers", async (OfferDefinition body, GuidedConfiguration config, CancellationToken ct) =>
+            await TrackerResultAsync(async () => await config.CreateAsync(body, ct)));
+        group.MapPost("/configuration/methods/{id:int}/remove", async (int id, GuidedConfiguration config, CancellationToken ct) =>
+            await TrackerResultAsync(async () => await config.SetRemovedAsync<StimMethod>(id, true, ct)));
+        group.MapPost("/configuration/methods/{id:int}/restore", async (int id, GuidedConfiguration config, CancellationToken ct) =>
+            await TrackerResultAsync(async () => await config.SetRemovedAsync<StimMethod>(id, false, ct)));
+        group.MapPost("/configuration/enders/{id:int}/remove", async (int id, GuidedConfiguration config, CancellationToken ct) =>
+            await TrackerResultAsync(async () => await config.SetRemovedAsync<PunishmentEnder>(id, true, ct)));
+        group.MapPost("/configuration/enders/{id:int}/restore", async (int id, GuidedConfiguration config, CancellationToken ct) =>
+            await TrackerResultAsync(async () => await config.SetRemovedAsync<PunishmentEnder>(id, false, ct)));
         group.MapPost("/configuration/optimize", async (GuidedConfiguration config, CancellationToken ct) =>
             await TrackerResultAsync(async () => await config.OptimizeAsync(ct)));
         // The tuning lab: the next side-by-side matchup, recording a choice, taking the last one back.

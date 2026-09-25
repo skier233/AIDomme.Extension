@@ -51,6 +51,32 @@ public sealed class GuidedConfiguration(GuidedRuntimes runtimes)
         return own.AsDefinition(id);
     }
 
+    /// <summary>A new definition of the user's own (not an override of a shared one).</summary>
+    public async Task<T> CreateAsync<T>(T value, CancellationToken ct) where T : class, IDefinition<T>
+    {
+        Validate(value);
+        await using var db = runtimes.Current.Factory.Open();
+        value.Id = 0;
+        value.UserId = db.UserId;
+        value.BaseId = null;
+        db.Db.Set<T>().Add(value);
+        await db.SaveChangesAsync(ct);
+        return value.AsDefinition(value.Id);
+    }
+
+    /// <summary>
+    /// Takes a method or ending out of this account's library, or puts it back. Nothing is deleted:
+    /// history still points at it. A shared default is removed through the account's override.
+    /// </summary>
+    public async Task<T> SetRemovedAsync<T>(int id, bool removed, CancellationToken ct) where T : class, IDefinition<T>, IRemovable
+    {
+        await using var db = runtimes.Current.Factory.Open();
+        var own = await OverrideAsync<T>(db, id, ct);
+        own.Removed = removed;
+        await db.SaveChangesAsync(ct);
+        return own.AsDefinition(id);
+    }
+
     public async Task<T> ResetAsync<T>(int id, CancellationToken ct) where T : class, IDefinition<T>
     {
         await using var db = runtimes.Current.Factory.Open();

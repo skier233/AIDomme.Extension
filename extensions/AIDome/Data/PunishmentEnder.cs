@@ -8,7 +8,7 @@ namespace AIDome.Data;
 /// Unlike StimMethods (which describe ongoing stimulation), PunishmentEnders describe
 /// a complete finish scenario — often multi-step.
 /// </summary>
-public sealed class PunishmentEnder : IDefinition<PunishmentEnder>
+public sealed class PunishmentEnder : IDefinition<PunishmentEnder>, IRemovable
 {
     /// <summary>Null for a shared default; the owning account for a personal definition or override.</summary>
     [System.Text.Json.Serialization.JsonIgnore]
@@ -49,6 +49,9 @@ public sealed class PunishmentEnder : IDefinition<PunishmentEnder>
 
     /// <summary>False for endings that deny (they can serve during a denial window).</summary>
     public bool EndsInOrgasm { get; set; } = true;
+
+    /// <summary>Taken out of this account's library: never used, but kept for history.</summary>
+    public bool Removed { get; set; }
 
     /// <summary>A detached copy presented under the definition's stable ID.</summary>
     public PunishmentEnder AsDefinition(int id)

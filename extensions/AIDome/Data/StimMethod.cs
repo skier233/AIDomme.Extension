@@ -12,7 +12,7 @@ public enum ToyCategory
     ProstateMassager = 4
 }
 
-public sealed class StimMethod : IDefinition<StimMethod>
+public sealed class StimMethod : IDefinition<StimMethod>, IRemovable
 {
     /// <summary>Null for a shared default; the owning account for a personal definition or override.</summary>
     [System.Text.Json.Serialization.JsonIgnore]
@@ -52,6 +52,9 @@ public sealed class StimMethod : IDefinition<StimMethod>
 
     /// <summary>Learned live-session point multiplier applied per edge for edge-count steps.</summary>
     public double EdgePointMultiplier { get; set; }
+
+    /// <summary>Taken out of this account's library: never prescribed or compared, but kept for history.</summary>
+    public bool Removed { get; set; }
 
     public ICollection<EdgeEntry> Edges { get; set; } = new List<EdgeEntry>();
 

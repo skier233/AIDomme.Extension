@@ -6,6 +6,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "../../../cove/ui/node_modules/@testing-library/react";
 import { DefinitionSettings } from "../../extensions/AIDome/ui/Configuration";
 const api = vi.hoisted(() => ({ fetch: vi.fn() }));
@@ -101,5 +102,39 @@ describe("personal definitions", () => {
       "8",
     );
     expect(screen.getByText("Using shared default")).toBeTruthy();
+  });
+});
+
+describe("adding and removing", () => {
+  it("adds a method of his own and takes a shared one out of his library", async () => {
+    const posted: any[] = [];
+    api.fetch.mockImplementation(async (path: string, init: any) => {
+      if (init.method === "POST" && path.endsWith("/configuration/methods")) {
+        const made = { ...JSON.parse(init.body), id: 41 };
+        posted.push(made);
+        data.methods.push({ value: made, isOverride: false });
+        return Response.json(made);
+      }
+      if (init.method === "POST" && path.endsWith("/methods/1/remove")) {
+        posted.push(path);
+        data.methods[0] = { ...data.methods[0], value: { ...data.methods[0].value, removed: true }, isOverride: true };
+        return Response.json(data.methods[0].value);
+      }
+      return Response.json(structuredClone(data));
+    });
+    render(<DefinitionSettings />);
+    fireEvent.click(await screen.findByRole("button", { name: "+ New method" }));
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Edging glove" } });
+    fireEvent.click(screen.getByRole("button", { name: "Add to my methods" }));
+    await screen.findByText("Added to your methods.");
+    expect(posted[0]).toMatchObject({ name: "Edging glove", id: 41 });
+    expect(screen.getByText("Your own")).toBeTruthy();
+
+    fireEvent.click(within(screen.getByRole("navigation", { name: "Definitions" })).getByRole("button", { name: /^Methods*Intensity/ }));
+    fireEvent.click(await screen.findByRole("button", { name: "Remove this method" }));
+    await screen.findByText("Removed from your methods. She won't use it.");
+    expect(posted[1]).toBe("/api/ext/aidome/configuration/methods/1/remove");
+    expect(screen.getByText("Removed")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Put back in my library" })).toBeTruthy();
   });
 });

@@ -72,12 +72,12 @@ public sealed partial class TrackerPostgresTests : IAsyncLifetime
 
     private static string Fixture(string name) => File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", name));
 
-    /// <summary>Applies 002-010 exactly as Cove would on a fresh install.</summary>
+    /// <summary>Applies 002-011 exactly as Cove would on a fresh install.</summary>
     private async Task InstallGuidedAsync()
     {
         await using var db = Context();
         foreach (var sql in new[] { GuidedMigrations.Superseded, GuidedMigrations.Superseded, GuidedMigrations.Superseded, GuidedMigrations.Load("005_guided_v2"),
-                     GuidedMigrations.Load("006_session_contracts"), GuidedMigrations.Load("007_ledger"), GuidedMigrations.Load("008_voice"), GuidedMigrations.Load("009_pace"), GuidedMigrations.Load("010_offer_values") })
+                     GuidedMigrations.Load("006_session_contracts"), GuidedMigrations.Load("007_ledger"), GuidedMigrations.Load("008_voice"), GuidedMigrations.Load("009_pace"), GuidedMigrations.Load("010_offer_values"), GuidedMigrations.Load("011_removed_definitions") })
             await db.Database.ExecuteSqlRawAsync(sql);
     }
 
@@ -152,6 +152,7 @@ public sealed partial class TrackerPostgresTests : IAsyncLifetime
             await db.Database.ExecuteSqlRawAsync(GuidedMigrations.Load("008_voice"));
             await db.Database.ExecuteSqlRawAsync(GuidedMigrations.Load("009_pace"));
             await db.Database.ExecuteSqlRawAsync(GuidedMigrations.Load("010_offer_values"));
+            await db.Database.ExecuteSqlRawAsync(GuidedMigrations.Load("011_removed_definitions"));
         }
         await using (var db = Context())
         {
@@ -255,6 +256,19 @@ public sealed partial class TrackerPostgresTests : IAsyncLifetime
             Assert.Equal(shared.TimePointMultiplier, (await a.MethodsAsync()).Single(x => x.Id == 1).TimePointMultiplier);
             Assert.Equal(0, await a.Db.Set<StimMethod>().CountAsync(x => x.UserId == 1));
         }
+
+        // Removing takes a method out of one account's library without deleting it; it comes back on restore.
+        await configuration.SetRemovedAsync<StimMethod>(7, true, default);
+        await using (var a = first.Factory.Open()) Assert.DoesNotContain(await a.MethodsAsync(), x => x.Id == 7);
+        await using (var b = second.Factory.Open()) Assert.Contains(await b.MethodsAsync(), x => x.Id == 7);
+        await configuration.SetRemovedAsync<StimMethod>(7, false, default);
+        await using (var a = first.Factory.Open()) Assert.Contains(await a.MethodsAsync(), x => x.Id == 7);
+        // A new method is the account's own.
+        var made = await configuration.CreateAsync(new StimMethod { Name = "Edging glove", Description = "Use the glove.", Intensity = 5, Closeness = 6 }, default);
+        await using (var a = first.Factory.Open()) Assert.Contains(await a.MethodsAsync(), x => x.Id == made.Id && x.Name == "Edging glove");
+        await using (var b = second.Factory.Open()) Assert.DoesNotContain(await b.MethodsAsync(), x => x.Id == made.Id);
+        await configuration.SetRemovedAsync<StimMethod>(made.Id, true, default);
+        await using (var a = first.Factory.Open()) Assert.DoesNotContain(await a.MethodsAsync(), x => x.Id == made.Id);
 
         var contract = SessionContract.Preset(SessionMode.FullGuided) with { Preferences = new() { Intensity = 3, Length = 3, Denial = 3, Mean = 3 } };
         await first.Session.StartAsync(contract, default);

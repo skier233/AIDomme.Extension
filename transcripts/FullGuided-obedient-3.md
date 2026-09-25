@@ -4,7 +4,7 @@
 Mode FullGuided; intensity 5, length 4, denial 5, meanness 5
 Persona tonight: harshness 6, humiliation 3, manipulation 6, talkativeness 7
 Mood: Neutral (Temperament), annoyance 0
-Ending she leans toward: Full (68% chance she lets him cum; the draw made at the start says yes); she will keep it to herself
+Ending she leans toward: Full (58% chance she lets him cum; the draw made at the start says yes); she will keep it to herself
   - Slow build (slow-build), 10% of the budget: Warm him up slowly with teasing touches, without letting him edge.
   - Steady stroking (stroke-steady), 9% of the budget: Plain, steady stroking on a good grip: keep him hard and building.
   - A game (game), 5% of the budget: A game with real stakes. She enjoys it more than he does.
@@ -12,131 +12,109 @@ Ending she leans toward: Full (68% chance she lets him cum; the draw made at the
   - Breather (breather), 2% of the budget: A real, short rest so he can take more.
   - Slow build (slow-build), 7% of the budget: Warm him up slowly with teasing touches, without letting him edge.
   - False finish (false-finish), 1% of the budget: Let him think it's over, or that he's about to cum. Then more.
-  - As many as you can (max-edges), 12% of the budget: Give her as many edges as he can in the time, at her tempo.
+  - As many as you can (max-edges), 14% of the budget: Give her as many edges as he can in the time, at her tempo.
   - Tempo crawl (tempo-crawl), 7% of the budget: Maddeningly slow strokes, one beat at a time, until he aches.
   - Torment (torment), 11% of the budget: Grips so intense he is desperate to stop. He takes every second.
-  - Edging (edge-steady), 18% of the budget: Bring him to the edge and back, again and again, on grips that get him there.
-  - Torment (torment), 11% of the budget: Grips so intense he is desperate to stop. He takes every second.
+  - Edging (edge-steady), 20% of the budget: Bring him to the edge and back, again and again, on grips that get him there.
   - The ending (ending), 0% of the budget: She decides how this ends.
 
 ## Session
   -- segment: Slow build --
 [00:00] Her: So this is the first time. Listen carefully and do exactly what I say, and we'll get along fine.
-[00:00] Her: First, I want you nice and warm.
-[00:00] Her: Roll your cock between your hands, nice and slow, for 46 seconds. Slow. You don't get to rush this.
-[00:46] Her: Move one finger up and down your cock gently, nice and slow, for a minute.
-[00:54] Her (aside): Slower. Feel every stroke.
-[01:44] Her: Stroke your cock from under your leg, slowly, for 42 seconds. Barely touching. I want you desperate.
-[01:52] Her (aside): Keep that pace.
-[02:26] Her: This next one needs lube. Get the lube and use plenty. Tell me when you're ready.
-[02:39] Her (aside): You'd stop right now if I told you to. You know you would.
-[02:49] Him: (done)
-[02:49] Her: Good. Rub your cock back and forth across your stomach, nice and slow. Keep it up for a minute and a half.
-[03:26] Her (aside): Stay on the beat.
-[04:04] Her (aside): You don't decide anything tonight. Isn't that a relief?
+[00:00] Her: Let's begin.
+[00:00] Her: This next one needs lube. Get the lube and use plenty. Tell me when you're ready.
+[00:44] Her (aside): Enjoy the rest. It won't last.
+[01:13] Him: (done)
+[01:13] Her: Next. Rub your cock back and forth across your stomach, as slowly as you possibly can, for 52 seconds.
+[01:37] Her (aside): Stay on the beat.
+[02:05] Her: Gently. Make a fist and peek the head of your cock into it, as slowly as you possibly can. Keep it up for a minute and a half.
+[02:27] Her (aside): If I were there with you, I wouldn't even touch you.
+[02:41] Her (aside): I'd sit across the room and watch.
+[02:55] Her (aside): I'd make you do all of this yourself, slowly, while I sipped my drink.
+[03:09] Her (aside): And whenever you got close, I'd just say stop. And you would.
+[03:31] Her: Stroke up and down your cock with 1 hand, as slowly as you possibly can, for 48 seconds.
+[03:59] Her (aside): You don't decide anything tonight. Isn't that a relief?
+[04:19] Her: Now. Rub your cock back and forth across your stomach, slowly. Keep it up for a minute and a half.
+[04:47] Her (aside): You're doing exactly what I want. Doesn't that feel good?
   -- segment: Steady stroking --
-[04:18] Her: Let's keep you simmering.
-[04:18] Her: Now. Perform the figure eight on your cock, a little faster. Keep it up for two minutes.
-[04:54] Her (aside): Let me tell you about someone else I used to play with.
-[05:08] Her (aside): He begged. Every session, the moment it got hard, he begged.
-[05:22] Her (aside): So I made a rule: every time he asked, I added ten minutes.
-[05:36] Her (aside): He learned to stay quiet. You're learning too.
-[06:18] Her: Same grip. Keep going. Perform the figure eight on your cock, slowly. Keep it up for two minutes.
-[06:26] Her (aside): What would you give up for one orgasm? Don't answer. I already know.
-[07:20] Her (aside): You're doing exactly what I want. Doesn't that feel good?
+[05:30] Her: Good. Make a fist and peek the head of your cock into it, at a medium pace, for a minute and a half.
+[05:38] Her (aside): Don't slow down.
+[06:28] Her (aside): Keep that pace.
+[06:58] Her: Make a fist and peek the head of your cock into it, at a steady pace. Keep it up for a minute. Steady.
+[07:06] Her (aside): I'll tell you a secret.
+[07:19] Her (aside): I already know how tonight ends. I decided before we started.
+[07:32] Her (aside): Or maybe I'm lying.
+[07:45] Her (aside): You won't know until the very end. Keep stroking.
   -- segment: A game --
-[08:07] Her: Game time. Stroke up and down the head of your cock. Record it when you reach the edge, then hold it for 20 seconds without going over. If you have to let go, admit it.
-[08:07] Note: EdgeEndurance stakes: win +6 points; lose 3 edges held 15s
-[08:37] Him: (edge)
-[08:37] Her: Hold it right there for 20 seconds. Don't go over.
-[08:44] Him: (answers: I had to let go)
-[08:44] Her: You let go. Weak.
-[08:44] Her: Stroke up and down your cock with 1 hand, nice and fast, and edge 3 times. Hold the last one for 15 seconds. You earned this one.
-[08:44] Note: game lost: 3 edges held 15s
-[08:52] Her (aside): Do you think you've been good enough? I'm keeping score.
-[09:08] Him: (edge)
-[09:08] Her: Again.
-[09:25] Him: (edge)
-[09:25] Her: One down. 1 to go.
-[09:36] Her (aside): You lost my game earlier. I'm still enjoying that.
-[09:48] Him: (edge)
-[09:48] Her: Hold it... Hold it right there for 15 seconds. Don't go over. Feel how badly you want to go over.
+[08:01] Her: Let's play a game. I'm drawing a card you can't see. High or low? Right, and I go easier on you for the rest of tonight. Wrong, and 55 seconds of torment.
+[08:01] Note: CardDraw stakes: win +6 points; lose 55s torment
+[08:06] Him: (answers: High (7 or more))
   -- segment: Rapid-fire edges --
-[10:03] Her: Stroke up and down the head of your cock, full speed, and give me two edges. Enjoy it. It won't last.
-[10:20] Him: (edge)
-[10:22] Her (aside): Careful. Don't go over.
-[10:46] Him: (edge)
-[10:46] Her: Perform the figure eight on your cock, full speed, and edge 3 times. That's what disappointing me costs.
-[11:02] Her (aside): I wonder if I'll let you cum tonight. I haven't decided. Or maybe I have.
-[11:08] Him: (edge)
-[11:08] Her: Keep going.
-[11:25] Him: (edge)
-[11:25] Her: One more.
-[11:33] Her (aside): Getting close? Good.
-[11:38] Him: (edge)
+[08:06] Her: The card was a 7. You win. This time.
+[08:06] Her: Now I'm going to run you into the edge over and over.
+[08:06] Her: Ooh, you'll like this one. Stroke up and down your cock with 2 hands, as fast as you can, and give me two edges.
+[08:06] Note: game won: +6 points
+[08:31] Her (aside): What would you give up for one orgasm? Don't answer. I already know.
+[08:36] Him: (edge)
+[08:36] Her: Last one. Make it count.
+[08:58] Him: (edge)
+[08:58] Her: Perform the figure eight on your cock, as fast as you can, and edge for me. No rest.
+[09:06] Her (aside): Getting close? Good.
+[09:29] Him: (edge)
   -- segment: Breather --
-[11:38] Her: A short break. Enjoy it.
-[11:38] Her: Hands off for 24 seconds. Enjoy it while it lasts.
+[09:29] Her: Take a breath. You'll need it.
+[09:29] Her: Hands off for 36 seconds. You'll need the rest.
+[09:52] Her (aside): You're so easy to play with.
   -- segment: Slow build --
-[12:02] Her: Gently. Make a fist and peek the head of your cock into it, as slowly as you possibly can, for 46 seconds.
-[12:15] Her (aside): 9 edges tonight. Imagine how that'll feel when I make you stop.
-[12:48] Her: Again. Perform the figure eight on your cock, nice and slow. Keep it up for a minute and a half.
-[12:56] Her (aside): Maybe tonight's your night. Maybe it isn't. You won't know until I tell you.
-[13:45] Her (aside): Close, aren't you? Shame.
+[10:05] Her: Let's take it slow for a bit. It'll make the rest worse.
+[10:05] Her: Rub your cock back and forth across your stomach, slowly, for 47 seconds. Barely touching. I want you desperate.
+[10:15] Her (aside): Maybe tonight's your night. Maybe it isn't. You won't know until I tell you.
+[10:52] Her: Again. Perform the figure eight on your cock, as slowly as you possibly can. Keep it up for a minute and a half.
+[11:00] Her (aside): I love it when you're this frustrated.
+[11:40] Her (aside): Slower than that.
   -- segment: False finish --
-[14:11] Her: Hands off for 19 seconds.
+[12:05] Her: I think you've earned something. Hands off for a moment.
+[12:05] Her: Hands off for 13 seconds.
   -- segment: As many as you can --
-[14:30] Her: Stroke up and down your cock with 2 hands, nice and fast, for a minute and a half. Every edge you give me counts. Go.
-[14:38] Her (aside): I could do this all night. I might.
-[15:01] Him: (edge)
-[15:01] Her: Another one. 1.
-[15:19] Him: (edge)
-[15:19] Her: 2. Keep going.
-[15:29] Her (aside): Is that all you've got?
-[15:49] Him: (edge)
-[15:49] Her: That's 3.
+[12:18] Her: You should have seen your face. Back to work.
+[12:18] Her: Stroke up and down your cock with 2 hands, nice and fast, for two and a half minutes. Every edge you give me counts. I love watching you do this.
+[12:26] Her (aside): I wonder if I'll let you cum tonight. I haven't decided. Or maybe I have.
+[12:52] Him: (edge)
+[12:52] Her: 1. More.
+[13:06] Her (aside): Do you think you've been good enough? I'm keeping score.
+[13:19] Him: (edge)
+[13:19] Her: 2. Keep going.
+[13:46] Him: (edge)
+[13:46] Her: That's 3.
+[13:55] Her (aside): More. Come on.
+[14:13] Him: (edge)
+[14:13] Her: Another one. 4.
+[14:51] Him: (edge)
   -- segment: Tempo crawl --
-[15:50] Her: Time's up. More than I expected. Good pet.
-[15:50] Her: Slow. Slower than you want. One stroke per beat and not one more.
-[15:50] Her: Crawl. Make a fist and peek the head of your cock into it, as slowly as you possibly can. Keep it up for a minute and a half.
-[16:25] Her (aside): I love it when you're this frustrated.
-[17:27] Her: Next. Make a fist and peek the head of your cock into it, as slowly as you possibly can, for a minute and a half.
-[17:35] Her (aside): Don't slow down.
-[18:13] Her (aside): Don't you dare stop.
-[18:46] Her (aside): Mmm. I can tell you want more. You're not getting it.
+[14:53] Her: Time. 5 edges. That'll do.
+[14:53] Her: Let's see how you like it painfully slow.
+[14:53] Her: Rub your cock back and forth across your stomach, as slowly as you possibly can. Keep it up for two minutes. One stroke per beat. Not one more.
+[15:01] Her (aside): I could do this all night. I might.
+[15:35] Her (aside): Don't you dare stop.
   -- segment: Torment --
-[19:00] Her: Rub your cock back and forth across your stomach, nice and fast. Keep it up for a minute and a half. You'll want to stop almost at once. You won't.
-[19:33] Her (aside): We're getting close to the end. I've been thinking about how it ends.
-[20:14] Her: Perform the figure eight on your cock, a little faster, for 44 seconds. Too much? That's the point.
-[20:22] Her (aside): Look at you. Flushed, twitching, desperate for me to say stop.
-[20:58] Her: Twist the head of your cock, fast. Keep it up for a minute. Let it overwhelm you.
-[21:06] Her (aside): I'll tell you a secret.
-[21:19] Her (aside): I already know how tonight ends. I decided before we started.
-[21:32] Her (aside): Or maybe I'm lying.
-[21:45] Her (aside): You won't know until the very end. Keep stroking.
+[16:34] Her: Now something you won't be able to sit still for.
+[16:34] Her: Twist the head of your cock, nice and fast, for 52 seconds. Keep going.
+[16:42] Her (aside): The more you ache, the better my night gets.
+[17:26] Her: Make a fist and peek the head of your cock into it, nice and fast, for a minute. Too much? That's the point.
+[17:40] Her (aside): Faster. I didn't say you could take it easy.
   -- segment: Edging --
-[22:05] Her: Now I want edges.
-[22:05] Her: Perform the figure eight on your cock, at a medium pace, and edge twice. Don't you dare go over.
-[22:21] Her (aside): Right up to the edge, not over it.
-[22:43] Him: (edge)
-[23:04] Her (aside): Not long now. I know what happens next. You don't.
-[23:24] Him: (edge)
-[23:24] Her: Stroke up and down your cock with 1 hand, fast, and edge for me. Right up to the line, not over.
-[23:45] Her (aside): That's 14 edges. Every one of them is still in there, waiting.
-[23:56] Him: (edge)
-  -- segment: Torment --
-[23:56] Her: This part isn't for your pleasure. It's for mine.
-[23:56] Her: This one's for me. Stroke up and down the head of your cock, fast, for a minute.
-[24:19] Her (aside): Feel that heat? All the way up your chest.
-[24:59] Her: Stroke up and down your cock with 1 hand, as fast as you can. Keep it up for two minutes. Take every second.
-[25:07] Her (aside): You can't think straight, can you? Good.
-[25:52] Her (aside): Harder. You can take more than that.
-[26:30] Her (aside): Do you know how much I enjoy this?
-[26:44] Her: Cum for me. Make a fist and peek the head of your cock into it, a little faster. You have a minute to cum. Record it when you do.
-[27:07] Him: (cums, with permission)
-[27:07] Her: Enjoy it while it lasts. I'll want more next time.
+[18:23] Her: Find the edge for me. Stroke up and down your cock with 1 hand, at a medium pace, and give me two edges. Hold the last one for 6 seconds.
+[18:35] Her (aside): You'd stop right now if I told you to. You know you would.
+[19:25] Him: (edge)
+[19:40] Her (aside): 9 edges tonight. Imagine how that'll feel when I make you stop.
+[20:26] Her (aside): Not long now. I know what happens next. You don't.
+[20:38] Him: (edge)
+[20:38] Her: Enough of that. Hold it right there for 6 seconds. Don't go over. I want you suffering on that edge.
+[20:44] Her: That's enough. You've earned it. Rub your cock back and forth across your stomach, a little faster. You have 40 seconds to cum. Record it when you do.
+[21:04] Him: (cums, with permission)
+[21:04] Her: Look at the mess you made for me. Session over.
 
-Outcome: AllowedOrgasm; 15 edges; 235/230 points; asked to cum 0 times, to rest 0 times.
+Outcome: AllowedOrgasm; 10 edges; 114/115 points; asked to cum 0 times, to rest 0 times.
 
 ## How the plan changed
-  - 10.1 min, step 9: running long at 31%: shortened the rest
+  - 14.9 min, step 15: running long at 70%: shortened the rest
