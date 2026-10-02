@@ -1,10 +1,10 @@
 # FreePlay-begs-to-stop-2
 
 ## Her plan at the start
-Mode FreePlay; intensity 5, length 4, denial 5, meanness 5
+Mode FreePlay; intensity 8, length 2, denial 3, meanness 8
 Persona tonight: harshness 3, humiliation 2, manipulation 3, talkativeness 7
 Mood: Relentless (Temperament), annoyance 0
-Ending she leans toward: Denied (52% chance she lets him cum; the draw made at the start says no); she will keep it to herself
+Ending she leans toward: Denied (63% chance she lets him cum; the draw made at the start says no); she will keep it to herself
 No plan of segments: he sets the pace, she decides the ending.
 
 ## Session
@@ -29,36 +29,18 @@ No plan of segments: he sets the pace, she decides the ending.
 [07:05] Him: (edge)
 [07:07] Her (aside): That's the difference between us.
 [07:45] Her (aside): Take your time. The longer you go, the better I like it.
-[08:16] Her (aside): You're doing so well for me.
+[08:16] Her (aside): Mmm. I can tell you want more. You're not getting it.
 [08:24] Him: (edge)
-[09:04] Her (aside): Your hands, my rules. Don't forget that.
+[09:04] Her (aside): Tonight, when you're lying in bed, you're going to feel it.
 [09:11] Him: (edge)
-[09:11] Her: Good. That's 7.
-[09:47] Her (aside): Look what's happening now. Don't you dare look away.
+[09:16] Her (aside): That dull ache. That throb when you think about this.
+[09:28] Her (aside): You'll want to touch. You'll think about sneaking one.
+[09:40] Her (aside): And you won't, because you know I'd find out.
 [10:15] Him: (edge)
-[10:27] Her (aside): Keep your eyes on Mia. Don't look away.
-[11:23] Her (aside): That's 8 edges. Every one of them is still in there, waiting.
-[11:36] Him: (edge)
-[12:19] Her (aside): Do you know how much I enjoy this?
-[12:52] Her (aside): Look at Mia. Imagine them watching you right now.
-[13:15] Him: (edge)
-[13:15] Her: That's 10 for me.
-[13:44] Her (aside): I like how obedient you are tonight.
-[14:20] Her (aside): Mia is having more fun than you are.
-[14:41] Him: (edge)
-[14:41] Her: 11. Keep going.
-[15:03] Her (aside): You're doing exactly what I want. Doesn't that feel good?
-[15:35] Her (aside): I'm watching every edge you record.
-[15:57] Him: (edge)
-[15:57] Her: That's 12. I could do this all night.
-[16:24] Her (aside): 12 edges tonight. Imagine how that'll feel when I make you stop.
-[17:12] Her (aside): We're getting close to the end. I've been thinking about how it ends.
-[17:19] Him: (edge)
-[17:51] Her (aside): Not long now. I know what happens next. You don't.
-[18:10] Him: (edge)
-[18:41] Her (aside): Every stroke tonight is mine, not yours. Remember that.
-[19:00] Her: That's all. No orgasm for you tonight.
-[19:03] Him: (done)
-[19:03] Her: Think about me when it throbs.
+[10:15] Her: Good. That's 8.
+[10:23] Her (aside): Keep your eyes on Mia. Don't look away.
+[11:00] Her: You were so hopeful. That's cute. Denied.
+[11:06] Him: (done)
+[11:06] Her: Poor thing. Sweet dreams.
 
-Outcome: Denied; 14 edges; 116/115 points; asked to cum 0 times, to rest 0 times.
+Outcome: Denied; 8 edges; 66/65 points; asked to cum 0 times, to rest 0 times.

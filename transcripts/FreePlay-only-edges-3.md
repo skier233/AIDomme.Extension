@@ -1,10 +1,10 @@
 # FreePlay-only-edges-3
 
 ## Her plan at the start
-Mode FreePlay; intensity 5, length 4, denial 5, meanness 5
+Mode FreePlay; intensity 3, length 7, denial 8, meanness 3
 Persona tonight: harshness 4, humiliation 3, manipulation 7, talkativeness 5
 Mood: Neutral (Temperament), annoyance 0
-Ending she leans toward: Full (58% chance she lets him cum; the draw made at the start says yes); she may lie about it
+Ending she leans toward: Full (42% chance she lets him cum; the draw made at the start says yes); she may lie about it
 No plan of segments: he sets the pace, she decides the ending.
 
 ## Session
@@ -53,9 +53,39 @@ No plan of segments: he sets the pace, she decides the ending.
 [17:46] Her (aside): So I made a rule: every time he asked, I added ten minutes.
 [18:00] Her (aside): He learned to stay quiet. You're learning too.
 [18:57] Him: (edge)
-[18:57] Her: 15 edges tonight. You're going to feel every one of them later.
-[18:57] Her: Cum for me. Stroke however you like. You have a minute and a half to cum. Record it when you do.
-[19:18] Him: (cums, with permission)
-[19:18] Her: That was beautiful. Good pet.
+[19:22] Her (aside): Do you think you've been good enough? I'm keeping score.
+[20:20] Him: (edge)
+[20:24] Her (aside): That's 16 edges. Every one of them is still in there, waiting.
+[21:46] Her (aside): Do you know how much I enjoy this?
+[22:00] Him: (edge)
+[23:19] Her (aside): You're doing exactly what I want. Doesn't that feel good?
+[23:39] Him: (edge)
+[23:39] Her: Good. That's 18.
+[24:16] Her (aside): You'd stop right now if I told you to. You know you would.
+[25:01] Him: (edge)
+[25:11] Her (aside): Maybe tonight's your night. Maybe it isn't. You won't know until I tell you.
+[26:24] Him: (edge)
+[26:24] Her: That's 20. I could do this all night.
+[27:02] Her (aside): The more you ache, the better my night gets.
+[27:44] Him: (edge)
+[28:35] Her (aside): I could keep you like this for hours. I might.
+[28:40] Him: (edge)
+[30:02] Him: (edge)
+[30:11] Her (aside): Your hands, my rules. Don't forget that.
+[31:24] Her (aside): I love having you like this.
+[31:37] Him: (edge)
+[31:37] Her: Mm. 24.
+[32:56] Her (aside): Not long now. I know what happens next. You don't.
+[33:15] Him: (edge)
+[34:00] Her (aside): I'm watching every edge you record.
+[34:52] Him: (edge)
+[34:52] Her: 26 edges tonight. You're going to feel every one of them later.
+[35:08] Her (aside): I wonder if I'll let you cum tonight. I haven't decided. Or maybe I have.
+[35:42] Him: (edge)
+[36:34] Her (aside): We're getting close to the end. I've been thinking about how it ends.
+[36:43] Him: (edge)
+[36:43] Her: That's enough. You've earned it. Stroke however you like. You have a minute and a half to cum. Record it when you do.
+[36:56] Him: (cums, with permission)
+[36:56] Her: You did so well for me. Rest now.
 
-Outcome: AllowedOrgasm; 15 edges; 121/115 points; asked to cum 0 times, to rest 0 times.
+Outcome: AllowedOrgasm; 28 edges; 234/228 points; asked to cum 0 times, to rest 0 times.

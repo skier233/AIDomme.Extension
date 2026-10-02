@@ -124,6 +124,14 @@ public sealed class DommeMethods(IRandom random) : IMethodAuthority
             if (reach.Count == 0) reach = all.OrderByDescending(m => m.Closeness).Take(3).ToList();
             pool = reach;
         }
+        // A torturous or teasing step means it: grips that really are, whenever he has any.
+        // Under a low intensity ceiling, a little above it rather than a grip that isn't torturous at all,
+        // and failing that the most torturous few he has.
+        if (p.Torture)
+            pool = pool.Where(m => m.TortLevel >= 5).ToList() is { Count: > 0 } torturous ? torturous
+                : all.Where(m => m.TortLevel >= 5 && m.Intensity <= p.IntensityCeiling + 2).ToList() is { Count: > 0 } near ? near
+                : pool.OrderByDescending(m => m.TortLevel).Take(3).ToList();
+        else if (p.Tease && pool.Where(m => m.Tease >= 4).ToList() is { Count: > 0 } teasing) pool = teasing;
         if (p.MaxCloseness < 10)
         {
             var hard = all.Where(m => m.Closeness >= p.MinCloseness && m.Closeness <= p.MaxCloseness && m.Intensity <= Math.Min(10, p.IntensityCeiling + 2)).ToList();
@@ -139,6 +147,9 @@ public sealed class DommeMethods(IRandom random) : IMethodAuthority
                 lubed = all.Where(m => m.RequiresLube && m.Intensity <= p.IntensityCeiling + 2 && (p.MinCloseness == 0 || m.Closeness >= p.MinCloseness)).ToList();
             if (lubed.Count == 0) lubed = all.Where(m => m.RequiresLube).ToList();
             if (lubed.Count > 0) pool = lubed;
+            // Widening for lube must not undo a torturous or teasing step's choice.
+            if (p.Torture && pool.Where(m => m.TortLevel >= 5).ToList() is { Count: > 0 } stillTorturous) pool = stillTorturous;
+            else if (p.Tease && pool.Where(m => m.Tease >= 4).ToList() is { Count: > 0 } stillTeasing) pool = stillTeasing;
         }
 
         // Deliberate repetition: stay on a basic grip for a step or two before switching.

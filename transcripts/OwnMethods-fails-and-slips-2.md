@@ -1,118 +1,98 @@
 # OwnMethods-fails-and-slips-2
 
 ## Her plan at the start
-Mode OwnMethods; intensity 5, length 4, denial 5, meanness 5
+Mode OwnMethods; intensity 8, length 2, denial 3, meanness 8
 Persona tonight: harshness 5, humiliation 1, manipulation 5, talkativeness 6
 Mood: Relentless (Temperament), annoyance 0
-Ending she leans toward: Full (52% chance she lets him cum; the draw made at the start says yes); she will be honest about it
-  - Don't you dare (no-edge), 5% of the budget: Stroke hard for a set time without reaching the edge. An edge fails it.
+Ending she leans toward: Ruined (63% chance she lets him cum; the draw made at the start says yes, and her 21% ruin chance came up); she will keep it to herself
+  - Burst (burst), 2% of the budget: Out of nowhere: full speed, very short, then stop.
+  - Steady stroking (stroke-steady), 14% of the budget: Plain, steady stroking on a good grip: keep him hard and building.
+  - Rapid-fire edges (rapid-fire), 24% of the budget: Edge after edge on intense grips, no time to recover.
   - Slow build (slow-build), 12% of the budget: Warm him up slowly with teasing touches, without letting him edge.
-  - Rapid-fire edges (rapid-fire), 14% of the budget: Edge after edge on intense grips, no time to recover.
-  - Slow build (slow-build), 12% of the budget: Warm him up slowly with teasing touches, without letting him edge.
-  - Steady stroking (stroke-steady), 6% of the budget: Plain, steady stroking on a good grip: keep him hard and building.
-  - Long hold (long-hold), 12% of the budget: Get to the edge and stay there far longer than is comfortable.
-  - Rapid-fire edges (rapid-fire), 17% of the budget: Edge after edge on intense grips, no time to recover.
-  - Long hold (long-hold), 12% of the budget: Get to the edge and stay there far longer than is comfortable.
-  - Edging (edge-steady), 10% of the budget: Bring him to the edge and back, again and again, on grips that get him there.
+  - Steady stroking (stroke-steady), 8% of the budget: Plain, steady stroking on a good grip: keep him hard and building.
+  - Tempo crawl (tempo-crawl), 9% of the budget: Maddeningly slow strokes, one beat at a time, until he aches.
+  - Rapid-fire edges (rapid-fire), 24% of the budget: Edge after edge on intense grips, no time to recover.
+  - Don't you dare (no-edge), 8% of the budget: Stroke hard for a set time without reaching the edge. An edge fails it.
   - The ending (ending), 0% of the budget: She decides how this ends.
 
 ## Session
-  -- segment: Don't you dare --
-[00:00] Her: So this is the first time. Listen carefully and do exactly what I say, and we'll get along fine.
-[00:00] Her: Let's find out how much self-control you really have.
-[00:00] Her: Stroke however you like, as fast as you can, for a minute and a half, and do not edge.
-[00:27] Him: (edge)
-[00:27] Her: You edged. You couldn't even last 27 seconds.
-[00:27] Her: Hands off for 8 seconds.
-  -- segment: Punishment --
-[00:35] Her: You failed my test. This is what failing costs.
-[00:35] Her: Stroke however you like, as fast as you can, for a minute and a half. Every second of this is punishment.
-[01:13] Her (aside): Do you know what I'll do when you leave tonight?
-[01:25] Her (aside): Nothing. I won't think about you at all.
-[01:37] Her (aside): But you'll think about me. In bed, in the shower, tomorrow at work.
-[01:49] Her (aside): That's the difference between us.
-  -- segment: Slow build --
-[02:05] Her: Let's take it slow for a bit. It'll make the rest worse.
-[02:05] Her: Look at Mia while you do it. Stroke however you like, as slowly as you possibly can, for 51 seconds.
-[02:56] Her: Watch Mia. Stroke however you like, slowly, for a minute and a half.
-[03:06] Her (aside): You look so desperate. It suits you.
-[04:00] Her (aside): Maybe tonight's your night. Maybe it isn't. You won't know until I tell you.
-[04:13] Her: Next. Stroke however you like, nice and slow, for 38 seconds.
-[04:51] Her: Stroke however you like, nice and slow, for 53 seconds. Barely touching. I want you desperate.
-[04:59] Her (aside): Every stroke tonight is mine, not yours. Remember that.
-  -- segment: Rapid-fire edges --
-[05:44] Her: Now. Stroke however you like, as fast as you can, and edge for me.
-[05:58] Him: (edge)
-[05:58] Her: Don't stop to breathe. Stroke however you like, as fast as you can, and edge twice.
-[06:06] Her (aside): Look what's happening now. Don't you dare look away.
-[06:19] Him: (edge)
-[06:19] Her: One more.
-[06:38] Him: (edge)
-  -- segment: Slow build --
-[06:38] Her: Stroke however you like, as slowly as you possibly can, for a minute. Let's see how you do.
-[07:03] Her (aside): Keep your eyes on Mia. Don't look away.
-[07:35] Her: Stroke however you like, as slowly as you possibly can, for a minute. Keep your eyes on Mia.
-[07:35] Him: May I cum?
-[07:35] Her: Not yet. Maybe never.
-[08:07] Her (aside): Slower. Feel every stroke.
-[08:35] Her: Gently. Stroke however you like, as slowly as you possibly can, for 42 seconds.
-[09:17] Her: Good. Stroke however you like, slowly. Keep it up for 45 seconds.
-[09:25] Her (aside): Don't slow down.
+  -- segment: Burst --
+[00:00] Her: I'm not in a generous mood. You'll find out why.
+[00:00] Her: Surprise.
+[00:00] Her: No warning. Stroke however you like, full speed, for 24 seconds.
   -- segment: Steady stroking --
-[10:02] Her: Nice and steady now. Keep yourself hard for me.
-[10:02] Her: Stroke however you like, at a steady pace. Keep it up for two minutes. That's for asking.
-[10:22] Her (aside): Keep that pace.
-[10:28] Him: May I cum?
-[10:28] Her: The answer is no.
-[11:29] Her (aside): Don't you dare stop.
-  -- segment: Long hold --
-[12:01] Her: This time you're going to hold it. For a long time.
-[12:01] Her: Stroke however you like, a little faster, and edge for me. When you get there, hold it for 34 seconds. And when you get there, you stay there.
-[12:01] Her (aside): Every edge you give me is going to stay with you after we're done.
-[12:26] Her (aside): No self-control. We'll work on that.
-[12:40] Him: (edge)
-[12:40] Her: Stay. Hold it right there for 34 seconds. Don't go over.
-  -- segment: False finish --
-[13:14] Her: Hands off for 15 seconds.
-  -- segment: Long hold --
-[13:29] Her: Stroke however you like, at a medium pace, and bring yourself to the edge. When you get there, hold it for 34 seconds. I love watching you do this.
-[13:38] Her (aside): Careful. Don't go over.
-[14:09] Him: (edge)
-[14:09] Her: Right there. Hold it right there for 34 seconds. Don't go over.
-  -- segment: Edging --
-[14:43] Her: Now I want edges.
-[14:43] Her: Stroke however you like, a little faster, and edge twice. Hold the last one for 15 seconds. Right up to the line, not over.
-[14:43] Him: May I cum?
-[14:43] Her: I'm feeling generous. Sort of. You may cum. Then you're locked away for 3 days. No exceptions.
-[14:43] Note: offer: Pay in days, Denial x3, worth 42 points
-[15:03] Him: (came without permission)
-[15:03] Her: You came without permission? You're going to pay for that.
-[15:03] Her: Stroke however you like, fast, and edge 4 times. Don't you dare go over.
-[15:11] Her (aside): Stay on the beat.
-[15:35] Him: (edge)
-[15:54] Him: (edge)
-[15:54] Her: Keep going.
-[16:13] Her (aside): That's 8 edges. Every one of them is still in there, waiting.
-[16:14] Him: (edge)
-[16:14] Her: Last one. Make it count.
-[16:51] Him: (edge)
+[00:24] Her: Look at Mia while you do it. Stroke however you like, slowly, for a minute and a half.
+[01:13] Her (aside): Keep that pace.
+[01:43] Her: Stroke however you like, slowly, for a minute and a half. Steady.
+[02:46] Her (aside): What would you give up for one orgasm? Don't answer. I already know.
+  -- segment: Rapid-fire edges --
+[02:59] Her: Now. Stroke however you like, fast, and bring yourself to the edge.
+[03:36] Him: (edge)
+[03:36] Her: Stroke however you like, full speed, and give me two edges. More.
+[03:44] Her (aside): Faster. I didn't say you could take it easy.
+[04:00] Him: (edge)
+[04:00] Her: Last one. Make it count.
+[04:25] Him: (edge)
+  -- segment: Slow build --
+[04:25] Her: Good. Stroke however you like, nice and slow. Keep it up for 38 seconds.
+[04:25] Him: May I cum?
+[04:25] Her: Not a chance.
+[05:03] Her: Stroke however you like, slowly. Keep it up for a minute and a half. That's for asking.
+[05:11] Her (aside): Look what's happening now. Don't you dare look away.
+[06:05] Her (aside): Mia is having more fun than you are.
+  -- segment: Steady stroking --
+[06:17] Her: Nice and steady now. Keep yourself hard for me.
+[06:17] Her: Stroke however you like, at a medium pace, for a minute and a half. Don't think, just stroke.
+[07:07] Her (aside): Stay on the beat.
+  -- segment: Tempo crawl --
+[07:39] Her: Let's see how you like it painfully slow.
+[07:39] Her: Crawl. Stroke however you like, as slowly as you possibly can, for two and a half minutes.
+[08:11] Her (aside): I wonder if I'll let you cum tonight. I haven't decided. Or maybe I have.
+[08:45] Him: May I cum?
+[08:45] Her: Still no. And now I'm annoyed.
+[09:23] Her (aside): Mmm. Teasing. Watch this part closely.
+  -- segment: Rapid-fire edges --
+[10:20] Her: No more breaks. Edge after edge, as fast as I can make you.
+[10:20] Her: Next. Stroke however you like, as fast as you can, and give me two edges.
+[10:28] Her (aside): Getting close? Good.
+[10:42] Him: (edge)
+[10:57] Him: (edge)
+[10:57] Her: Stroke however you like, fast, and give me three edges.
+[11:17] Him: (came without permission)
+[11:17] Her: You came without permission? You're going to pay for that.
+[11:17] Her: Once more. Stroke however you like, as fast as you can, and edge twice.
+[11:25] Her (aside): Careful. Don't go over.
+[11:37] Him: (edge)
+[11:37] Her: One more.
+[12:10] Him: (edge)
   -- segment: Punishment --
-[16:51] Her: That's going to cost you. Starting now.
-[16:51] Her: Stroke however you like, as fast as you can, for a minute and a half. Feel the heat spread all through you.
-[17:09] Her (aside): You failed my little test. I haven't forgotten.
-[17:49] Her (aside): Mia is having more fun than you are.
-[17:58] Him: May I cum?
-[17:58] Her: That's 4 times you've asked. Every time, I add more.
-[18:10] Her: Stroke however you like, as fast as you can, for a minute. Think about what you did.
-[18:34] Her (aside): Do you know how much I enjoy this?
-[19:10] Her: Surprise. Stroke however you like, as fast as you can. You have a minute to cum. Record it when you do.
-[19:27] Him: (cums, with permission)
-[19:27] Her: Look at the mess you made for me. Session over.
+[12:10] Her: That's going to cost you. Starting now.
+[12:10] Her: Stroke however you like, full speed, for 52 seconds. Think about what you did.
+[12:52] Her (aside): Harder. You can take more than that.
+[12:56] Him: May I cum?
+[12:56] Her: Asking again won't change my answer.
+  -- segment: Don't you dare --
+[13:02] Her: I'm not finished with you yet.
+[13:02] Her: Let's see your self-control. Stroke however you like, fast, for a minute, and do not edge.
+[13:48] Her (aside): Don't you dare stop.
+  -- segment: Edge ladder --
+[14:00] Her: Held it together. I'm almost impressed.
+[14:00] Her: Stroke however you like, slowly, and edge for me. Keep going.
+[14:44] Her (aside): You'd stop right now if I told you to. You know you would.
+[14:54] Him: (edge)
+[14:54] Her: Now. Stroke however you like, at a steady pace, and edge for me. The next one's faster still.
+[15:32] Him: (edge)
+[15:32] Her: Watch Mia. Stroke however you like, a little faster, and edge for me.
+[15:51] Her (aside): All that asking. Did it help? No. It never does.
+[15:56] Him: (edge)
+[15:56] Her: Enough of that. You can cum. But I'm ruining it. Stroke however you like, at a medium pace. Take yourself to the edge, then let go completely and keep your hands off while it happens. You have 48 seconds. Record it when you cum.
+[16:18] Him: (cums, with permission)
+[16:18] Her: That's what a ruined one feels like. Remember it.
 
-Outcome: AllowedOrgasm; 10 edges; 116/115 points; asked to cum 4 times, to rest 0 times.
+Outcome: AllowedOrgasm; 10 edges; 93/65 points; asked to cum 3 times, to rest 0 times.
 
 ## How the plan changed
-  - 0.5 min, step 1: failed a challenge: inserted punish
-  - 13.2 min, step 15: changed her mind: rapid-fire became false-finish
-  - 15.1 min, step 18: came without permission: inserted punish and dropped the rest of the plan
-  - 16.9 min, step 19: running long at 89%: shortened the rest
+  - 11.3 min, step 11: came without permission: inserted punish and dropped the rest of the plan
+  - 12.2 min, step 12: running long at 102%: shortened the rest
+  - 13.0 min, step 13: the ending waits: added no-edge
+  - 14.0 min, step 14: the ending waits: added edge-ladder

@@ -51,7 +51,14 @@ public sealed record SimulatedUser
 public sealed record TranscriptLine(TimeSpan At, string Who, string Text, SpeechAct? Act = null, string? Segment = null, string? Note = null,
     Directive? Directive = null, int Turn = 0, string? Module = null);
 
-public sealed record SimulationResult(SessionState State, IReadOnlyList<TranscriptLine> Lines, string PlanAtStart, IReadOnlyList<string> Revisions);
+public sealed record SimulationResult(SessionState State, IReadOnlyList<TranscriptLine> Lines, string PlanAtStart, IReadOnlyList<string> Revisions)
+{
+    /// <summary>What he was actually told to do, step by step, with how long each took.</summary>
+    public IReadOnlyList<StepRecord> Steps { get; init; } = [];
+}
+
+/// <summary>One step of a simulated session as it was given and as it went.</summary>
+public sealed record StepRecord(TimeSpan Start, TimeSpan End, string? Segment, Directive Directive, string? Game, bool LubeWait, int Edges);
 
 /// <summary>
 /// Runs a whole session with the real engine, planner and voice against a simulated user and a
@@ -73,6 +80,32 @@ public static class Simulation
         screen = screen is null ? null : screen with { SeenAtUtc = start };
 
         int turn = 0;
+        // The steps as they happen: a new record whenever what he is told to do changes.
+        var steps = new List<StepRecord>();
+        string? stepSignature = null;
+        int edgesAtStep = 0;
+        void TrackStep()
+        {
+            var at = clock.UtcNow - start;
+            string? signature = s.Current is { } c && s.Active
+                ? $"{s.StepNumber}|{c.Kind}|{c.Category}|{c.Method?.Id}|{c.Speed}|{c.DurationOrCount}|{c.HoldSeconds}|{s.Game?.Type}|{s.PendingLube is not null}"
+                : null;
+            // Free play's quiet check-ins are one long stretch of his own doing.
+            if (signature is not null && s.Current!.Category == StepCategory.FreePlay && steps.Count > 0 && steps[^1].Directive.Category == StepCategory.FreePlay
+                && stepSignature?.Contains("|FreePlay|") == true)
+            {
+                stepSignature = signature;
+                return;
+            }
+            if (signature == stepSignature) return;
+            if (steps.Count > 0 && steps[^1].End == TimeSpan.MinValue)
+                steps[^1] = steps[^1] with { End = at, Edges = s.EdgesThisSession - edgesAtStep };
+            stepSignature = signature;
+            if (signature is null) return;
+            edgesAtStep = s.EdgesThisSession;
+            steps.Add(new(at, TimeSpan.MinValue, s.Current!.Segment, s.Current with { Text = "" }, s.Game?.Type.ToString(),
+                s.PendingLube is not null && s.Current.Category == StepCategory.Rest && s.TimerDueUtc is null, 0));
+        }
         void Say(Transition t)
         {
             turn++;
@@ -98,6 +131,7 @@ public static class Simulation
                         break;
                 }
             if (t.Rejected is not null) lines.Add(new(clock.UtcNow - start, "Note", $"refused: {t.Rejected}"));
+            TrackStep();
         }
         void User(string what) => lines.Add(new(clock.UtcNow - start, "Him", what));
 
@@ -176,7 +210,9 @@ public static class Simulation
             }
         }
         if (s.Active) lines.Add(new(clock.UtcNow - start, "Note", "the simulation stopped here"));
-        return new(s, lines, planAtStart, s.Plan?.Revisions.ToList() ?? []);
+        if (steps.Count > 0 && steps[^1].End == TimeSpan.MinValue)
+            steps[^1] = steps[^1] with { End = clock.UtcNow - start, Edges = s.EdgesThisSession - edgesAtStep };
+        return new(s, lines, planAtStart, s.Plan?.Revisions.ToList() ?? []) { Steps = steps };
     }
 
     /// <summary>What he does next in this step, if anything (timers take care of the rest).</summary>
@@ -269,11 +305,82 @@ public static class Simulation
     }
 
     /// <summary>A readable transcript: the plan, the session as chat with his actions, and how the plan changed.</summary>
+    private static string Clock(TimeSpan t) => $"{(int)t.TotalMinutes:00}:{t.Seconds:00}";
+    private static string Span(TimeSpan t) => t.TotalSeconds < 60 ? $"{(int)t.TotalSeconds}s" : $"{(int)t.TotalMinutes}:{t.Seconds:00}";
+    private static string Seconds(int s) => s < 60 ? $"{s}s" : $"{s / 60}:{s % 60:00}";
+
+    /// <summary>What a step asked of him, in a few words.</summary>
+    public static string Describe(StepRecord step)
+    {
+        var d = step.Directive;
+        string method = d.Method is { IsUserChoice: false } m ? m.Name : d.Method is not null ? "his choice of grip" : "";
+        string pace = d.Speed > 0 ? $"speed {d.Speed}" : d.Method is not null ? "his pace" : "";
+        string how = string.Join(", ", new[] { method, pace }.Where(x => x.Length > 0));
+        if (step.Game is { } game) return $"Game: {game}" + (how.Length > 0 ? $" ({how})" : "");
+        if (step.LubeWait) return "Get the lube";
+        return d.Category switch
+        {
+            StepCategory.FreePlay => "Free play: his grip, his pace",
+            StepCategory.Offer => "A deal on the table",
+            StepCategory.Hold => $"Hold at the edge {Seconds(d.DurationOrCount)}",
+            StepCategory.Rest or StepCategory.Psych when d.Method is null => $"Hands off {Seconds(d.DurationOrCount)}",
+            StepCategory.Finish when d.Kind == InstructionKind.Finish && d.Method is not null => $"Finish: {how}, {Seconds(d.DurationOrCount)} to cum",
+            StepCategory.Finish => "The ending: no orgasm",
+            _ => d.Kind switch
+            {
+                InstructionKind.EdgeCount => $"{how}: {(d.DurationOrCount == 1 ? "1 edge" : $"{d.DurationOrCount} edges")}"
+                    + (d.HoldSeconds > 0 ? $", hold the last {Seconds(d.HoldSeconds)}" : ""),
+                InstructionKind.TimedMethod => $"{how} for {Seconds(d.DurationOrCount)}"
+                    + (d.ForbidEdge ? ", no edging" : d.CountEdges ? ", as many edges as he can" : ""),
+                InstructionKind.Rest => $"Hands off {Seconds(d.DurationOrCount)}",
+                _ => how.Length > 0 ? how : d.Category.ToString(),
+            },
+        };
+    }
+
+    /// <summary>The session's content at a glance: every step, how long it took, and the totals.</summary>
+    private static string WhatHappened(SimulationResult result)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("## What happened");
+        sb.AppendLine("| At | Took | Segment | What she had him do | Edges |");
+        sb.AppendLine("|---|---|---|---|---|");
+        string? segment = null;
+        var stimulation = new Dictionary<string, TimeSpan>();
+        TimeSpan handsOff = TimeSpan.Zero, holds = TimeSpan.Zero, games = TimeSpan.Zero;
+        foreach (var step in result.Steps)
+        {
+            var took = step.End - step.Start;
+            string seg = step.Segment is { } id && id != segment ? SegmentCatalogue.Default.Find(id)?.Name ?? id : "";
+            if (step.Segment is not null) segment = step.Segment;
+            sb.AppendLine($"| {Clock(step.Start)} | {Span(took)} | {seg} | {Describe(step)} | {(step.Edges > 0 ? step.Edges : "")} |");
+            var d = step.Directive;
+            if (step.Game is not null) games += took;
+            else if (d.Category == StepCategory.Hold) holds += took;
+            else if (d.Method is not null && d.Category is not (StepCategory.Rest or StepCategory.Offer))
+            {
+                string name = d.Method.IsUserChoice ? "his choice" : d.Method.Name;
+                stimulation[name] = stimulation.GetValueOrDefault(name) + took;
+            }
+            else if (d.Category is StepCategory.Rest or StepCategory.Psych) handsOff += took;
+        }
+        var total = result.Steps[^1].End - result.Steps[0].Start;
+        var stim = stimulation.Values.Aggregate(TimeSpan.Zero, (a, b) => a + b);
+        sb.AppendLine();
+        sb.AppendLine($"**Totals:** {Span(total)} in all; stroking {Span(stim)}, hands off {Span(handsOff)}, holding at the edge {Span(holds)}, games {Span(games)}; " +
+            $"{result.State.EdgesThisSession} edges; {result.State.Outcome}.");
+        if (stimulation.Count > 0)
+            sb.AppendLine($"**By method:** {string.Join(", ", stimulation.OrderByDescending(x => x.Value).Select(x => $"{x.Key} {Span(x.Value)}"))}.");
+        sb.AppendLine();
+        return sb.ToString();
+    }
+
     public static string Transcript(SimulationResult result, string title)
     {
         var sb = new StringBuilder();
         sb.AppendLine($"# {title}");
         sb.AppendLine();
+        if (result.Steps.Count > 0) sb.Append(WhatHappened(result));
         sb.AppendLine("## Her plan at the start");
         sb.AppendLine(result.PlanAtStart);
         sb.AppendLine("## Session");

@@ -1,10 +1,10 @@
 # FreePlay-begs-to-cum-2
 
 ## Her plan at the start
-Mode FreePlay; intensity 5, length 4, denial 5, meanness 5
+Mode FreePlay; intensity 8, length 2, denial 3, meanness 8
 Persona tonight: harshness 3, humiliation 2, manipulation 3, talkativeness 7
 Mood: Relentless (Temperament), annoyance 0
-Ending she leans toward: Denied (52% chance she lets him cum; the draw made at the start says no); she will keep it to herself
+Ending she leans toward: Denied (63% chance she lets him cum; the draw made at the start says no); she will keep it to herself
 No plan of segments: he sets the pace, she decides the ending.
 
 ## Session
@@ -18,21 +18,9 @@ No plan of segments: he sets the pace, she decides the ending.
 [03:08] Him: (edge)
 [03:45] Her (aside): You look so desperate. It suits you.
 [04:36] Him: (edge)
-[04:57] Her (aside): Let me tell you about someone else I used to play with.
-[05:11] Her (aside): He begged. Every session, the moment it got hard, he begged.
-[05:25] Her (aside): So I made a rule: every time he asked, I added ten minutes.
-[05:39] Her (aside): He learned to stay quiet. You're learning too.
-[05:59] Him: (edge)
-[06:31] Her (aside): Do you know what I'll do when you leave tonight?
-[06:43] Her (aside): Nothing. I won't think about you at all.
-[06:55] Her (aside): But you'll think about me. In bed, in the shower, tomorrow at work.
-[07:00] Him: May I cum?
-[07:00] Her: No. Not for free. You may cum. Then you're locked away for 4 days. No exceptions.
-[07:00] Note: offer: Pay in days, Denial x4, worth 56 points
-[07:00] Him: I accept.
-[07:00] Her: Good. I'll remember that.
-[07:00] Her: You've been so good for me. Stroke however you like. You have a minute to cum. Record it when you do.
-[07:21] Him: (cums, with permission)
-[07:21] Her: Enjoy it while it lasts. I'll want more next time.
+[04:36] Him: May I cum?
+[04:36] Her: Go on then. Stroke however you like. You have 32 seconds to cum. Record it when you do.
+[04:53] Him: (cums, with permission)
+[04:53] Her: That was beautiful. Good boy.
 
-Outcome: AllowedOrgasm; 4 edges; 40/115 points; asked to cum 1 times, to rest 0 times.
+Outcome: AllowedOrgasm; 3 edges; 27/65 points; asked to cum 1 times, to rest 0 times.

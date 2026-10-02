@@ -1,91 +1,74 @@
 # Custom-only-edges-2
 
 ## Her plan at the start
-Mode Custom; intensity 5, length 4, denial 5, meanness 5
+Mode Custom; intensity 8, length 2, denial 3, meanness 8
 Persona tonight: harshness 6, humiliation 4, manipulation 7, talkativeness 3
 Mood: Relentless (Temperament), annoyance 0
-Ending she leans toward: Denied (52% chance she lets him cum; the draw made at the start says no); she will be honest about it
-  - Burst (burst), 2% of the budget: Out of nowhere: full speed, very short, then stop.
+Ending she leans toward: Full (63% chance she lets him cum; the draw made at the start says yes); she will be honest about it
+  - A game (game), 8% of the budget: A game with real stakes. She enjoys it more than he does.
+  - Slow build (slow-build), 12% of the budget: Warm him up slowly with teasing touches, without letting him edge.
+  - As many as you can (max-edges), 25% of the budget: Give her as many edges as he can in the time, at her tempo.
   - Slow build (slow-build), 12% of the budget: Warm him up slowly with teasing touches, without letting him edge.
   - Steady stroking (stroke-steady), 8% of the budget: Plain, steady stroking on a good grip: keep him hard and building.
-  - Slow build (slow-build), 12% of the budget: Warm him up slowly with teasing touches, without letting him edge.
-  - Steady stroking (stroke-steady), 6% of the budget: Plain, steady stroking on a good grip: keep him hard and building.
-  - Don't you dare (no-edge), 6% of the budget: Stroke hard for a set time without reaching the edge. An edge fails it.
-  - Tempo crawl (tempo-crawl), 10% of the budget: Maddeningly slow strokes, one beat at a time, until he aches.
-  - As many as you can (max-edges), 14% of the budget: Give her as many edges as he can in the time, at her tempo.
-  - Tempo crawl (tempo-crawl), 6% of the budget: Maddeningly slow strokes, one beat at a time, until he aches.
-  - The grip he hates (hated-grip), 6% of the budget: The most torturous grip she's allowed, and she stays on it.
-  - False finish (false-finish), 3% of the budget: Let him think it's over, or that he's about to cum. Then more.
-  - Torment (torment), 14% of the budget: Grips so intense he is desperate to stop. He takes every second.
+  - Don't you dare (no-edge), 7% of the budget: Stroke hard for a set time without reaching the edge. An edge fails it.
+  - Torment (torment), 13% of the budget: Grips so intense he is desperate to stop. He takes every second.
+  - Don't you dare (no-edge), 8% of the budget: Stroke hard for a set time without reaching the edge. An edge fails it.
+  - Torment (torment), 7% of the budget: Grips so intense he is desperate to stop. He takes every second.
   - The ending (ending), 0% of the budget: She decides how this ends.
 
 ## Session
-  -- segment: Burst --
-[00:00] Her: So this is the first time. Listen carefully and do exactly what I say, and we'll get along fine.
-[00:00] Her: Now. No warning.
-[00:00] Her: Move one finger up and down your cock gently, as fast as you can, for 10 seconds.
-[00:10] Her: Next. Roll your cock between your hands, as fast as you can, for 25 seconds.
-  -- segment: Slow build --
-[00:35] Her: Get the lube and use plenty. Tell me when you're ready.
-[01:31] Him: (done)
-[01:31] Her: Look at Mia while you do it. Rub your cock back and forth across your stomach, nice and slow. Keep it up for a minute.
-[02:29] Her: Make a fist and peek the head of your cock into it, slowly. Keep it up for a minute. Just enough to feel it.
-[02:37] Her (aside): Stay on the beat.
-[03:26] Her: Stroke up and down your cock with 1 hand, as slowly as you possibly can, for a minute. Barely touching. I want you desperate.
-[04:33] Her: Perform the figure eight on your cock, as slowly as you possibly can, for a minute and a half. Slow. You don't get to rush this.
-  -- segment: Steady stroking --
-[05:48] Her: Mmm. Stroke up and down the head of your cock, at a steady pace, for a minute.
-[05:56] Her (aside): Don't you dare stop.
-[06:55] Her: Stroke up and down the head of your cock, slowly, for a minute and a half. Enjoy it. It won't last.
-  -- segment: Slow build --
-[08:23] Her: Gently. Make a fist and peek the head of your cock into it, nice and slow, for a minute.
-[08:31] Her (aside): Keep that pace.
-[09:21] Her: Watch Mia. Stroke up and down your cock with 1 hand, nice and slow, for a minute.
-[10:16] Her (aside): I wonder if I'll let you cum tonight. I haven't decided. Or maybe I have.
-[10:24] Her: Focus. Make a fist and peek the head of your cock into it, nice and slow, for a minute. Keep your eyes on Mia.
-[11:33] Her: Good. Stroke up and down your cock with 1 hand, as slowly as you possibly can. Keep it up for a minute and a half.
-[12:44] Her (aside): Don't expect mercy. I'm not feeling merciful.
   -- segment: A game --
-[12:59] Her: Game time. Keep stroking and tell me: what's 25 plus 4? You have 17 seconds.
-[12:59] Note: QuickMath stakes: win +5 points; lose 40s torment
-[13:02] Him: (answers: 29)
-  -- segment: Don't you dare --
-[13:02] Her: Correct. At least your brain still works.
-[13:02] Her: Rub your cock back and forth across your stomach, fast, for 32 seconds, and do not edge. More.
-[13:02] Note: game won: +5 points
-[13:34] Her: You made it without edging. Good.
-[13:34] Her: Don't stop. Make a fist and peek the head of your cock into it, as fast as you can, for 44 seconds, and do not edge.
-  -- segment: Tempo crawl --
-[14:18] Her: Held it together. I'm almost impressed.
-[14:18] Her: Let's see how you like it painfully slow.
-[14:18] Her: Stroke up and down your cock with 1 hand, as slowly as you possibly can, for a minute. Slower than you want. That's the point.
-[15:24] Her: Stroke up and down your cock with 1 hand, as slowly as you possibly can, for two and a half minutes. One stroke per beat. Not one more.
-[15:51] Her (aside): Slower. Feel every stroke.
+[00:00] Her: No warm welcome tonight. Hands where I can see them.
+[00:00] Her: Let's begin.
+[00:00] Her: Two envelopes. One holds mercy: 45 seconds of rest and I go easier on you for the rest of tonight. The other holds 130 seconds of torment. I'll give you a hint: envelope 1. Trust me?
+[00:00] Note: TwoEnvelopes stakes: win 45s rest, +8 points; lose 130s torment
+[00:06] Him: (answers: Envelope 1)
+[00:06] Her: Loser. Pay up.
+[00:06] Her: Your forfeit. Stroke your cock from under your leg, a little faster, for two and a half minutes.
+[00:06] Note: game lost: 130s torment
+  -- segment: Steady stroking --
+[02:16] Her: Now. Stroke up and down your cock with 1 hand, at a medium pace, for a minute and a half.
+[02:30] Her (aside): Stay on the beat.
+[03:32] Her: Same grip. Keep going. Stroke up and down your cock with 1 hand, at a medium pace, for a minute.
   -- segment: As many as you can --
-[18:01] Her: Now. Stroke up and down the head of your cock, a little faster, for a minute. Every edge you give me counts.
-[18:25] Her (aside): Don't slow down.
-[19:10] Him: (edge)
-[19:10] Her: Another one. 1.
-  -- segment: Tempo crawl --
-[19:10] Her: Time. Disappointing.
-[19:10] Her: Slow. Slower than you want. One stroke per beat and not one more.
-[19:10] Her: Crawl. Stroke up and down your cock with 2 hands, as slowly as you possibly can. Keep it up for a minute and a half.
-[20:23] Her (aside): Mia is having more fun than you are.
-  -- segment: The grip he hates --
-[20:35] Her: Anyway. Palm your cock, as fast as you can. Keep it up for a minute and a half. Breathe through it. You don't get to stop.
-  -- segment: False finish --
-[21:50] Her: Hands off for 13 seconds.
-[21:50] Her (aside): Every edge you give me is going to stay with you after we're done.
+[04:28] Her: Let's see how many edges you can give me.
+[04:28] Her: This next one needs lube. Get the lube and use plenty. Tell me when you're ready.
+[05:06] Him: (done)
+[05:06] Her: Good. Stroke up and down your cock with 1 hand, nice and fast, for two minutes. Every edge you give me counts.
+[05:35] Her (aside): Is that all you've got?
+[05:57] Him: (edge)
+[05:57] Her: 1. More.
+[06:25] Him: (edge)
+[06:25] Her: 2. Keep going.
+  -- segment: Slow build --
+[07:02] Her: Time. Disappointing.
+[07:02] Her: Rub your cock back and forth across your stomach, nice and slow, for a minute.
+[07:25] Her (aside): Slower than that.
+[07:59] Her: Look at Mia while you do it. Stroke up and down your cock with 1 hand, as slowly as you possibly can, for a minute and a half.
+  -- segment: Steady stroking --
+[09:19] Her: Nice and steady now. Keep yourself hard for me.
+[09:19] Her: Next. Make a fist and peek the head of your cock into it, a little faster. Keep it up for two minutes.
+[10:13] Her (aside): What would you give up for one orgasm? Don't answer. I already know.
+  -- segment: Don't you dare --
+[10:59] Her: A little test of control.
+[10:59] Her: Twist the head of your cock, as fast as you can, for a minute, and do not edge. Control yourself.
   -- segment: Torment --
-[22:03] Her: Stroke up and down your cock with 2 hands, nice and fast, for a minute and a half. Feel the heat spread all through you.
-[23:03] Her (aside): Too intense? Good.
-[23:29] Her: Twist the head of your cock, nice and fast. Keep it up for a minute. You'll want to stop almost at once. You won't.
-[24:26] Her: This one's for me. Stroke up and down your cock with 1 hand, a little faster, for 43 seconds.
-[25:09] Her: I told you tonight wasn't your night. Denied.
-[25:13] Him: (done)
-[25:13] Her: You're dismissed. Stay frustrated.
+[11:58] Her: You made it without edging. Good.
+[11:58] Her: Rub your cock back and forth across your stomach, as fast as you can. Keep it up for two minutes. Breathe through it. You don't get to stop.
+[12:16] Her (aside): Let me tell you about someone else I used to play with.
+[12:30] Her (aside): He begged. Every session, the moment it got hard, he begged.
+[12:44] Her (aside): So I made a rule: every time he asked, I added ten minutes.
+[12:58] Her (aside): He learned to stay quiet. You're learning too.
+  -- segment: Don't you dare --
+[13:39] Her: Perform the figure eight on your cock, as fast as you can, for a minute, and do not edge. Keep your eyes on Mia.
+[14:36] Her: Good. You can control yourself when you have to.
+[14:36] Her: Cum for me. Stroke up and down the head of your cock, fast. You have 30 seconds to cum. Record it when you do.
+[15:05] Him: (cums, with permission)
+[15:05] Her: Good boy. That's all for tonight.
 
-Outcome: Denied; 1 edges; 102/115 points; asked to cum 0 times, to rest 0 times.
+Outcome: AllowedOrgasm; 2 edges; 66/65 points; asked to cum 0 times, to rest 0 times.
 
 ## How the plan changed
-  - 13.0 min, step 13: changed her mind: stroke-steady became game
+  - 2.3 min, step 2: changed her mind: slow-build became stroke-steady
+  - 12.0 min, step 10: running long at 79%: shortened the rest
+  - 14.6 min, step 12: running long at 98%: dropped torment, shortened the rest
