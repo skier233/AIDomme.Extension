@@ -26,7 +26,7 @@ own (`BaseId` empty). "Restore shared default" deletes the override.
 
 | What | File | Notes |
 |---|---|---|
-| Segment types: what she can plan, how long, where, what follows what | `Sessions/Plan/segments.json` | Header comment lists every property. Also holds the mood lenses and `requires` (what a punishment session must include). |
+| Segment types: what she can plan, how long, where, what follows what (see [SEGMENTS.md](SEGMENTS.md)) | `Sessions/Plan/segments.json` | Header comment lists every property. Also holds the mood lenses and `requires` (what a punishment session must include). |
 | Everything she says | `Speech/Lines/*.json` | `commands` (orders), `reactions`, `session` (openers, segment starts, endings, hints), `chatter` (asides, stories), `games`, `promises`. The `aidomme-lines` Claude skill in `.claude/skills` explains the format. |
 
 `TheShippedLinesAndSegmentsAreValid` checks both on every test run.
