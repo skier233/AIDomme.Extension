@@ -328,11 +328,17 @@ copy of the real install's tables. The items below are the original scope; the d
 6. Measure with scripted sessions: no contradictory consecutive instructions, no repeated line
    within a session, every announced stake applied, every ledger entry either served or still owed.
 
-## Phase 5 — What she wants him to feel (design in progress)
+## Phase 5 — What she wants him to feel
 
-Purposes instead of mechanical segment types, a per-user estimate of how close he is to the edge
-(learned from edges and the gaps between them), and scheduling from his state. Design and decision
-log: [PHASE-5.md](PHASE-5.md). Nothing built yet.
+**Status: done 2026-10-03 (version 0.16.0).** Purposes instead of mechanical segment types, aims
+that span segments, an estimate of his closeness, need, control and overwhelm corrected at every
+edge, a profile learned from his edges, and scheduling from his state with a recorded reason for
+every choice. Design, decision log and what landed: [PHASE-5.md](PHASE-5.md). Reference:
+[SEGMENTS.md](SEGMENTS.md).
+
+Next, from real use: retune the body model's constants and her lines against real sessions; let
+her react mid-step when an edge is taking far longer than expected; use the session profile to
+shape homework, punishments and deals.
 
 ## Later — Domme-initiated and mini-sessions (design only now)
 

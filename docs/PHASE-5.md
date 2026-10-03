@@ -321,3 +321,88 @@ All 2026-10-03.
   ending, how often a device is used) is derived, shown in debug, and never a knob.
 - Consolidation: devices, patterns, build-up and "activity" were folded into the three terms and
   four states (section 11).
+
+## 15. What landed (2026-10-03, version 0.16.0)
+
+All eight steps are built. Reference for what exists now: [SEGMENTS.md](SEGMENTS.md).
+
+**His state and profile** (`Sessions/Body.cs`). Four states, 0 to 1, advanced second by second
+from what he is doing (stroking a method at a speed, holding, resting). One addition to the design:
+while he strokes, some of his closeness leaks away, so a weak method at a crawl levels off below
+the edge and a strong one gets there; this is what makes "starve" and "edge the hard way" behave.
+Each reported edge sets closeness to 100%, settles what the climb cost his control (a slow climb
+hovers under the edge and costs far more than a quick one), and teaches her his pace and recovery
+together. In simulation she is within about 10% on pace and recovery after six to eight edges. Her
+control estimate carries a 20% margin, because being wrong in the other direction is a slip.
+Tolerance is his setting; it moves up 4% only when he gets through what she reckoned was nothing
+left, and down 7% on a slip she did not see coming, within 0.6 to 2 times what he set.
+
+**Scheduling** (`Sessions/Plan/PlanEngine.cs`, `Sessions/Planner.cs`). Aims at the start (about
+one per eight minutes), each reconsidered against his real state as it begins; segments chosen one
+at a time; parameters per segment; one steerer. Every aim records why it was chosen and why it
+ended; every segment records its purpose, role, parameters, reason and why it ended.
+
+**Written content.** Edge ladder, countdown, as many as you can, don't you dare, edge the hard way,
+burst, false finish, games; written aims back and forth, dread, mercy with a catch. Games take
+their stakes from the aim (a loss during a control aim is more edges; during overwhelm, more of
+that) and their times from how fast he reaches the edge.
+
+**Points.** A second of stimulation is worth more the closer he is, and more again on an intense
+method while close (about 1.0 for a middling method at a typical closeness, so a session's pace is
+what it was). Plain stimulation, torturous stimulation, what closeness added, edges and holds are
+counted separately, so a session has a profile: need built, control tested, overwhelm reached. The
+same seconds earn the same in every mode.
+
+**Lines.** She announces a new aim, says when she comes back to one after a break or a game, eases
+off in words when his control is thin, and remarks when he reaches the edge much faster or slower
+than she expected. A hidden count is "edge", then "Again." New facts for line conditions:
+`purpose`, `aim`, `role`, `closeness`, `need`, `control`, `overwhelm` (0 to 100); new tags:
+`#aim-start`, `#back`, `#purpose:<id>`, `#role:<role>`, `#gap`, `#again`, `#pace` with `#quick`,
+`#quick-back` or `#slow`.
+
+**Settings.** The per-segment preferences are gone. Cove's settings ask one thing about his body
+(how long he can stay at the edge); the tuning lab's "Your body" tab shows pace, recovery and
+tolerance with where each came from, lets him fix a value, and forgets what she learned. What she
+learns is stored apart from his settings (migration `012_profile`).
+
+**Debugging.** Transcripts show, per step: the gap before, her estimate of closeness and control
+beside the simulated truth, need and overwhelm; then time by closeness band (estimate and truth),
+peaks, the points breakdown, the session profile, his profile with sources beside the truth, the
+estimator check (expected against actual seconds for each edge), every aim and segment with
+parameters and reasons, time by purpose, how the plan changed, and the seed. The debug view of a
+live session shows his state, his profile, the aims and the segments with her reasons.
+
+**Simulated users** have a true pace, recovery and tolerance, edge when their body gets there and
+slip when their control runs out. With the default tolerance setting: users whose true tolerance is
+at or above it almost never slip; the "fails and slips" user (true tolerance 18 seconds against her
+45) slips in most sessions, which is what setting "briefly" is for.
+
+### Checking the door is still open (section 10)
+
+Sketched against the code as built, before the old catalogue was removed:
+
+- **An anal or prostate section** is a purpose-carrying segment whose steps are actions that are
+  not "method, speed, time". The chooser only reads what a segment declares (purpose, needs,
+  persona, fits, role); the steerer is the only place that assumes stroking, so such a segment is
+  written (its own step kinds) and declares which states it moves. `Body.Advance` would need a
+  mode beside stroke, hold and rest that builds need without closeness. No scheduler change.
+- **A kneeling condition** is not a segment but a standing condition over several. It fits as a
+  written aim's parameter or a consequence with a duration; it adds a named state (discomfort)
+  beside the four. The state is a class of named values, so adding one touches `BodyState`, the
+  transcript columns and whatever chooses by it, not the existing four.
+- **Homework mid-session** is a written segment whose single step is a task with a completion
+  input. The plan already runs written segments by steps; the engine already has "done" steps.
+
+Nothing in the scheduler asks what kind a segment is.
+
+### Known limits
+
+- Her estimate between edges cannot be checked in real use; only the edges correct it. In timed
+  stroking she assumes he keeps himself just under the edge.
+- When an edge takes far longer than she expected she does not yet react mid-step (speed up, or
+  ask); she only notices afterwards.
+- Simulated sessions earn points faster than his real ones did (about twice the default pace with
+  his real methods), so simulated sessions run shorter than the Length says. Real sessions use his
+  recorded pace.
+- The session profile (need built, control tested, overwhelm) is recorded and shown but nothing
+  yet shapes homework, punishments or deals by it.

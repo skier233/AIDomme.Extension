@@ -1,6 +1,6 @@
 ---
 name: aidomme-lines
-description: Draft, review or extend the AI Domme's spoken lines (line modules in extensions/AIDome/Speech/Lines/*.json) and segment types (extensions/AIDome/Sessions/Plan/segments.json). Use when asked to write new lines, stories, chatter, reactions, or a new kind of segment for her, or to check that existing ones read well.
+description: Draft, review or extend the AI Domme's spoken lines (line modules in extensions/AIDome/Speech/Lines/*.json) and written segments and aims (extensions/AIDome/Sessions/Plan/segments.json). Use when asked to write new lines, stories, chatter, reactions, or a new written segment or aim for her, or to check that existing ones read well.
 ---
 
 # Writing for the AI Domme
@@ -20,7 +20,7 @@ and the voice scheduler if anything below is unclear.
 | Chatter, interjections, stories | `extensions/AIDome/Speech/Lines/chatter.json` |
 | Games | `extensions/AIDome/Speech/Lines/games.json` |
 | Promises and follow-up questions | `extensions/AIDome/Speech/Lines/promises.json` |
-| Segment types (the plan's building blocks) | `extensions/AIDome/Sessions/Plan/segments.json` |
+| Written segments and aims, and the names of the shapes she improvises | `extensions/AIDome/Sessions/Plan/segments.json` |
 | Acts | `SpeechAct` in `extensions/AIDome/Speech/Utterance.cs` |
 | Facts a condition can test | `Knowledge.Facts` in `extensions/AIDome/Sessions/Knowledge.cs` |
 | Slots a line can use | `LineLibrary.KnownSlots` in `extensions/AIDome/Speech/Lines.cs` |
@@ -38,7 +38,8 @@ and the voice scheduler if anything below is unclear.
 - `when`: every condition must hold. Language: `key` (truthy), `!key`, `key=a|b`, `key!=a`,
   `key>=3`, `key<=3`, `key>2`, `key<2`, `#tag` (the utterance carries the tag), `#a|b`, `!#tag`.
   Keys are facts (mood, harsh, humiliation, manipulation, talk, edges, begs, segment,
-  segment.steps, segment.tags, step.category, performer, tag, screen.now, orgasm.days,
+  segment.steps, segment.tags, purpose, aim, role, closeness, need, control, overwhelm (her
+  estimate of his state, 0 to 100), step.category, performer, tag, screen.now, orgasm.days,
   owed.edges, slipped, retaliating, ending.lean, ending.presentation, ...). Tags come from the
   engine: search for `Utterance.Of(SpeechAct.<Act>` in `Sessions/` to see which tags an act has.
 - `weight`: relative to the other modules whose conditions hold. Give narrow, specific modules
@@ -82,17 +83,32 @@ and the voice scheduler if anything below is unclear.
 - Lies are allowed (foreshadowing with `ending.presentation=Lie`, false finishes). The lie must
   be plausible and the reveal line must exist (see `denied.after-lie`, `segment.after-false-finish`).
 
-## A segment type
+## Segments and aims
 
-Properties (all read by the plan engine; no code per segment): `tags`, `intensity` 0 to 10,
-`needs` (pacing, edges, methods, games), `share` of the points budget, `steps`, `position`
-weights for start/middle/late, `follows` multipliers by the previous segment's tags, `followUp`
-tags the next segment must have, `onRestBeg`, `persona` minimum dials, and `step` (kind, speed,
-seconds, count, hold, method policy, and `reach: "hard"` to edge on purpose on a grip that barely
-gets him there), and a base `weight` for rare segments. A rest-like segment should have `"start": 0`. A new tag is
-fine; `follows`, `followUp`, mood lenses and `requires` may only refer to tags some segment has.
-Give a new segment a `SegmentStart` line module (`"when": ["#segment:<id>"]`) and, if its steps
-need their own wrapper, an `Instruct` module with `"segment=<id>"`.
+Read `docs/SEGMENTS.md` first. Most segments are improvised: she picks a purpose (ache, control,
+overwhelm, starve, cool) and parameters from his state, and the steerer makes the steps. The
+entries in `segments.json` with `"written": false` only name the shapes that come out, so lines can
+refer to them; do not add step templates to those.
+
+A **written segment** (`"written": true`) has a shape that is the point. Properties: `purpose`,
+`tags`, `needs` (pacing, edges, methods, games), `fits` (the aims it may appear in; empty for any),
+`share` of the points budget, `steps`, `persona` minimum dials, `weight` (how often its turn comes
+up), and `step` (kind, speed, seconds, count, hold, method policy, and `reach: "hard"` to edge on
+purpose on a grip that barely gets him there). A **written aim** (`"aims"`) is a `purpose`, a
+`pattern` of purposes for its segments in order, `seconds` per segment, `chance`, and optionally
+the `event` that brings it on.
+
+Give a new written segment a `SegmentStart` module (`"when": ["#segment:<id>"]`) and, if its steps
+need their own wrapper, an `Instruct` module with `"segment=<id>"`. Segment starts also carry
+`#purpose:<id>`, `#role:advancing|supporting|side`, `#aim-start` (the first segment of a new aim)
+and `#back` (returning to the aim after a break, a game or a side segment). Instructions carry
+`#gap` (the hands-off after an edge), and `#again` or `#again-same` (the next edge of a hidden
+count: the generated instruction is already "Again." or ends "and edge again", so do not prefix
+another "Again"). An `EdgeRemark` with `#pace` carries `#quick`, `#quick-back` or `#slow` when he
+reached the edge much faster or slower than she expected.
+
+Torture overwhelms; it never hurts. Intensity and torture are different things: intensity is
+pleasure that is hard to hold back from, torture is stimulation he wants to stop.
 
 ## Workflow
 

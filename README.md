@@ -1,8 +1,9 @@
 # AI Domme — Cove extension
 
 A rule-driven domme for guided edging sessions on your Cove library, with an app-wide edge tracker,
-orgasm permission, games and persistent commitments. No language model is involved: she plans each
-session from a catalogue of segments, and a rule-based narrator speaks for her from line modules
+orgasm permission, games and persistent commitments. No language model is involved: she schedules
+each session from what she wants you to feel and her estimate of your state, and a rule-based
+narrator speaks for her from line modules
 that can be narrated through an optional local TTS server.
 
 > Adult content. For personal, authorized use only.
@@ -28,7 +29,8 @@ extensions/AIDome/
   Tracking/                         app-wide edge/orgasm tracker (Cove tables, likes, undo)
   Sessions/                         session contract, authorities, engine, planner, games, points,
                                     offers, the ledger and promise rules, what she knows, simulation
-  Sessions/Plan/                    segment catalogue (segments.json), plan engine, ending lean
+  Sessions/Body.cs                  his state (closeness, need, control, overwhelm) and profile
+  Sessions/Plan/                    purposes, aims, written segments (segments.json), plan engine, ending lean
   Speech/                           utterances, grammar, narrator, voice scheduler
   Speech/Lines/                     her line modules (JSON, embedded)
   Persistence/                      guided-session storage, recovery, ledger, recall, on-screen media
@@ -82,16 +84,20 @@ else.
 
 ## Her plan and her voice
 
-Each session she plans a series of segments (edging, a slow build, torment, a game, a false
-finish...) and revises the plan as you behave: begging, failing a challenge or cumming without
-permission all change what comes next. She leans toward an ending early and may hint at it, or lie
-about it. Free play has no segments, only her verdict.
+Each session she sets a few aims (build the ache, test your control, overwhelm you, starve you)
+and chooses what comes next from her estimate of your state: how close you are, how much you need
+it, how much control you have left, how overwhelmed you are. Every edge you report corrects that
+estimate and teaches her how fast you get there and how fast you come down, so the gaps between
+edges and the holds are sized to you. Mostly she improvises; now and then she uses something with a
+shape of its own (a ladder, a countdown, a game, a false finish). Begging, failing a challenge or
+cumming without permission all change what comes next. She leans toward an ending early and may
+hint at it, or lie about it. Free play has no aims, only her verdict.
 
 Everything you set once is in Cove's settings, under its own AI Domme tab (the AI Domme page links
 to it): her persona (harshness, humiliation, mind games, talkativeness, what she calls you, how much
 she varies from session to session), how your sessions end (how much denial, whether and when she
 ruins, roughly how many days between orgasms), how many minutes a length 1, 5 and 10 session means
-to you, how often she uses each kind of segment and how long it runs, and the narration voice.
+to you, how long you can stay at the edge, and the narration voice.
 Changes save automatically. The same tab opens the tuning lab. Its Compare view shows two
 assignments side by side ("Palm for a minute" or "3 edges using Figure Eight") and asks which you
 would rather be told to do; your answers show what each method is really worth to you (the
@@ -109,6 +115,15 @@ teasing, stories, comments on what is on screen). Stock lines don't repeat withi
 are tracked across sessions so they stay rare. A debug session shows her plan and how it changed.
 
 ## Upgrading an existing install
+
+Version 0.16.0 is Phase 5: she schedules by what she wants you to feel. She keeps an estimate of
+how close you are, how much you need it, how much control you have left and how overwhelmed you
+are, corrects it every time you report an edge, and learns how fast you get to the edge and how
+fast you come down. She sets aims for the session and chooses what comes next from that state,
+sizing the gaps between edges and the holds to you. It adds migration `012_profile` (what she has
+learned, kept apart from your settings), one new setting (how long you can stay at the edge) and a
+"Your body" tab in the tuning lab; the per-segment preferences are gone. See
+[docs/SEGMENTS.md](docs/SEGMENTS.md).
 
 Version 0.15.0 fixes the tuning lab's suggested method values (they are now exactly what Apply sets,
 on your current point scale) and adds side-by-side comparisons of deals. Simulated transcripts run
@@ -179,8 +194,8 @@ out as readable transcripts, with her plan and each revision:
 $env:AIDOMME_TRANSCRIPTS="$env:TEMP\aidomme-transcripts"; dotnet test tests/AIDome.Tests --filter "FullyQualifiedName~TranscriptTests"
 ```
 
-To run them with your own settings instead of the defaults (her persona, endings, lengths, segment
-preferences, your method library and deals, your usual session sliders and your pace), point them at
+To run them with your own settings instead of the defaults (her persona, endings, lengths, your
+method library and deals, your usual session sliders and your pace), point them at
 your Cove database. The connection is opened read-only; nothing in it can change.
 
 ```powershell

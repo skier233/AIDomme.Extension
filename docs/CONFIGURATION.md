@@ -11,7 +11,8 @@ Everything below is relative to `extensions/AIDome/`.
 
 | What | Where in Cove | Stored as |
 |---|---|---|
-| Her persona, how sessions end, session lengths, segment preferences | Settings, Extensions, AI Domme | `aidomme_domme_settings` (one JSON row per account) |
+| Her persona, how sessions end, session lengths, how long you can stay at the edge | Settings, Extensions, AI Domme | `aidomme_domme_settings` (one JSON row per account) |
+| What she believes about your body (pace, recovery, tolerance): see, fix or reset | Tuning lab, Your body tab | overrides in the same settings row; what she has learned in its `Learned` column |
 | Methods, punishment endings, deals: edit, add, remove | Tuning lab, Edit tab (from the settings tab) | personal rows (`UserId` set) next to the shared defaults |
 | Calibrating their points by comparison | Tuning lab, Compare tab | `aidomme_tuning_comparisons`; Apply writes personal overrides |
 | Narration voice | Settings, Extensions, AI Domme | extension settings |
@@ -26,7 +27,7 @@ own (`BaseId` empty). "Restore shared default" deletes the override.
 
 | What | File | Notes |
 |---|---|---|
-| Segment types: what she can plan, how long, where, what follows what (see [SEGMENTS.md](SEGMENTS.md)) | `Sessions/Plan/segments.json` | Header comment lists every property. Also holds the mood lenses and `requires` (what a punishment session must include). |
+| Written segments and aims, the names of the shapes she improvises, how each mood leans on the purposes, what a punishment session must include (see [SEGMENTS.md](SEGMENTS.md)) | `Sessions/Plan/segments.json` | Header comment lists every property. |
 | Everything she says | `Speech/Lines/*.json` | `commands` (orders), `reactions`, `session` (openers, segment starts, endings, hints), `chatter` (asides, stories), `games`, `promises`. The `aidomme-lines` Claude skill in `.claude/skills` explains the format. |
 
 `TheShippedLinesAndSegmentsAreValid` checks both on every test run.
@@ -50,17 +51,19 @@ registered in `AiDomeExtension.cs` (`DefineMigrations`).
 
 | What | Where |
 |---|---|
-| Points: per edge, per second, per hold; default pace (4 a minute); the budget from Length | `Sessions/Points.cs` |
+| Points: per edge, per second, per hold; what his closeness adds; default pace (4 a minute); the budget from Length | `Sessions/Points.cs` |
+| His body: how stimulation, rest and holds move closeness, need, control and overwhelm; what an edge teaches her; tolerance defaults | `Sessions/Body.cs` |
 | Her odds of letting him cum (denial slider, edges, mood, cadence, preferences) | `Sessions/Authorities.cs`, `DommePermission` |
 | Ending lean, hints, ruin chance | `Sessions/Plan/Ending.cs` |
-| How a plan is made and revised (weights, escalation curve, rebalancing) | `Sessions/Plan/PlanEngine.cs` |
-| Steps inside a segment, method choice, edge reach | `Sessions/Planner.cs`, `DommeMethods` in `Sessions/Authorities.cs` |
+| Which aim and which segment she chooses, and the parameters she gives a segment | `Sessions/Plan/PlanEngine.cs` (`Weigh`, `ChooseSegment`, `Improvise`) |
+| Which methods fit a purpose | `MethodFit` in `Sessions/Plan/PlanEngine.cs` |
+| Steps inside a segment (gaps, holds, hidden counts), written segments' templates | `Sessions/Planner.cs` (`Steer`, `Build`) |
 | Mood: start, drift, what moves it | `Mood` in `Sessions/Planner.cs` |
 | Deals: how a request is valued, which deal she picks, raising the price after a no | `Sessions/Offers.cs` |
 | Games: which ones, their stakes | `Sessions/Games.cs` (`Choose`, `Start`) |
 | Promises: her counters and stakes | `Sessions/Ledger.cs` (`Respond`) |
 | Session modes (who decides what) | `SessionContract.Preset` in `Sessions/Contract.cs`; names in `ModePresets`, `AiDomeExtension.cs` |
-| Defaults for a new account's settings (persona 5/3/5/5, lengths 10/35/90 minutes, endings) | `Sessions/Knowledge.cs` (`PersonaSettings`, `SessionLengths`, `EndingPreferences`) |
+| Defaults for a new account's settings (persona 5/3/5/5, lengths 10/35/90 minutes, endings, tolerance "a while") | `Sessions/Knowledge.cs` (`PersonaSettings`, `SessionLengths`, `EndingPreferences`, `ProfileSettings`) |
 | When she talks between orders, stories, bridges | `Speech/Voice.cs` |
 | The exact wording of instructions (method, pace, time) | `Speech/Grammar.cs`, `Speech/GameGrammar.cs` |
 
