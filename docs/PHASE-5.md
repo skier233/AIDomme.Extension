@@ -174,6 +174,89 @@ Not going over is his job. Her side of it: she does not order things that make a
 particular she sizes holds, and long stretches near the edge on intense methods, within his
 tolerance. She never pushes past it on purpose to cause a slip.
 
+## 5A. Room for authored content and for expansion (proposed 2026-10-03, under discussion)
+
+Steering by purpose must not be the only way a session can run. Three things would be lost or
+blocked if it were: authored chains, games, and activities that are not stroking. One contract
+keeps all of them.
+
+### 5A.1 Activities: the one thing the scheduler knows
+
+Everything she can schedule is an **activity**. The scheduler never knows what kind it is; it only
+uses what every activity declares:
+
+- when it is allowed (authorities, limits, equipment, persona, session settings);
+- its parameters and their ranges;
+- what it is expected to do to his state (need, strain, control, build-up, closeness) and roughly
+  how long it takes;
+- how it produces its steps.
+
+Kinds of activity, all equal to the scheduler:
+
+| Kind | How its steps come about | Examples |
+|---|---|---|
+| Purpose segment | Steered moment to moment (section 5) | Build the ache, Test control, Overwhelm, Starve, Break |
+| Pattern | An authored chain of other activities, with conditions | Alternate overwhelm and intense edging; mercy with a catch; dread, then the dreaded thing |
+| Game | Fixed rules and steps, sized from his profile | Race to the edge, edge rush, chicken |
+| Scripted module | Authored steps, written out | A set piece she uses rarely |
+
+### 5A.2 Patterns: authored chains
+
+A pattern is data: a short sequence (or loop) of activities with parameter overrides, plus what
+triggers it and how often it may appear. For example:
+
+- **Back and forth.** Rounds of Overwhelm, then Test control on an intense method, repeated two to
+  four times. Triggered when he begs to stop during overwhelm, or chosen outright in a punishment
+  session. At most once a session; rare across sessions.
+- **Mercy with a catch.** He asks for a change; she grants it, and the replacement is worse.
+- **Dread.** She names what is coming, starves him while he waits, then delivers it.
+
+Patterns keep what authored modules are good at (deliberate, memorable shapes) while each part is
+still steered to him. They are short, parameterised, and tracked in the usage table that already
+keeps stories rare, so they do not become the repetitive modules of older programs. Phase 4's
+"granted rest, swap, then back to the torture" rule is the first of these; it becomes a pattern
+instead of a special case.
+
+### 5A.3 Games
+
+Games stay fixed sets of rules and steps. Two changes make them fit:
+
+- **Sized from him.** Windows and targets come from his profile, not constants: a race to the edge
+  is "a little under his usual time on this method", an endurance hold is sized from his
+  tolerance.
+- **Chosen for a reason.** Each game declares what it does to his state (an edge rush builds need
+  and tests control; chicken is strain), so she picks a game that serves what she wants, not a
+  random one.
+
+### 5A.4 Beyond stroking
+
+Nothing above the step level may assume stroking. Three rules keep that true:
+
+- **A step is an action, not a method.** Today every step is a stroking method at a speed for a
+  time or a count. The step carries an action of some kind: a stroking method, a toy, a posture
+  (kneel), a task away from the session (homework, then report back), a wait. New kinds are added
+  without touching the scheduler.
+- **State is a set of named channels.** Closeness is one channel, fed by penile stimulation.
+  Other activities declare which channels they move: a prostate section may build need and strain
+  with little closeness; kneeling adds strain of its own kind. New channels can be added.
+- **Standing conditions.** Some things are not a stretch of the session but hold across it: "stay
+  kneeling until I say", "eyes on the screen". These are conditions that sit over whatever
+  activity is running, alongside devices.
+
+None of the non-stroking activities are built in Phase 5. The check is on paper: before the
+catalogue is replaced, an anal or prostate section, a kneeling condition and a mid-session
+homework task are each written out as activities against this contract, to confirm they fit
+without changing the scheduler. The core closeness model stays first-class and is not watered
+down to be generic.
+
+### 5A.5 What would box us in (to avoid)
+
+- The scheduler listing purposes by name, instead of reading what activities declare.
+- Closeness as the only state.
+- Steps that can only be "method, speed, time or count".
+- The steering controller owning every step, with no way for a pattern, game or script to take over.
+- A points formula that assumes stroking.
+
 ## 6. Points
 
 Points stay the session clock, but what earns them is redesigned so closeness and strain count:
