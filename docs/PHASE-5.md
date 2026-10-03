@@ -17,10 +17,11 @@ is** from moment to moment, and steers mainly with **how long she lets him recov
 
 ## 1A. Vocabulary, and what is written where
 
-Four terms, each a different thing:
+Five terms, each a different thing:
 
 | Term | What it is | Is it written by hand? |
 |---|---|---|
+| **Aim** | What she is pursuing over a longer stretch, across several segments: a purpose plus what she wants to have achieved ("a long stretch of intense edging until his control is thin"). It exists only at run time. | Never. She sets aims as she plans. |
 | **Purpose** | What she wants him to feel (Build the ache, Test control, Overwhelm, Starve, Break). | A small data entry each, about ten lines. No steps, no script, no sentences. |
 | **Segment** | A stretch of one session: her intention plus the parameters she chose, held for a while. It exists only at run time, in the plan. | Never. She creates segments as she plans. |
 | **Device** | A twist inside or between segments: a hold, a hidden count, a false finish, a countdown. | A small data entry each (when it may be used, its ranges). |
@@ -47,7 +48,7 @@ Starve
   feels like:   too little touch; desperate for more
   methods fit:  tease high, intensity low, reach low
   typical:      speed 1 to 3; closeness kept around 30 to 60%; no edges; no breaks needed
-  does to him:  need up slowly, strain down, control recovers
+  does to him:  need up slowly, overwhelm down, control recovers
   needs:        she sets the pace
 ```
 
@@ -132,16 +133,19 @@ grip:
 - **Closeness** (how near the edge) builds **need**: the ache, the wanting.
 - **Method intensity** at that closeness decides **control**: on a mild method at 90% he is aching
   but in command of himself, and can stay there a long time; on an intense one he is hanging on.
-- **Torturous methods** often have low reach (Palm barely gets him closer), so overwhelm is its own
-  axis: he can be far from the edge and still desperate for it to stop.
+- **Torture** is a different thing from intensity and is never merged with it. An intense method
+  is strong pleasure that is hard to hold back from; a torturous one is stimulation he would not
+  choose and wants to stop. Torturous methods often have low reach (Palm barely gets him closer),
+  so he can be far from the edge and still desperate for it to end.
 
-From these she tracks, over the session:
+Each method already carries all three as separate values (Closeness, Intensity, Torture), and each
+feeds a different part of his state:
 
 | State | Built by | Eased by |
 |---|---|---|
 | Need | Time spent close, edges without release | Only an orgasm |
-| Strain | Intense or torturous stimulation | Breaks, mild methods |
-| Control | Worn down by time near the edge beyond his tolerance for that method, and by holds; low control means a slip is likely | Time lower down |
+| Control | Worn down by time near the edge beyond his tolerance, which shrinks as the method's **intensity** rises, and by holds; low control means a slip is likely | Time lower down, milder methods |
+| Overwhelm | **Torturous** stimulation: how much, how fast, how long | Breaks, non-torturous methods |
 | Build-up | Edges and time spent close, all session | Slowly, with long breaks |
 
 ## 3. Purposes replace segment types
@@ -194,32 +198,62 @@ Not segments. They attach to a segment or sit between two.
   speech, not a device.)
 - **Games.** As now, an occasional device.
 
-## 5. Scheduling: intent up front, steering on demand
+## 5. Scheduling: aims up front, steering on demand
 
-Two levels.
+Three levels: what she is pursuing (aims), what is happening now (segments), and the next action
+(steering).
 
-**The plan (up front).** A short list of segments by purpose, each with the parameters she intends.
-A night can be a mix or a single purpose; that depends partly on length (a short session can be
-about one thing; two hours of one thing with no change would be dull). Still visible in debug and
-at the top of transcripts, still revised by events.
+### 5.0 Aims: what she is pursuing across segments
+
+A segment ending must not end her intention. If she wants a long stretch of intense edging, a
+short break in the middle is part of that stretch, not the end of it. So she holds an **aim**:
+
+- a purpose (Test control), and
+- what she wants to have achieved before she moves on: a state ("his control worn thin", "need
+  high"), a duration, or both.
+
+Segments belong to the aim they serve:
+
+- **Advancing** segments are the aim's own purpose: the edging itself, in one long segment or
+  several with different parameters or methods.
+- **Supporting** segments exist to let the aim continue or to sharpen it: a short break to cool
+  him just enough to keep going; a simmer; a game whose stakes are in the aim's currency (5A.3).
+  When a supporting segment ends she returns to the aim, and she remembers where it stood: how long
+  it has run, what his state was, what she said she would do.
+
+An aim ends when what she wanted is achieved, when its time is up, or when events change her mind
+(he slips, a deal, her mood turns). Then she picks the next aim from his state.
+
+A session is one to a few aims: a short session can be a single aim; a long one moves through
+several, and two hours on one aim with no change would be dull. The emphasis of the night is
+simply its main aim. Patterns (5A.2) are authored shapes an aim can take, or a bridge between two.
+
+Speech can use the aim: "Back to it. We are not done." after a break; "That is what I wanted" when
+it is achieved.
+
+### 5.0A The plan and the steering
+
+**The plan (up front).** Her aims for the night, each with the segments she expects and the
+parameters she intends. Still visible in debug and at the top of transcripts, still revised by
+events.
 
 **Steering (moment to moment).** Inside a segment she does not follow a script of steps. She looks
 at his estimated closeness and what she intends, and picks the next action: stroke at this speed,
 edge, hold, rest this long. The break length is what she adjusts most. This is what makes the
 session respond to him without rewriting the plan.
 
-**Choosing the next purpose** uses his state, not flat weights:
+**Choosing the next aim, and the next segment within one,** uses his state, not flat weights:
 
 | His state | She tends to |
 |---|---|
 | Low need, early | Build the ache |
 | High need, control intact | Test control |
-| High strain | Break, or starve |
+| High overwhelm | Break, or starve |
 | Low control | Ease off, lower his closeness, or switch to a milder method |
 | Long stretch at one level | Change the level, not just the method |
 
 Her mood, persona, the session's settings, promises and the night's emphasis bend these. The plan
-shows her reason for each choice ("strain high after overwhelm: simmer").
+shows her reason for each choice ("overwhelm high: simmer, then back to it").
 
 ### 5.1 Slips are his responsibility, within reason
 
@@ -240,7 +274,7 @@ never knows what kind it is; it only uses what each declares:
 
 - when it is allowed (authorities, limits, equipment, persona, session settings);
 - its parameters and their ranges;
-- what it is expected to do to his state (need, strain, control, build-up, closeness) and roughly
+- what it is expected to do to his state (need, control, overwhelm, build-up, closeness) and roughly
   how long it takes;
 - how it produces its steps.
 
@@ -280,8 +314,12 @@ Games stay fixed sets of rules and steps. Two changes make them fit:
   is "a little under his usual time on this method", an endurance hold is sized from his
   tolerance.
 - **Chosen for a reason.** Each game declares what it does to his state (an edge rush builds need
-  and tests control; chicken is strain), so she picks a game that serves what she wants, not a
-  random one.
+  and tests control; chicken on a torturous grip is overwhelm), so she picks a game that serves
+  what she wants, not a random one.
+- **Stakes in the aim's currency.** A game played inside an aim (section 5.0) takes its rewards and
+  punishments from that aim. During a stretch of intense edging: win and he gets a real break or
+  longer gaps for a while; lose and it is more edges, shorter gaps or a hold. The game moves the
+  aim forward either way instead of being an interruption.
 
 ### 5A.4 Beyond stroking
 
@@ -292,8 +330,8 @@ Nothing above the step level may assume stroking. Three rules keep that true:
   (kneel), a task away from the session (homework, then report back), a wait. New kinds are added
   without touching the scheduler.
 - **State is a set of named channels.** Closeness is one channel, fed by penile stimulation.
-  Other activities declare which channels they move: a prostate section may build need and strain
-  with little closeness; kneeling adds strain of its own kind. New channels can be added.
+  Other activities declare which channels they move: a prostate section may build need with
+  little closeness; kneeling adds a discomfort of its own kind. New channels can be added.
 - **Standing conditions.** Some things are not a stretch of the session but hold across it: "stay
   kneeling until I say", "eyes on the screen". These are conditions that sit over whatever
   activity is running, alongside devices.
@@ -314,11 +352,12 @@ down to be generic.
 
 ## 6. Points
 
-Points stay the session clock, but what earns them is redesigned so closeness and strain count:
-time spent close, and intense or torturous stimulation, are worth more than the same seconds far
-from the edge on a mild grip. Beyond a total, a session then has a profile (how much need it built,
-how much strain), which lets homework, punishments and deals be shaped as well as sized: a
-punishment can be "high strain" rather than merely "many points".
+Points stay the session clock, but what earns them is redesigned so his state counts: time spent
+close, time on intense methods while close, and torturous stimulation each earn more than the same
+seconds far from the edge on a mild grip, and each is counted separately. Beyond a total, a session
+then has a profile (how much need it built, how much it tested his control, how much overwhelm),
+which lets homework, punishments and deals be shaped as well as sized: a punishment can be "high
+overwhelm" rather than merely "many points".
 
 ## 7. What changes around it
 
@@ -330,7 +369,7 @@ punishment can be "high strain" rather than merely "many points".
 - **Simulated users** get a physiology (time to edge, recovery, tolerance by intensity, build-up)
   so the simulation reacts to gaps the way a person would, and slips happen for a reason.
 - **Transcripts** gain a closeness column in the "What happened" table and a summary: time in each
-  band, time near the limit of his tolerance, need and strain built.
+  band, time near the limit of his tolerance, need and overwhelm built.
 - **Tuning lab** gains the view of what she believes about him.
 - **Free play and modes where he sets the pace**: she still estimates closeness from his edges and
   uses it for her verdict and her words; she just does not steer.
@@ -344,9 +383,9 @@ punishment can be "high strain" rather than merely "many points".
    refine time-to-edge, recovery and tolerance from evidence; the view in the lab.
 3. **Purposes.** Replace the catalogue with purposes, parameters and method choice by fit.
 4. **Steering.** The in-segment controller: gaps, holds within tolerance, hidden counts.
-5. **State-driven scheduling.** Need, strain, control, build-up; next purpose from state; reasons
+5. **State-driven scheduling.** Aims; need, control, overwhelm, build-up; next purpose from state; reasons
    in the plan.
-6. **Points.** Closeness and strain in what earns points; session profiles for homework,
+6. **Points.** Closeness, intensity and torture in what earns points; session profiles for homework,
    punishments and deals.
 7. **Content.** Lines for purposes, closeness and devices; retune from transcripts and real use.
 
@@ -369,6 +408,11 @@ punishment can be "high strain" rather than merely "many points".
 - 2026-10-03 (vocabulary): Four terms: purpose (a small data entry, no steps), segment (run-time
   only: her intention and parameters for a stretch), device, pattern. One shared steerer makes
   every step; speech stays separate. "Activity" is only the code contract behind segment kinds.
+- 2026-10-03 (aims): Her intention outlives a segment. She holds an aim (a purpose plus what she
+  wants achieved) across several segments; breaks and games inside it support it and she returns
+  to it afterwards; a game inside an aim takes its stakes from that aim. The night's emphasis is
+  its main aim. Intensity and torture are different things and are never merged: intensity wears
+  control, torture builds overwhelm; "strain" is dropped as a state.
 - 2026-10-03: A purpose is a definition; a segment is one occurrence of it with parameters. Written
   segments are first-class but optional: used where a specific shape is the point, each declaring
   the purpose it serves.
