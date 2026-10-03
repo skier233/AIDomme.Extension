@@ -194,6 +194,10 @@ out as readable transcripts, with her plan and each revision:
 $env:AIDOMME_TRANSCRIPTS="$env:TEMP\aidomme-transcripts"; dotnet test tests/AIDome.Tests --filter "FullyQualifiedName~TranscriptTests"
 ```
 
+Start with `_SUMMARY.md` in that folder: every session in one table, the averages, and every flag
+(anything that suggests the tuning is off) in one list. Each session's own file opens with its
+verdict and flags, then one line per segment with her reason, then the detail.
+
 To run them with your own settings instead of the defaults (her persona, endings, lengths, your
 method library and deals, your usual session sliders and your pace), point them at
 your Cove database. The connection is opened read-only; nothing in it can change.

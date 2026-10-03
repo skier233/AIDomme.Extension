@@ -278,12 +278,19 @@ public sealed class BodyTests
         string text = Simulation.Transcript(result, "debug");
         foreach (var expected in new[]
         {
-            "Close (est)", "Close (true)", "| Need | Control (est) | Control (true) | Overwhelm |", "Gap",
-            "## His state", "Time by closeness (her estimate)", "Time by closeness (true)", "Session profile", "**Points:**",
-            "His profile as she has it at the end", "| Pace", "| Recovery", "| Tolerance", "Estimator check", "Average miss",
-            "Her aims", "## Aims and segments", "Why she chose it", "Why it ended", "| Parameters |", "improvised", "Time by purpose", "seed 33",
+            // The verdict first.
+            "FLAGS", "Outcome", "Length", "Purposes", "Closeness", "Need", "Control", "Overwhelm", "Her model", "sources:", "Points", "seed 33",
+            // Then one line per segment, with her reasons.
+            "## Timeline", "AIM 1", "wanted:", "why:",
+            // Then the detail.
+            "## Detail", "Close est", "Ctl est", "true", "Gap", "Expected", "Actual", "## Session",
         })
             Assert.Contains(expected, text);
+        // It stays narrow enough to read in a plain editor, and the verdict fits on a screen.
+        var lines = text.Split('\n');
+        Assert.True(lines.Take(lines.ToList().FindIndex(x => x.StartsWith("## Timeline"))).Count() <= 30);
+        var metrics = SessionReport.Measure(result, "debug");
+        Assert.NotNull(SessionReport.Summary([metrics]));
         // The points are all accounted for.
         var e = result.State.Earned;
         Assert.True(e.Stroking + e.Torture + e.Edges > 0);

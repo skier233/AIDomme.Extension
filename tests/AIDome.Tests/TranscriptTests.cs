@@ -140,10 +140,12 @@ public sealed class TranscriptTests(ITestOutputHelper output)
         var segments = new HashSet<string>();
         var outcomes = new HashSet<string>();
         int stories = 0, onScreen = 0, runs = 0;
+        var measured = new List<SessionMetrics>();
         foreach (var (name, result) in Runs())
         {
             runs++;
             var s = result.State;
+            measured.Add(SessionReport.Measure(result, name));
             if (!string.IsNullOrWhiteSpace(folder))
             {
                 var text = Simulation.Transcript(result, name);
@@ -201,6 +203,10 @@ public sealed class TranscriptTests(ITestOutputHelper output)
                 Assert.False(hers[i].Text == hers[i - 1].Text && hers[i].Turn == hers[i - 1].Turn, $"Repeated line in {name}: {hers[i].Text}");
             if (s.Contract.Mode == SessionMode.FreePlay) Assert.Null(s.Plan);
         }
+        // The whole run on one page: read this first.
+        if (!string.IsNullOrWhiteSpace(folder))
+            File.WriteAllText(Path.Combine(folder, "_SUMMARY.md"), SessionReport.Summary(measured, RealSettings.FromEnvironment?.Describe()));
+        output.WriteLine($"{measured.Count(x => x.Flags.Count > 0)} of {measured.Count} sessions have flags.");
         var planned = SegmentCatalogue.Default.Types.Where(x => x.Planned).Select(x => x.Id).ToList();
         var missing = planned.Except(segments).ToList();
         output.WriteLine($"{runs} sessions; segments never used: {string.Join(", ", missing)}; outcomes: {string.Join(", ", outcomes)}; stories told: {stories}; lines about the screen: {onScreen}");

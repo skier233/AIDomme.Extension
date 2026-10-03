@@ -416,6 +416,17 @@ Nothing in the scheduler asks what kind a segment is.
 
 ### After first feedback (2026-10-03)
 
+- Transcripts were hard to read at a glance. They are now written for that (`Sessions/Report.cs`):
+  a run writes `_SUMMARY.md` (every session in one fixed-width table, the averages that say whether
+  the tuning holds, and every flag in one list), and each session's file opens with a verdict that
+  fits on a screen (flags first, then outcome, length against the setting, purposes, his state, her
+  model against the truth, points), then one line per segment grouped by aim with her reason, then
+  the detail (every step with the segment's parameters, the estimator check, the chat). All tables
+  are fixed-width text in code blocks, so they read the same in a plain editor. A flag marks
+  something that suggests the tuning is off: a session well off its length, a slip she did not see
+  coming, pace or recovery not learned, her control estimate on the wrong side of the truth, an
+  edge that took minutes, the same segment four times running, one purpose taking the whole night.
+
 - She no longer announces every aim: stating it each time made her predictable. An aim's opening
   line is now occasional, and so is "back to it" after a break.
 - Sessions ran at about half the minutes the Length setting means, because the budget assumed a
