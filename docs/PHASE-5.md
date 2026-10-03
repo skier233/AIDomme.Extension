@@ -15,6 +15,47 @@ for how long.
 The change: she plans in terms of **what she wants him to feel**, tracks **how close to the edge he
 is** from moment to moment, and steers mainly with **how long she lets him recover**.
 
+## 1A. Vocabulary, and what is written where
+
+Four terms, each a different thing:
+
+| Term | What it is | Is it written by hand? |
+|---|---|---|
+| **Purpose** | What she wants him to feel (Build the ache, Test control, Overwhelm, Starve, Break). | A small data entry each, about ten lines. No steps, no script, no sentences. |
+| **Segment** | A stretch of one session: her intention plus the parameters she chose, held for a while. It exists only at run time, in the plan. | Never. She creates segments as she plans. |
+| **Device** | A twist inside or between segments: a hold, a hidden count, a false finish, a countdown. | A small data entry each (when it may be used, its ranges). |
+| **Pattern** | An authored arrangement of segments: "overwhelm, then intense edging, three rounds". | Yes, as data: a short list of segments with overrides, a trigger and limits. |
+
+Games are the one fully authored kind of segment: fixed rules, sized from his profile.
+
+**What a purpose entry holds** (illustrative):
+
+```
+Starve
+  feels like:   too little touch; desperate for more
+  methods fit:  tease high, intensity low, reach low
+  typical:      speed 1 to 3; closeness kept around 30 to 60%; no edges; no breaks needed
+  does to him:  need up slowly, strain down, control recovers
+  needs:        she sets the pace
+```
+
+**What it does not hold:** steps. One shared piece of logic, the steerer, produces every step for
+every purpose from three inputs: the purpose's entry, the parameters she chose for this segment,
+and his state right now. Adding a purpose is adding an entry (and lines for her to say), not
+writing a script.
+
+**Speech is separate, as in Phase 4.** Lines live in `Speech/Lines` and are picked by facts: the
+segment's purpose, his closeness, what just happened. A purpose has no text in it.
+
+**Why keep segments at all, if steps are dynamic?** A segment is her commitment to one intention
+for a stretch. Without it she would reconsider everything at every step and feel random. It is
+also the unit the plan shows, the unit she announces ("now I want you aching"), the unit patterns
+are built from, and the unit transcripts and points are grouped by.
+
+"Activity", used in 5A, is not a fifth concept for users or writers: it is only the code-level
+contract that every kind of segment (steered, game, scripted) implements so the scheduler can
+treat them alike.
+
 ## 2. Closeness: the thing she watches
 
 A running estimate, 0 to 100%, of how close he is to the edge. It is never exact; it corrects
@@ -180,10 +221,10 @@ Steering by purpose must not be the only way a session can run. Three things wou
 blocked if it were: authored chains, games, and activities that are not stroking. One contract
 keeps all of them.
 
-### 5A.1 Activities: the one thing the scheduler knows
+### 5A.1 One contract for every kind of segment
 
-Everything she can schedule is an **activity**. The scheduler never knows what kind it is; it only
-uses what every activity declares:
+Whatever fills a segment implements one contract (in code, an "activity"; see 1A). The scheduler
+never knows what kind it is; it only uses what each declares:
 
 - when it is allowed (authorities, limits, equipment, persona, session settings);
 - its parameters and their ranges;
@@ -191,14 +232,16 @@ uses what every activity declares:
   how long it takes;
 - how it produces its steps.
 
-Kinds of activity, all equal to the scheduler:
+Kinds of segment, all equal to the scheduler:
 
 | Kind | How its steps come about | Examples |
 |---|---|---|
-| Purpose segment | Steered moment to moment (section 5) | Build the ache, Test control, Overwhelm, Starve, Break |
-| Pattern | An authored chain of other activities, with conditions | Alternate overwhelm and intense edging; mercy with a catch; dread, then the dreaded thing |
+| Steered | The steerer, from a purpose and her parameters (section 5). Nothing scripted. | Build the ache, Test control, Overwhelm, Starve, Break |
 | Game | Fixed rules and steps, sized from his profile | Race to the edge, edge rush, chicken |
-| Scripted module | Authored steps, written out | A set piece she uses rarely |
+| Scripted | Authored steps, written out | A set piece she uses rarely |
+
+A **pattern** is not a kind of segment: it is an authored arrangement of segments (5A.2), which the
+scheduler can choose as one unit.
 
 ### 5A.2 Patterns: authored chains
 
@@ -311,6 +354,9 @@ punishment can be "high strain" rather than merely "many points".
   estimate and learned from edges and the gaps between them; the gap after an edge is her main
   lever; method intensity is a second axis alongside closeness. A design doc is kept as this is
   built.
+- 2026-10-03 (vocabulary): Four terms: purpose (a small data entry, no steps), segment (run-time
+  only: her intention and parameters for a stretch), device, pattern. One shared steerer makes
+  every step; speech stays separate. "Activity" is only the code contract behind segment kinds.
 - 2026-10-03 (second revision): The method's Closeness value drives how fast stimulation raises
   the estimate. Sessions must be good from day one: the baseline comes from defaults and settings
   he can set (including tolerance at the edge); learning only refines and must never be required.
