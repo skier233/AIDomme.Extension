@@ -26,7 +26,19 @@ Four terms, each a different thing:
 | **Device** | A twist inside or between segments: a hold, a hidden count, a false finish, a countdown. | A small data entry each (when it may be used, its ranges). |
 | **Pattern** | An authored arrangement of segments: "overwhelm, then intense edging, three rounds". | Yes, as data: a short list of segments with overrides, a trigger and limits. |
 
-Games are the one fully authored kind of segment: fixed rules, sized from his profile.
+**Purpose versus segment.** A purpose is a definition; there are about six and they never change
+during a session. A segment is one occurrence: this purpose, tonight, with these parameters. "Test
+control" is a purpose. "Minutes 12 to 17: Test control, kept above 80%, on Skin-Held Shaft Stroke,
+counts hidden, 15 second holds" is a segment. The same purpose can appear as several different
+segments in one night.
+
+**Written segments.** Most segments are steered and have nothing written behind them. Where a
+specific shape matters, a segment can be written instead: its steps authored, fully or in outline,
+with amounts sized from his profile. Examples: an edge ladder (one edge at a time, each faster), a
+countdown to an orgasm that does not come, a set piece she uses rarely, and every game. A written
+segment still declares which purpose it serves and what it does to his state, so she chooses it
+for a reason like any other. Writing one is always optional: it is for the cases where the shape is
+the point, never a requirement for a purpose to work.
 
 **What a purpose entry holds** (illustrative):
 
@@ -238,7 +250,7 @@ Kinds of segment, all equal to the scheduler:
 |---|---|---|
 | Steered | The steerer, from a purpose and her parameters (section 5). Nothing scripted. | Build the ache, Test control, Overwhelm, Starve, Break |
 | Game | Fixed rules and steps, sized from his profile | Race to the edge, edge rush, chicken |
-| Scripted | Authored steps, written out | A set piece she uses rarely |
+| Written | Authored steps, fully or in outline, sized from his profile; declares the purpose it serves | An edge ladder, a countdown, a set piece she uses rarely |
 
 A **pattern** is not a kind of segment: it is an authored arrangement of segments (5A.2), which the
 scheduler can choose as one unit.
@@ -357,6 +369,9 @@ punishment can be "high strain" rather than merely "many points".
 - 2026-10-03 (vocabulary): Four terms: purpose (a small data entry, no steps), segment (run-time
   only: her intention and parameters for a stretch), device, pattern. One shared steerer makes
   every step; speech stays separate. "Activity" is only the code contract behind segment kinds.
+- 2026-10-03: A purpose is a definition; a segment is one occurrence of it with parameters. Written
+  segments are first-class but optional: used where a specific shape is the point, each declaring
+  the purpose it serves.
 - 2026-10-03 (second revision): The method's Closeness value drives how fast stimulation raises
   the estimate. Sessions must be good from day one: the baseline comes from defaults and settings
   he can set (including tolerance at the edge); learning only refines and must never be required.
