@@ -1,11 +1,8 @@
-import React, { useEffect, useSyncExternalStore } from "react";
+import React, { useEffect, useState, useSyncExternalStore } from "react";
 import { navigateToUrl } from "@cove/runtime/components";
 import { guidedApi } from "./GuidedClient";
 import { Row, SaveState, Section, Select, Slider, inputCls, secondaryBtn } from "./Ui";
 
-type Frequency = "Never" | "Rarely" | "Normally" | "Often";
-type Length = "Shorter" | "Normal" | "Longer";
-type Preference = { frequency: Frequency; length: Length };
 type Persona = {
   harshness: number;
   humiliation: number;
@@ -20,21 +17,26 @@ type Endings = {
   ruins: "Never" | "PunishmentOnly" | "Sometimes" | "Often";
   orgasmEveryDays: number;
 };
-export type DommeSettings = { persona: Persona; endings: Endings; lengths: Lengths; segments: Record<string, Preference> };
-type SegmentInfo = { id: string; name: string; goal: string; tags: string[] };
+type Profile = {
+  tolerance: "Briefly" | "AWhile" | "ALongTime";
+  toleranceSeconds?: number | null;
+  pace?: number | null;
+  recovery?: number | null;
+};
+export type DommeSettings = { persona: Persona; endings: Endings; lengths: Lengths; profile: Profile };
 type Status = "idle" | "saving" | "saved" | "error";
 
 const defaultEndings: Endings = { denial: "Normal", ruins: "Sometimes", orgasmEveryDays: 0 };
 const defaultLengths: Lengths = { length1: 10, length5: 35, length10: 90 };
+const defaultProfile: Profile = { tolerance: "AWhile" };
 
 /**
  * Her settings as one object shared by every panel that edits a part of it, so two panels never
  * save over each other. Changes apply at once and save shortly after the last one.
  */
 class SettingsStore {
-  private state: { settings: DommeSettings | null; segments: SegmentInfo[]; status: Status; error: string } = {
+  private state: { settings: DommeSettings | null; status: Status; error: string } = {
     settings: null,
-    segments: [],
     status: "idle",
     error: "",
   };
@@ -56,7 +58,7 @@ class SettingsStore {
   load() {
     if (this.state.settings || this.loading) return;
     this.loading = guidedApi("/domme-settings")
-      .then((value) => this.set({ settings: value.settings, segments: value.segments || [], error: "" }))
+      .then((value) => this.set({ settings: value.settings, error: "" }))
       .catch((e) => this.set({ error: (e as Error).message, status: "error" }))
       .finally(() => (this.loading = null));
   }
@@ -84,7 +86,7 @@ class SettingsStore {
     this.timer = null;
     this.loading = null;
     this.revision++;
-    this.state = { settings: null, segments: [], status: "idle", error: "" };
+    this.state = { settings: null, status: "idle", error: "" };
   }
 }
 
@@ -252,71 +254,155 @@ export function LengthsPanel() {
   );
 }
 
-// ── What she plans ──
+// ── Your body ──
 
-const frequencies = [
-  ["Never", "Never"],
-  ["Rarely", "Rarely"],
-  ["Normally", "Normally"],
-  ["Often", "Often"],
-] as const;
-const lengthChoices = [
-  ["Shorter", "Shorter"],
-  ["Normal", "Normal"],
-  ["Longer", "Longer"],
+const toleranceChoices = [
+  ["Briefly", "Briefly: a few seconds at the edge and I'm in trouble"],
+  ["AWhile", "A while: I can sit at the edge for a bit"],
+  ["ALongTime", "A long time: I can stay there"],
 ] as const;
 
-/** How often she uses each kind of segment, and how long it runs. */
-export function SegmentsPanel() {
-  const { settings, segments, status, error } = useSettings();
+/** The one thing about his body she asks: how long he can stay at the edge. */
+export function BodyPanel() {
+  const { settings, status, error } = useSettings();
   if (!settings) return <Loading error={error} />;
-  const preference = (id: string): Preference => settings.segments[id] || { frequency: "Normally", length: "Normal" };
-  const setPreference = (id: string, patch: Partial<Preference>) =>
-    dommeSettings.update((s) => ({
-      ...s,
-      segments: { ...s.segments, [id]: { ...(s.segments[id] || { frequency: "Normally", length: "Normal" }), ...patch } },
-    }));
+  const profile = settings.profile ?? defaultProfile;
   return (
     <div className="aidomme-settings-panel space-y-3">
       <p className="text-sm text-secondary">
-        A session is a series of segments she chooses as she goes. Tell her which ones you want more or less of, and how long
-        they should run.
+        She tracks how close you are, how much you need it and how much control you have left, and steers the session by them.
+        How fast you get to the edge and how fast you come down she learns from your edges within a few of them. How long you can
+        stay at the edge she cannot see until it is too late, so tell her. She sizes holds and decides when to ease off from this,
+        and adjusts it slowly from what you take.
+      </p>
+      <Row label="I can stay at the edge" hint="Used for holds and for how hard she pushes near the edge. More intense methods count for more.">
+        <Select
+          label="How long you can stay at the edge"
+          value={profile.tolerance}
+          options={toleranceChoices}
+          onChange={(v) => dommeSettings.update((s) => ({ ...s, profile: { ...(s.profile ?? defaultProfile), tolerance: v, toleranceSeconds: null } }))}
+        />
+      </Row>
+      <p className="text-xs text-secondary">
+        The exact numbers she is working with, where each came from, and a way to set or reset them are in the tuning lab under
+        Your body.
+      </p>
+      <SaveState status={status} error={error} />
+    </div>
+  );
+}
+
+type ProfileValue = { value: number; source: string; default: number };
+type ProfileView = {
+  settings: Profile;
+  pace: ProfileValue;
+  recovery: ProfileValue;
+  tolerance: ProfileValue;
+  levels: { level: string; seconds: number }[];
+  hasLearned: boolean;
+};
+
+const profileRows: { key: "pace" | "recovery" | "tolerance"; field: "pace" | "recovery" | "toleranceSeconds"; label: string; hint: string; min: number; max: number; step: number; unit: string }[] = [
+  {
+    key: "pace", field: "pace", label: "Pace", unit: "×", min: 0.3, max: 3, step: 0.05,
+    hint: "A factor on how long every method takes you to edge. 1 is typical; lower means you get there faster.",
+  },
+  {
+    key: "recovery", field: "recovery", label: "Recovery", unit: "s", min: 5, max: 180, step: 1,
+    hint: "Seconds of hands off for your closeness to halve. She sizes the gaps between edges from this.",
+  },
+  {
+    key: "tolerance", field: "toleranceSeconds", label: "Tolerance", unit: "s", min: 5, max: 300, step: 1,
+    hint: "Seconds you can stay at the edge on a method of middling intensity before you are likely to go over.",
+  },
+];
+
+/** The tuning lab's view of his body as she has it: each value, where it came from, and a way to set or reset it. */
+export function ProfileLab() {
+  const [view, setView] = useState<ProfileView | null>(null);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const run = async (work: () => Promise<ProfileView>) => {
+    setBusy(true);
+    setError("");
+    try {
+      setView(await work());
+      // The settings panels hold their own copy; they load again when next opened.
+      dommeSettings.reset();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  useEffect(() => {
+    void run(() => guidedApi("/profile"));
+  }, []);
+  if (!view) return <Loading error={error} />;
+  const save = (patch: Partial<Profile>) => run(() => guidedApi("/profile", { ...view.settings, ...patch }, "PUT"));
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-secondary">
+        What she believes about your body. She estimates how close you are from these and corrects herself every time you report
+        an edge. Pace and recovery she learns on her own; leave them alone unless they are plainly wrong. A value you set here
+        stays fixed until you clear it.
       </p>
       <div className="overflow-hidden rounded-xl border border-border">
-        <div className="hidden grid-cols-[minmax(0,1fr)_9rem_9rem] gap-3 bg-card/60 px-4 py-2 text-xs font-medium uppercase tracking-wide text-muted sm:grid">
-          <span>Segment</span>
-          <span>How often</span>
-          <span>Length</span>
-        </div>
-        {segments.map((segment) => {
-          const p = preference(segment.id);
+        {profileRows.map((row) => {
+          const current = view[row.key];
+          const fixed = view.settings[row.field];
           return (
-            <div
-              key={segment.id}
-              className="grid grid-cols-2 items-center gap-3 border-t border-border bg-card px-4 py-3 first:border-t-0 sm:grid-cols-[minmax(0,1fr)_9rem_9rem]"
-            >
-              <div className="col-span-2 min-w-0 sm:col-span-1">
-                <div className="text-sm font-medium text-foreground">{segment.name}</div>
-                <div className="text-xs text-secondary">{segment.goal}</div>
+            <div key={row.key} className="grid items-center gap-3 border-t border-border bg-card px-4 py-3 first:border-t-0 sm:grid-cols-[minmax(0,1fr)_10rem_auto]">
+              <div className="min-w-0">
+                <div className="text-sm font-medium text-foreground">
+                  {row.label}: {current.value}
+                  {row.unit === "s" ? " seconds" : ""}
+                </div>
+                <div className="text-xs text-secondary">
+                  {row.hint} <span className="text-muted">Source: {current.source}.</span>
+                </div>
               </div>
-              <Select
-                label={`${segment.name}: how often`}
-                value={p.frequency}
-                options={frequencies}
-                onChange={(v) => setPreference(segment.id, { frequency: v })}
+              <input
+                key={`${row.key}-${fixed ?? "auto"}`}
+                type="number"
+                aria-label={`Set ${row.label.toLowerCase()}`}
+                className={inputCls}
+                min={row.min}
+                max={row.max}
+                step={row.step}
+                defaultValue={fixed ?? ""}
+                placeholder={fixed == null ? "automatic" : undefined}
+                disabled={busy}
+                onBlur={(e) => {
+                  const value = e.target.value.trim() === "" ? null : Number(e.target.value);
+                  if (value !== (fixed ?? null)) void save({ [row.field]: value });
+                }}
               />
-              <Select
-                label={`${segment.name}: length`}
-                value={p.length}
-                options={lengthChoices}
-                disabled={p.frequency === "Never"}
-                onChange={(v) => setPreference(segment.id, { length: v })}
-              />
+              <button type="button" className={secondaryBtn} disabled={busy || fixed == null} onClick={() => void save({ [row.field]: null })}>
+                Clear
+              </button>
             </div>
           );
         })}
       </div>
-      <SaveState status={status} error={error} />
+      <div className="flex flex-wrap items-center gap-3">
+        <button
+          type="button"
+          className={secondaryBtn}
+          disabled={busy || !view.hasLearned}
+          onClick={() => void run(() => guidedApi("/profile/learned", undefined, "DELETE"))}
+        >
+          Forget what she has learned
+        </button>
+        <span className="text-xs text-secondary">
+          {view.hasLearned ? "She starts again from the defaults and your tolerance setting." : "Nothing learned yet: these are the defaults and your setting."}
+        </span>
+      </div>
+      {error && (
+        <p role="alert" className="text-sm text-red-400">
+          {error}
+        </p>
+      )}
     </div>
   );
 }
@@ -338,7 +424,9 @@ export function TuningLabLinkPanel() {
 
 // ── Debug ──
 
-/** Debug sessions only: her plan, what she leans toward for the ending, and why. */
+const pct = (value: number) => `${Math.round((value ?? 0) * 100)}%`;
+
+/** Debug sessions only: his state as she has it, her aims and segments with her reasons, and the ending she leans toward. */
 export function PlanDebug({ plan }: { plan: any }) {
   if (!plan) return null;
   const persona = plan.persona || {};
@@ -368,13 +456,38 @@ export function PlanDebug({ plan }: { plan: any }) {
               : "She will keep it to herself."}
         </p>
       </div>
-      <ol className="mt-2 space-y-1 text-sm">
-        {(plan.segments || []).map((segment: any, i: number) => (
-          <li key={i} className={statusCls[segment.status] ?? ""}>
-            <b>{segment.name}</b> {Math.round(segment.share * 100)}%
-            {segment.steps > 0 && `, ${segment.steps} step${segment.steps === 1 ? "" : "s"}`}
-            {segment.origin !== "plan" && <em> ({segment.origin})</em>}
-            {segment.status === "now" && <strong> now</strong>}
+      {plan.body && (
+        <p className="mt-2 text-sm text-secondary">
+          His state as she has it: closeness <b className="text-foreground">{pct(plan.body.closeness)}</b>, need{" "}
+          <b className="text-foreground">{pct(plan.body.need)}</b>, control <b className="text-foreground">{pct(plan.body.control)}</b>,
+          overwhelm <b className="text-foreground">{pct(plan.body.overwhelm)}</b>. Profile: pace {plan.body.pace} ({plan.body.paceSource}),
+          recovery {plan.body.recovery}s ({plan.body.recoverySource}), tolerance {plan.body.tolerance}s ({plan.body.toleranceSource}).
+        </p>
+      )}
+      <ol className="mt-2 space-y-2 text-sm">
+        {(plan.aims || []).map((aim: any, i: number) => (
+          <li key={i} className={statusCls[aim.status] ?? ""}>
+            <b>{aim.name}</b>
+            {aim.written && <em> as {aim.written}</em>} {Math.round(aim.share * 100)}%{aim.origin !== "plan" && <em> ({aim.origin})</em>}
+            {aim.status === "now" && <strong> now</strong>}
+            <div className="text-xs text-secondary no-underline">
+              She wants: {aim.goal}. Why: {aim.why}.{aim.ended && ` Ended: ${aim.ended}.`}
+            </div>
+            <ul className="ml-4 mt-1 space-y-1">
+              {(plan.segments || [])
+                .filter((segment: any) => segment.aim === i)
+                .map((segment: any, k: number) => (
+                  <li key={k} className={statusCls[segment.status] ?? ""}>
+                    <b>{segment.name}</b> ({segment.purpose}, {String(segment.role).toLowerCase()}, {segment.written ? "written" : "improvised"})
+                    {segment.steps > 0 && `, ${segment.steps} step${segment.steps === 1 ? "" : "s"}`}
+                    {segment.origin !== "plan" && <em> ({segment.origin})</em>}
+                    {segment.status === "now" && <strong> now</strong>}
+                    <div className="text-xs text-secondary">
+                      {segment.parameters}. Why: {segment.reason}.{segment.ended && ` Ended: ${segment.ended}.`}
+                    </div>
+                  </li>
+                ))}
+            </ul>
           </li>
         ))}
       </ol>

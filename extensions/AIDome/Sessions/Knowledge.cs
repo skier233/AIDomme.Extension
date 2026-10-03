@@ -4,16 +4,48 @@ using AIDome.Speech;
 
 namespace AIDome.Sessions;
 
-/// <summary>How often she uses a segment type, as the user prefers.</summary>
-public enum Frequency { Never, Rarely, Normally, Often }
-
-/// <summary>How long her segments of a type run, as the user prefers.</summary>
-public enum SegmentLength { Shorter, Normal, Longer }
-
-public sealed record SegmentPreference
+/// <summary>
+/// What he tells her about his body. Only tolerance is asked: how long he can stay at the edge is
+/// the one thing she cannot see quickly for herself. Pace and recovery she learns from his edges;
+/// the numbers here are overrides for the tuning lab, empty unless he sets them.
+/// </summary>
+public sealed record ProfileSettings
 {
-    public Frequency Frequency { get; init; } = Frequency.Normally;
-    public SegmentLength Length { get; init; } = SegmentLength.Normal;
+    public ToleranceLevel Tolerance { get; init; } = ToleranceLevel.AWhile;
+    /// <summary>The exact tolerance in seconds, instead of the plain choice.</summary>
+    public double? ToleranceSeconds { get; init; }
+    public double? Pace { get; init; }
+    public double? Recovery { get; init; }
+
+    public ProfileSettings Validate()
+    {
+        if (!Enum.IsDefined(Tolerance)) throw new ArgumentException("Unknown tolerance.");
+        if (ToleranceSeconds is < 5 or > 300) throw new ArgumentException("Tolerance runs from 5 to 300 seconds.");
+        if (Pace is < 0.3 or > 3) throw new ArgumentException("Pace runs from 0.3 to 3.");
+        if (Recovery is < 5 or > 180) throw new ArgumentException("Recovery runs from 5 to 180 seconds.");
+        return this;
+    }
+}
+
+/// <summary>What she has learned about his body across sessions. Kept apart from the settings he edits.</summary>
+public sealed record LearnedProfile
+{
+    public double Pace { get; init; } = 1;
+    public double PaceEvidence { get; init; }
+    public double Recovery { get; init; } = ProfileState.DefaultRecovery;
+    public double RecoveryEvidence { get; init; }
+    /// <summary>How far what he has taken (or failed to) has moved his tolerance from what he set.</summary>
+    public double ToleranceFactor { get; init; } = 1;
+
+    /// <summary>What she takes away from a session.</summary>
+    public static LearnedProfile From(ProfileState p, LearnedProfile before) => new()
+    {
+        Pace = p.PaceFixed ? before.Pace : Math.Round(p.Pace, 3),
+        PaceEvidence = p.PaceFixed ? before.PaceEvidence : Math.Round(p.PaceEvidence, 1),
+        Recovery = p.RecoveryFixed ? before.Recovery : Math.Round(p.Recovery, 1),
+        RecoveryEvidence = p.RecoveryFixed ? before.RecoveryEvidence : Math.Round(p.RecoveryEvidence, 1),
+        ToleranceFactor = p.ToleranceBase > 0 ? Math.Round(Math.Clamp(p.Tolerance / p.ToleranceBase, ProfileState.ToleranceDown, ProfileState.ToleranceUp), 3) : 1,
+    };
 }
 
 /// <summary>
@@ -118,28 +150,16 @@ public sealed record EndingPreferences
     }
 }
 
-/// <summary>The user's settings for her: her persona, how sessions end, what a session length means, and how often and how long she uses each segment type.</summary>
+/// <summary>The user's settings for her: her persona, how sessions end, what a session length means, and how long he can stay at the edge.</summary>
 public sealed record DommeSettings
 {
     public PersonaSettings Persona { get; init; } = new();
     public EndingPreferences Endings { get; init; } = new();
     public SessionLengths Lengths { get; init; } = new();
-    public Dictionary<string, SegmentPreference> Segments { get; init; } = new(StringComparer.OrdinalIgnoreCase);
+    public ProfileSettings Profile { get; init; } = new();
 
-    public SegmentPreference For(string segment) => Segments.TryGetValue(segment, out var p) ? p : new();
-
-    public DommeSettings Validate(SegmentCatalogue catalogue)
-    {
-        var segments = new Dictionary<string, SegmentPreference>(StringComparer.OrdinalIgnoreCase);
-        foreach (var (id, preference) in Segments ?? [])
-        {
-            if (catalogue.Find(id) is null) throw new ArgumentException($"Unknown segment type '{id}'.");
-            if (preference is null || !Enum.IsDefined(preference.Frequency) || !Enum.IsDefined(preference.Length))
-                throw new ArgumentException($"Invalid preference for '{id}'.");
-            segments[id] = preference;
-        }
-        return new() { Persona = (Persona ?? new()).Validate(), Endings = (Endings ?? new()).Validate(), Lengths = (Lengths ?? new()).Validate(), Segments = segments };
-    }
+    public DommeSettings Validate()
+        => new() { Persona = (Persona ?? new()).Validate(), Endings = (Endings ?? new()).Validate(), Lengths = (Lengths ?? new()).Validate(), Profile = (Profile ?? new()).Validate() };
 }
 
 /// <summary>Her persona for one session: the user's settings, varied a little, and recorded with the session.</summary>

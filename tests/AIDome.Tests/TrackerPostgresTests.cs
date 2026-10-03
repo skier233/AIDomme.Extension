@@ -77,7 +77,7 @@ public sealed partial class TrackerPostgresTests : IAsyncLifetime
     {
         await using var db = Context();
         foreach (var sql in new[] { GuidedMigrations.Superseded, GuidedMigrations.Superseded, GuidedMigrations.Superseded, GuidedMigrations.Load("005_guided_v2"),
-                     GuidedMigrations.Load("006_session_contracts"), GuidedMigrations.Load("007_ledger"), GuidedMigrations.Load("008_voice"), GuidedMigrations.Load("009_pace"), GuidedMigrations.Load("010_offer_values"), GuidedMigrations.Load("011_removed_definitions") })
+                     GuidedMigrations.Load("006_session_contracts"), GuidedMigrations.Load("007_ledger"), GuidedMigrations.Load("008_voice"), GuidedMigrations.Load("009_pace"), GuidedMigrations.Load("010_offer_values"), GuidedMigrations.Load("011_removed_definitions"), GuidedMigrations.Load("012_profile") })
             await db.Database.ExecuteSqlRawAsync(sql);
     }
 
@@ -153,6 +153,7 @@ public sealed partial class TrackerPostgresTests : IAsyncLifetime
             await db.Database.ExecuteSqlRawAsync(GuidedMigrations.Load("009_pace"));
             await db.Database.ExecuteSqlRawAsync(GuidedMigrations.Load("010_offer_values"));
             await db.Database.ExecuteSqlRawAsync(GuidedMigrations.Load("011_removed_definitions"));
+            await db.Database.ExecuteSqlRawAsync(GuidedMigrations.Load("012_profile"));
         }
         await using (var db = Context())
         {

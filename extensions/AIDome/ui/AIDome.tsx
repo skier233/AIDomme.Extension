@@ -12,7 +12,7 @@ export { TrackerCompanion } from "./Tracker";
 import { TrackerCompanion, openTracker } from "./Tracker";
 import { DefinitionSettings } from "./Configuration";
 import { CompareLab } from "./Compare";
-import { EndingsPanel, HerPersonaPanel, LengthsPanel, PlanDebug, SegmentsPanel, TuningLabLinkPanel } from "./Persona";
+import { BodyPanel, EndingsPanel, HerPersonaPanel, LengthsPanel, PlanDebug, ProfileLab, TuningLabLinkPanel } from "./Persona";
 import { Row, inputCls, primaryBtn, secondaryBtn } from "./Ui";
 import { guidedApi, guidedClient, useGuidedSession } from "./GuidedClient";
 import { FollowUps, LedgerPanel, Obligations, OfferCard, PromiseForm } from "./Ledger";
@@ -782,7 +782,7 @@ export function TuningLabPage() {
         <div>
           <h1 className="text-xl font-semibold text-foreground">AI Domme tuning lab</h1>
           <p className="mt-1 text-sm text-secondary">
-            Compare methods side by side to calibrate what each is worth in session points, or edit her methods, punishment endings and deals directly.
+            Compare methods side by side to calibrate what each is worth in session points, edit her methods, punishment endings and deals directly, or see what she believes about your body.
           </p>
         </div>
         <button type="button" className={secondaryBtn} onClick={() => navigateToUrl("/settings/extensions/aidome")}>
@@ -796,7 +796,7 @@ export function TuningLabPage() {
 
 /** Compare (side-by-side calibration) or edit the definitions directly. */
 function LabTabs() {
-  const [tab, setTab] = useState<"compare" | "edit">("compare");
+  const [tab, setTab] = useState<"compare" | "edit" | "body">("compare");
   return (
     <>
       <div className="flex gap-1 border-b border-border" role="tablist" aria-label="Tuning lab">
@@ -804,6 +804,7 @@ function LabTabs() {
           [
             ["compare", "Compare"],
             ["edit", "Edit methods, endings and deals"],
+            ["body", "Your body"],
           ] as const
         ).map(([key, label]) => (
           <button
@@ -818,7 +819,7 @@ function LabTabs() {
           </button>
         ))}
       </div>
-      {tab === "compare" ? <CompareLab /> : <DefinitionSettings />}
+      {tab === "compare" ? <CompareLab /> : tab === "edit" ? <DefinitionSettings /> : <ProfileLab />}
     </>
   );
 }
@@ -832,7 +833,7 @@ export default {
     HerPersonaPanel,
     EndingsPanel,
     LengthsPanel,
-    SegmentsPanel,
+    BodyPanel,
     TuningLabLinkPanel,
   },
 };

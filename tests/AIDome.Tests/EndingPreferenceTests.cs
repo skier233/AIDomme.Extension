@@ -85,7 +85,7 @@ public sealed class ManifestTests
         var manifest = new AIDome.AiDomeExtension().GetUIManifest();
         Assert.Contains(manifest.SettingsTabs, x => x.Key == AIDome.AiDomeExtension.SettingsTab);
         var panels = manifest.SettingsPanels.Where(x => x.TargetTab == AIDome.AiDomeExtension.SettingsTab).Select(x => x.ComponentName).ToList();
-        Assert.Equal(["HerPersonaPanel", "EndingsPanel", "LengthsPanel", "SegmentsPanel", "TuningLabLinkPanel", "AiDomeSettingsPanel"], panels);
+        Assert.Equal(["HerPersonaPanel", "EndingsPanel", "LengthsPanel", "BodyPanel", "TuningLabLinkPanel", "AiDomeSettingsPanel"], panels);
         // The tuning lab is a page of its own, reached from the settings tab rather than the nav.
         Assert.Contains(manifest.Pages, x => x.Route == "aidome-tuning" && x.ComponentName == "TuningLabPage" && !x.ShowInNav);
     }

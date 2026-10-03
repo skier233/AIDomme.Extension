@@ -27,6 +27,8 @@ public sealed record SimulatedUser
     public double Pace { get; init; } = 1.15;
     public double Recovery { get; init; } = 30;
     public double Tolerance { get; init; } = 70;
+    /// <summary>No step-to-step wander in his pace (homework is written for him exactly as she knows him).</summary>
+    public bool Steady { get; init; }
     /// <summary>Ask to cum every this many seconds once past the first third (0: never).</summary>
     public double BegEvery { get; init; }
     /// <summary>Chance of begging for a rest when a torturous step starts.</summary>
@@ -221,7 +223,7 @@ public static class Simulation
                 stepAction = now.AddSeconds(ActionDelay(s, user, userRandom));
                 // No two runs are alike: his pace wanders a little from step to step.
                 stepProfile = trueProfile.Copy();
-                stepProfile.Pace *= 0.85 + userRandom.NextDouble() * 0.3;
+                if (!user.Steady) stepProfile.Pace *= 0.85 + userRandom.NextDouble() * 0.3;
                 pushes = userRandom.NextDouble() < (d is { ForbidEdge: true } ? user.FailsChallenges : 0.4);
                 if (d is { Category: StepCategory.Torment } && user.BegRestOnTorture > 0 && userRandom.NextDouble() < user.BegRestOnTorture)
                 {

@@ -206,6 +206,7 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
         var a = AuthoritiesFor(s, random);
         s.LastActivityUtc = Now;
         Feel(s);
+        if (!allowed) Body.OnSlip(s.Body, s.Profile);
         Body.OnOrgasm(s.Body);
         if (allowed)
         {

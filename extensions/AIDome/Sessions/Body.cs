@@ -20,11 +20,47 @@ public sealed class ProfileState
     public double RecoveryEvidence { get; set; }
     /// <summary>Seconds he can stay near the edge on a method of middling intensity before he is likely to go over.</summary>
     public double Tolerance { get; set; } = 45;
-    /// <summary>Where the tolerance came from: "default", "setting" or "learned".</summary>
-    public string ToleranceSource { get; set; } = "default";
+    /// <summary>The tolerance he set (or the default), before anything she has learned moved it.</summary>
+    public double ToleranceBase { get; set; } = 45;
+    /// <summary>What he chose, in words: "a while", or "set in the lab".</summary>
+    public string ToleranceSetting { get; set; } = "default";
+    /// <summary>Set in the lab: learning leaves them alone.</summary>
+    public bool PaceFixed { get; set; }
+    public bool RecoveryFixed { get; set; }
 
-    public string PaceSource => PaceEvidence >= 1 ? $"learned from {PaceEvidence:0} edges" : "default";
-    public string RecoverySource => RecoveryEvidence >= 1 ? $"learned from {RecoveryEvidence:0} edges" : "default";
+    /// <summary>What he has taken moves his tolerance slowly, and only so far from what he set.</summary>
+    public const double ToleranceUp = 2.0, ToleranceDown = 0.6;
+
+    public string PaceSource => PaceFixed ? "set in the lab" : PaceEvidence >= 1 ? $"learned from {PaceEvidence:0} edges" : "default";
+    public string RecoverySource => RecoveryFixed ? "set in the lab" : RecoveryEvidence >= 1 ? $"learned from {RecoveryEvidence:0} edges" : "default";
+    public string ToleranceSource => Math.Abs(Tolerance - ToleranceBase) < 0.5 ? ToleranceSetting
+        : $"{ToleranceSetting} ({ToleranceBase:0}s), moved {(Tolerance > ToleranceBase ? "up" : "down")} by what he has taken";
+
+    /// <summary>His profile as a session starts: what he set, and what she has learned so far.</summary>
+    public static ProfileState From(ProfileSettings settings, LearnedProfile learned)
+    {
+        double set = settings.ToleranceSeconds ?? ToleranceFor(settings.Tolerance);
+        return new()
+        {
+            Pace = settings.Pace ?? learned.Pace, PaceFixed = settings.Pace is not null,
+            // What earlier sessions taught her counts, but tonight can still move it.
+            PaceEvidence = settings.Pace is not null ? 0 : Math.Min(6, learned.PaceEvidence),
+            Recovery = settings.Recovery ?? learned.Recovery, RecoveryFixed = settings.Recovery is not null,
+            RecoveryEvidence = settings.Recovery is not null ? 0 : Math.Min(6, learned.RecoveryEvidence),
+            ToleranceBase = set,
+            Tolerance = set * Math.Clamp(learned.ToleranceFactor, ToleranceDown, ToleranceUp),
+            ToleranceSetting = settings.ToleranceSeconds is not null ? "set in the lab" : settings.Tolerance switch
+            {
+                ToleranceLevel.Briefly => "his setting: briefly", ToleranceLevel.ALongTime => "his setting: a long time", _ => "his setting: a while",
+            },
+        };
+    }
+
+    /// <summary>He was pushed close to his limit by her reckoning and did not go over: he can take a little more than she thought.</summary>
+    public void Survived() => Tolerance = Math.Min(ToleranceBase * ToleranceUp, Tolerance * 1.03);
+
+    /// <summary>He went over when she thought he had plenty left. One slip says little, so it moves little.</summary>
+    public void Slipped() => Tolerance = Math.Max(ToleranceBase * ToleranceDown, Tolerance * 0.93);
 
     public static double ToleranceFor(ToleranceLevel level) => level switch
     {
@@ -109,6 +145,8 @@ public static class Body
     /// <summary>Straight after an edge he has to ease off a little before he can reach another.</summary>
     public const double AfterEdge = 0.85;
     public const double NearEdge = 0.9;
+    /// <summary>Her estimate of his control below which getting through it counts as evidence about his tolerance.</summary>
+    public const double SurvivedBelow = 0.3;
 
     /// <summary>How much of his arousal leaks away while he is being stimulated, relative to resting.</summary>
     public const double LeakWhileStroking = 0.25;
@@ -191,6 +229,8 @@ public static class Body
     {
         if (seconds <= 0) return;
         seconds = Math.Min(seconds, 3600);
+        // A hold that ended with his control nearly spent, and no slip: evidence he can take it.
+        if (cap < 1 && mode != BodyMode.Hold && b.LastMode == BodyMode.Hold && b.Control < SurvivedBelow) p.Survived();
         if (mode == BodyMode.Stroke && (b.LastMode != BodyMode.Stroke || b.JustEdged || cap != b.RunCap))
         {
             // A new run toward the edge starts here.
@@ -283,6 +323,7 @@ public static class Body
             double plateau = Math.Max(1.02, (1 - from * decay) / (1 - decay));
             double near = from >= NearEdge ? b.RunSeconds : Math.Min(b.RunSeconds, -Math.Log((plateau - 1) / (plateau - NearEdge)) / leak);
             b.Control = Math.Clamp(b.RunControlStart - near * 0.5 / b.RunTolerance, 0, 1);
+            if (b.Control < SurvivedBelow) p.Survived();
         }
         if (learn && b.RunSeconds >= 3 && b.RunWork > 0 && b.RunCap >= EstimateCap)
         {
@@ -319,6 +360,12 @@ public static class Body
         b.RestSinceEdge = 0;
         b.NeedLoad += 0.04;
         b.Need = 1 - Math.Exp(-b.NeedLoad);
+    }
+
+    /// <summary>He came without permission. If she thought he had plenty of control left, her idea of his tolerance was too generous.</summary>
+    public static void OnSlip(BodyState b, ProfileState p)
+    {
+        if (b.Control > 0.3) p.Slipped();
     }
 
     /// <summary>An orgasm: the edge is gone, most of the need with it, and his control is his own again.</summary>

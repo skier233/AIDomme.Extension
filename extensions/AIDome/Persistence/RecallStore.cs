@@ -33,6 +33,32 @@ public static class RecallStore
             """, ct);
     }
 
+    /// <summary>What she has learned about his body so far.</summary>
+    public static async Task<LearnedProfile> LearnedAsync(GuidedData db, CancellationToken ct)
+    {
+        var rows = await db.Database.SqlQuery<string?>($"""
+            SELECT "Learned" AS "Value" FROM aidomme_domme_settings WHERE "UserId" = {db.UserId}
+            """).ToListAsync(ct);
+        if (rows.Count == 0 || rows[0] is null) return new();
+        try { return JsonSerializer.Deserialize<LearnedProfile>(rows[0]!, Json) ?? new(); }
+        catch (JsonException) { return new(); }
+    }
+
+    /// <summary>Saves what she has learned (null forgets it). His own settings are not touched.</summary>
+    public static async Task SaveLearnedAsync(GuidedData db, LearnedProfile? learned, DateTime now, CancellationToken ct)
+    {
+        string? json = learned is null ? null : JsonSerializer.Serialize(learned, Json);
+        string settings = JsonSerializer.Serialize(new DommeSettings(), Json);
+        await db.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT INTO aidomme_domme_settings ("UserId", "Settings", "Learned", "UpdatedAtUtc") VALUES ({db.UserId}, {settings}, {json}, {now})
+            ON CONFLICT ("UserId") DO UPDATE SET "Learned" = EXCLUDED."Learned"
+            """, ct);
+    }
+
+    /// <summary>His profile as her next session would start with it.</summary>
+    public static async Task<ProfileState> ProfileAsync(GuidedData db, CancellationToken ct)
+        => ProfileState.From((await SettingsAsync(db, ct)).Profile, await LearnedAsync(db, ct));
+
     /// <summary>Records lines with cross-session cooldowns so they stay rare.</summary>
     public static async Task RecordUsageAsync(GuidedData db, IReadOnlyCollection<string> modules, int? sessionId, DateTime now, CancellationToken ct)
     {

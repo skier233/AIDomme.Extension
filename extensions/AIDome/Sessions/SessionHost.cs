@@ -193,7 +193,7 @@ public sealed class SessionHost : IDisposable
         var state = new SessionState
         {
             SessionId = record.Id, Contract = contract, Methods = methods, Enders = enders, OfferTemplates = offers, Recall = recall,
-            Lengths = settings.Lengths,
+            Lengths = settings.Lengths, Profile = ProfileState.From(settings.Profile, await RecallStore.LearnedAsync(db, ct)),
             HoursSinceLastOrgasmAtStart = metrics.LastOrgasmAtUtc is DateTime last ? (now - last).TotalHours : null,
         };
         Transition t;
@@ -427,9 +427,14 @@ public sealed class SessionHost : IDisposable
         var state = new SessionState
         {
             SessionId = record.Id, Contract = contract, Methods = methods, Recall = recall,
-            Lengths = settings.Lengths,
+            Lengths = settings.Lengths, Profile = ProfileState.From(settings.Profile, await RecallStore.LearnedAsync(db, ct)),
         };
-        var result = Simulation.Run(state, SimulatedUser.Obedient with { Name = "homework", Offers = "decline", FailsChallenges = 0, BegEvery = 0 },
+        // Homework is her session written out for him as she knows him: the simulated user has the body she believes he has.
+        var body = state.Profile;
+        var result = Simulation.Run(state, SimulatedUser.Obedient with
+            {
+                Name = "homework", Offers = "decline", FailsChallenges = 0, BegEvery = 0, Pace = body.Pace, Recovery = body.Recovery, Tolerance = body.Tolerance, Steady = true,
+            },
             Engine.Random.Next(0, int.MaxValue), chatter: false);
         record.PlanJson = state.Plan is null ? null : JsonSerializer.Serialize(state.Plan, Json);
         await db.SaveChangesAsync(ct);
@@ -746,7 +751,12 @@ public sealed class SessionHost : IDisposable
                     record.Outcome = ended.Outcome;
                     record.Points = (int)Math.Round(points);
                     if (ended.State is { } played)
+                    {
                         record.ActiveSeconds = (int)Math.Max(0, (played.LastActivityUtc - played.StartedAtUtc).TotalSeconds - played.PausedSeconds);
+                        // What tonight taught her about his body carries to the next session.
+                        if (!played.Contract.Debug)
+                            await RecallStore.SaveLearnedAsync(db, LearnedProfile.From(played.Profile, await RecallStore.LearnedAsync(db, ct)), now, ct);
+                    }
                     record.LastInteractionUtc = now;
                     if (ended.State?.Plan is { } plan) record.PlanJson = JsonSerializer.Serialize(plan, Json);
                     await db.SaveChangesAsync(ct);

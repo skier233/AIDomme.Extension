@@ -104,7 +104,7 @@ public sealed class AiDomeExtension : FullExtensionBase
             .AddSettingsPanel(new UISettingsPanel("aidome-persona", "Her persona", Id, "HerPersonaPanel", 10, TargetTab: SettingsTab))
             .AddSettingsPanel(new UISettingsPanel("aidome-endings", "How your sessions end", Id, "EndingsPanel", 20, TargetTab: SettingsTab))
             .AddSettingsPanel(new UISettingsPanel("aidome-lengths", "Session length", Id, "LengthsPanel", 30, TargetTab: SettingsTab))
-            .AddSettingsPanel(new UISettingsPanel("aidome-segments", "What she plans", Id, "SegmentsPanel", 40, TargetTab: SettingsTab))
+            .AddSettingsPanel(new UISettingsPanel("aidome-body", "Your body", Id, "BodyPanel", 40, TargetTab: SettingsTab))
             .AddSettingsPanel(new UISettingsPanel("aidome-tuning", "Tuning lab", Id, "TuningLabLinkPanel", 50, TargetTab: SettingsTab))
             .AddSettingsPanel(new UISettingsPanel("aidome-settings", "Narration voice", Id, "AiDomeSettingsPanel", 60, TargetTab: SettingsTab))
             // The tuning lab is a full page; the settings tab links to it.
@@ -141,6 +141,7 @@ public sealed class AiDomeExtension : FullExtensionBase
         Migration("009_pace", GuidedMigrations.Load("009_pace"));
         Migration("010_offer_values", GuidedMigrations.Load("010_offer_values"));
         Migration("011_removed_definitions", GuidedMigrations.Load("011_removed_definitions"));
+        Migration("012_profile", GuidedMigrations.Load("012_profile"));
     }
 
     public override void MapEndpoints(IEndpointRouteBuilder endpoints)
@@ -280,19 +281,36 @@ public sealed class AiDomeExtension : FullExtensionBase
         group.MapGet("/domme-settings", async (CancellationToken ct) =>
         {
             await using var db = _runtimes!.Current.Factory.Open();
-            return JsonResult(new
-            {
-                Settings = await RecallStore.SettingsAsync(db, ct),
-                Segments = SegmentCatalogue.Default.Types.Where(x => x.Planned).Select(x => new { x.Id, x.Name, x.Goal, x.Tags }),
-            });
+            return JsonResult(new { Settings = await RecallStore.SettingsAsync(db, ct) });
         });
         group.MapPut("/domme-settings", async (DommeSettings body, CancellationToken ct) =>
         {
             if (body is null) return Results.BadRequest(new { message = "Settings are required." });
-            var settings = body.Validate(SegmentCatalogue.Default);
+            var settings = body.Validate();
             await using var db = _runtimes!.Current.Factory.Open();
             await RecallStore.SaveSettingsAsync(db, settings, DateTime.UtcNow, ct);
             return JsonResult(settings);
+        });
+
+        // ── His body as she has it: what he set, what she has learned, and where each value came from ──
+        group.MapGet("/profile", async (CancellationToken ct) =>
+        {
+            await using var db = _runtimes!.Current.Factory.Open();
+            return JsonResult(await ProfileViewAsync(db, ct));
+        });
+        group.MapPut("/profile", async (ProfileSettings body, CancellationToken ct) =>
+        {
+            if (body is null) return Results.BadRequest(new { message = "A profile is required." });
+            await using var db = _runtimes!.Current.Factory.Open();
+            var settings = await RecallStore.SettingsAsync(db, ct) with { Profile = body.Validate() };
+            await RecallStore.SaveSettingsAsync(db, settings, DateTime.UtcNow, ct);
+            return JsonResult(await ProfileViewAsync(db, ct));
+        });
+        group.MapDelete("/profile/learned", async (CancellationToken ct) =>
+        {
+            await using var db = _runtimes!.Current.Factory.Open();
+            await RecallStore.SaveLearnedAsync(db, null, DateTime.UtcNow, ct);
+            return JsonResult(await ProfileViewAsync(db, ct));
         });
 
         group.MapGet("/setup", async (CancellationToken ct) =>
@@ -449,6 +467,22 @@ public sealed class AiDomeExtension : FullExtensionBase
         new(SessionMode.FreePlay, "Free play, her ending", "Do as you like and record your edges. She decides when, and whether, you cum.",
             SessionContract.Preset(SessionMode.FreePlay)),
     ];
+
+    private static async Task<object> ProfileViewAsync(GuidedData db, CancellationToken ct)
+    {
+        var settings = (await RecallStore.SettingsAsync(db, ct)).Profile;
+        var learned = await RecallStore.LearnedAsync(db, ct);
+        var p = ProfileState.From(settings, learned);
+        return new
+        {
+            Settings = settings,
+            Pace = new { Value = Math.Round(p.Pace, 2), Source = p.PaceSource, Default = 1.0 },
+            Recovery = new { Value = Math.Round(p.Recovery), Source = p.RecoverySource, Default = ProfileState.DefaultRecovery },
+            Tolerance = new { Value = Math.Round(p.Tolerance), Source = p.ToleranceSource, Default = ProfileState.ToleranceFor(ToleranceLevel.AWhile) },
+            Levels = Enum.GetValues<ToleranceLevel>().Select(x => new { Level = x.ToString(), Seconds = ProfileState.ToleranceFor(x) }),
+            HasLearned = learned.PaceEvidence > 0 || learned.RecoveryEvidence > 0 || Math.Abs(learned.ToleranceFactor - 1) > 0.001,
+        };
+    }
 
     private async Task<AiDomeSettings> LoadSettingsAsync(CancellationToken ct)
     {

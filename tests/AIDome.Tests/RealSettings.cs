@@ -50,7 +50,7 @@ public sealed record RealSettings(
 
         var settingsJson = await ScalarAsync<string?>(db, """SELECT "Settings" FROM aidomme_domme_settings WHERE "UserId" = @u""", user);
         var settings = (settingsJson is null ? new DommeSettings() : JsonSerializer.Deserialize<DommeSettings>(settingsJson, Json) ?? new())
-            .Validate(Sessions.Plan.SegmentCatalogue.Default);
+            .Validate();
 
         bool removable = await ScalarAsync<long>(db,
             """SELECT COUNT(*) FROM information_schema.columns WHERE table_name = 'aidomme_methods' AND column_name = 'Removed'""") > 0;
