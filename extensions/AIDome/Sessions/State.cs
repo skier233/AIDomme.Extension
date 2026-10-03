@@ -138,7 +138,12 @@ public sealed class SessionState
     public MethodInfo? ActiveMethod { get; set; }
     public int ActiveSpeed { get; set; }
 
-    public double Arousal { get; set; }
+    /// <summary>His state as she estimates it: closeness, need, control, overwhelm.</summary>
+    public BodyState Body { get; set; } = new();
+    /// <summary>What she believes about his body: pace, recovery, tolerance.</summary>
+    public ProfileState Profile { get; set; } = new();
+    /// <summary>Her estimate of how close he is, 0 to 100.</summary>
+    [JsonIgnore] public double Arousal => Body.Closeness * 100;
     public int StepsSinceRest { get; set; }
     public List<int> RecentIntensities { get; set; } = [];
     public List<int> RecentMethodIds { get; set; } = [];

@@ -60,6 +60,7 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
     {
         var t = new Transition();
         s.StartedAtUtc = s.LastActivityUtc = s.StepStartedAtUtc = Now;
+        s.Body.AsOfUtc = Now;
         s.Budget = Points.Budget(s.Length, s.Contract.Punishment, s.Lengths, s.Recall);
         var owed = s.Contract.Obligations;
         s.DenialUntilUtc = owed.NoOrgasmUntilUtc;
@@ -93,7 +94,9 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
         s.Points += Points.ForEdge(s.ActiveMethod ?? s.Current?.Method ?? MethodInfo.UserChoice(s.Methods), s.EdgesThisSession);
         s.EdgesThisSession++;
         s.EdgesThisStep++;
-        s.Arousal = Math.Min(95, s.Arousal + 15);
+        // An edge is 100% by definition; where she chose the method and pace it also teaches her his body.
+        Body.OnEdge(s.Body, s.Profile, learn: a.Pacing.DommeSets && s.ActiveMethod is { IsUserChoice: false } && s.Game is null,
+            (Now - s.StartedAtUtc).TotalSeconds);
         PayOwedEdge(s, t);
 
         if (s.Game is { } game)
@@ -201,6 +204,8 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
         if (!s.Active) return t;
         var a = AuthoritiesFor(s, random);
         s.LastActivityUtc = Now;
+        Feel(s);
+        Body.OnOrgasm(s.Body);
         if (allowed)
         {
             string how = s.FinishEnderId is not null ? "punishment-ending" : s.FinishRuined ? "ruined" : "full";
@@ -228,6 +233,7 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
         var a = AuthoritiesFor(s, random);
         var planner = Planner(a);
         var current = s.Current;
+        Feel(s);
         ExpireOffer(s, t);
 
         if (current.Category == StepCategory.Finish && s.PermissionGranted)
@@ -542,6 +548,7 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
         var t = new Transition();
         if (!s.Active || !s.Paused) return t;
         if (s.InterruptedAtUtc is not null) return Reject(t, "Tell her what happened first.");
+        Feel(s);
         s.PausedSeconds += (Now - (s.PausedAtUtc ?? Now)).TotalSeconds;
         s.Paused = false;
         s.PausedAtUtc = null;
@@ -669,7 +676,6 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
         var a = AuthoritiesFor(s, random);
         var planner = Planner(a);
         Accrue(s);
-        if (completed && s.Current is { } done) UpdateArousal(s, done);
         s.Holding = false;
         s.Suspended = null;
         // Once she has decided the ending, nothing else is planned.
@@ -1046,6 +1052,7 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
     /// <summary>Converts stimulation since the last accrual into points (free play stops counting when unreported).</summary>
     private void Accrue(SessionState s, DateTime? until = null)
     {
+        Feel(s, until);
         if (s.ActiveSinceUtc is not DateTime since || s.Paused) return;
         var end = until ?? Now;
         if (!AuthoritiesFor(s, random).Pacing.DommeSets)
@@ -1058,21 +1065,44 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
         s.ActiveSinceUtc = until ?? Now;
     }
 
-    private static void UpdateArousal(SessionState s, Directive d)
+    /// <summary>What his body is doing right now, as far as the engine knows.</summary>
+    public static BodyMode ModeOf(SessionState s)
+        => s.Paused || s.Current is null ? BodyMode.Rest
+            : s.Holding || s.Current.Category == StepCategory.Hold ? BodyMode.Hold
+            : s.ActiveSinceUtc is not null ? BodyMode.Stroke
+            : BodyMode.Rest;
+
+    /// <summary>How far her estimate of his closeness may rise in the current step without an edge being reported.</summary>
+    public static double CapOf(SessionState s, Authorities a)
     {
-        switch (d.Kind)
-        {
-            case InstructionKind.TimedMethod:
-                double speedFactor = (d.Speed > 0 ? d.Speed : 5) / 10.0;
-                s.Arousal = Math.Min(95, s.Arousal + (d.Method?.Closeness ?? 3) * speedFactor * Math.Min(d.DurationOrCount / 60.0, 2.5) * 5.0);
-                break;
-            case InstructionKind.Rest:
-                s.Arousal = Math.Max(0, s.Arousal - d.DurationOrCount * 0.4);
-                break;
-            case InstructionKind.FreeText:
-                s.Arousal = Math.Max(0, s.Arousal - 5);
-                break;
-        }
+        if (!a.Pacing.DommeSets) return Body.SelfPacedCap;
+        var d = s.Current;
+        bool edgeExpected = d is { Kind: InstructionKind.EdgeCount } or { CountEdges: true } || s.Price is not null
+            || s.Game is { Type: GameType.RaceToEdge or GameType.EdgeRush or GameType.EdgeEndurance or GameType.EdgeWager };
+        return edgeExpected ? Body.EstimateCap : Body.TimedCap;
+    }
+
+    /// <summary>Her estimate of his state as of now, without changing the session.</summary>
+    public BodyState Estimate(SessionState s)
+    {
+        var b = s.Body.Copy();
+        if (b.AsOfUtc is DateTime since && (Now - since).TotalSeconds > 0)
+            Body.Advance(b, s.Profile, ModeOf(s), s.ActiveMethod ?? MethodInfo.UserChoice(s.Methods), s.ActiveSpeed, (Now - since).TotalSeconds,
+                CapOf(s, AuthoritiesFor(s, random)));
+        return b;
+    }
+
+    /// <summary>Brings her estimate of his state up to now (or <paramref name="until"/>), in whatever he has been doing since.</summary>
+    private void Feel(SessionState s, DateTime? until = null)
+    {
+        var b = s.Body;
+        var now = until ?? Now;
+        if (b.AsOfUtc is not DateTime since) { b.AsOfUtc = now; return; }
+        double seconds = (now - since).TotalSeconds;
+        if (seconds <= 0) return;
+        Body.Advance(b, s.Profile, ModeOf(s), s.ActiveMethod ?? MethodInfo.UserChoice(s.Methods), s.ActiveSpeed, seconds,
+            CapOf(s, AuthoritiesFor(s, random)));
+        b.AsOfUtc = now;
     }
 
     private void SetTimer(SessionState s, int seconds)

@@ -338,7 +338,7 @@ public sealed class SessionEngineTests
     {
         var random = new SeededRandom(5);
         var s = NewState(SessionMode.FullGuided);
-        s.Arousal = 90;
+        s.Body.Closeness = 0.9;
         var planner = new SegmentPlanner(random, Authorities.For(s.Contract, random));
         for (int i = 0; i < 500; i++)
         {

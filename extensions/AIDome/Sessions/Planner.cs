@@ -60,7 +60,6 @@ public sealed class SegmentPlanner(IRandom r, Authorities a) : IPlanner
             return new(lube, TimerFor(lube));
         }
 
-        s.Arousal = Math.Max(0, s.Arousal - 2);
         Mood.Drift(s, r);
         if (s.Retaliation.Active && --s.Retaliation.StepsLeft <= 0) s.Retaliation.Active = false;
 
