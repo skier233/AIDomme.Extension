@@ -52,7 +52,13 @@ public sealed class GameState
 
 /// <summary>What the game needs to know about the session.</summary>
 public sealed record GameContext(int Mean, int Intensity, double Arousal, DommeMood Mood, MethodInfo StrokeMethod,
-    bool DommeOwnsEdges, int EdgesThisStep, DateTime Now, IRandom Random);
+    bool DommeOwnsEdges, int EdgesThisStep, DateTime Now, IRandom Random)
+{
+    /// <summary>What she is pursuing when the game starts: its stakes are in that currency.</summary>
+    public Plan.Purpose? Aim { get; init; }
+    /// <summary>Roughly how long he takes to reach the edge from where he is, stroking fast: games that race him to it are sized by this.</summary>
+    public double EdgeSeconds { get; init; } = 45;
+}
 
 /// <summary>
 /// A game step: either the next instruction within the game, or the result. A null timer keeps the
@@ -125,7 +131,7 @@ public static class Games
                 game.Secret = r.Next(0, 2);
                 if (ctx.Mean >= 8) { game.Win = [Rest(30)]; game.Loss = [Edges(ctx, 4 + ctx.Mean / 3, 10)]; }
                 else if (ctx.Mean >= 5) { game.Win = [Bonus(6)]; game.Loss = [Edges(ctx, 3, 0)]; }
-                else { game.Win = [Rest(30), Bonus(4)]; game.Loss = [Torment(45)]; }
+                else { game.Win = [Rest(30), Bonus(4)]; game.Loss = [Torment(ctx, 45)]; }
                 game.Input = GameInput.Choices; game.Choices = heads;
                 return (game, Ask(game, Say(game, "prompt").With("win", Describe(game.Win)).With("loss", Describe(game.Loss))));
             }
@@ -143,7 +149,7 @@ public static class Games
             {
                 game.Secret = ctx.Mean >= 8 ? r.Next(1, 10) : ctx.Mean >= 5 ? r.Next(1, 14) : r.Next(4, 14);
                 game.Win = [Bonus(6)];
-                game.Loss = [Torment(30 + ctx.Mean * 5)];
+                game.Loss = [Torment(ctx, 30 + ctx.Mean * 5)];
                 game.Input = GameInput.Choices; game.Choices = [new("High (7 or more)", 1), new("Low (6 or less)", 0)];
                 return (game, Ask(game, Say(game, "prompt").With("win", Describe(game.Win)).With("loss", Describe(game.Loss))));
             }
@@ -153,7 +159,7 @@ public static class Games
                 var stake = ctx.Mean >= 6 ? Rest(30) : Bonus(8);
                 game.Options = [stake];
                 game.Win = [stake with { Amount = stake.Amount * 2 }];
-                game.Loss = [Torment(40 + ctx.Mean * 4)];
+                game.Loss = [Torment(ctx, 40 + ctx.Mean * 4)];
                 game.Input = GameInput.Choices; game.Choices = [new("Take it", 2), new("Heads", 0), new("Tails", 1)];
                 return (game, Ask(game, Say(game, "prompt").With("win", Describe([stake])).With("loss", Describe(game.Loss))));
             }
@@ -161,10 +167,10 @@ public static class Games
             {
                 var pairs = new (Consequence, Consequence)[]
                 {
-                    (Torment(90 + ctx.Mean * 10), Edges(ctx, 3 + ctx.Intensity / 2, 15)),
-                    (Torment(60 + ctx.Mean * 10), Edges(ctx, 4 + ctx.Mean / 2, 0)),
+                    (Torment(ctx, 90 + ctx.Mean * 10), Edges(ctx, 3 + ctx.Intensity / 2, 15)),
+                    (Torment(ctx, 60 + ctx.Mean * 10), Edges(ctx, 4 + ctx.Mean / 2, 0)),
                     (Penalty(10 + ctx.Mean), Edges(ctx, 2 + ctx.Intensity / 3, 30)),
-                    (Torment(120), Penalty(15)),
+                    (Torment(ctx, 120), Penalty(15)),
                 };
                 var (a, b) = r.Pick(pairs);
                 game.Options = [a, b];
@@ -192,9 +198,10 @@ public static class Games
             }
             case GameType.RaceToEdge:
             {
-                int seconds = Math.Max(20, 60 - ctx.Mean * 3);
+                // Sized to him: a little longer than he should need, less the meaner she is.
+                int seconds = (int)Math.Clamp(ctx.EdgeSeconds * (1.3 - ctx.Mean * 0.04), 15, 150);
                 game.Win = [Bonus(6), Rest(15)];
-                game.Loss = [Torment(45 + ctx.Mean * 3)];
+                game.Loss = [Torment(ctx, 45 + ctx.Mean * 3)];
                 return (game, Play(game, ctx, 8, seconds, Say(game, "prompt").With("seconds", seconds).With("loss", Describe(game.Loss))));
             }
             case GameType.EdgeEndurance:
@@ -206,7 +213,8 @@ public static class Games
             }
             case GameType.ArousalChallenge:
             {
-                int seconds = 30 + (10 - ctx.Mean) * 5;
+                // About as long as it takes him to get there: holding back is the whole game.
+                int seconds = (int)Math.Clamp(ctx.EdgeSeconds * (0.7 + ctx.Mean * 0.04), 20, 120);
                 game.Target = seconds;
                 game.Win = [Bonus(8)];
                 game.Loss = [Edges(ctx, 3 + ctx.Mean / 3, 10)];
@@ -215,17 +223,17 @@ public static class Games
             case GameType.EdgeRush:
             {
                 game.Target = 2 + ctx.Intensity / 2 + (ctx.Mean >= 7 ? 1 : 0);
-                int seconds = Math.Max(30, 45 * game.Target - ctx.Mean * 3);
+                int seconds = (int)Math.Max(30, ctx.EdgeSeconds * (1 + (game.Target - 1) * 0.5) * (1.3 - ctx.Mean * 0.03));
                 game.EdgesAtPhaseStart = ctx.EdgesThisStep;
                 game.Win = [Bonus(game.Target * 2), Rest(20)];
-                game.Loss = [Torment(60 + ctx.Mean * 5)];
+                game.Loss = [Torment(ctx, 60 + ctx.Mean * 5)];
                 return (game, Play(game, ctx, 8, seconds, Say(game, "prompt").With("target", game.Target).With("seconds", seconds)));
             }
             case GameType.RedLightGreenLight:
             {
                 game.Rounds = 3 + ctx.Mean / 3;
                 game.Win = [Bonus(8)];
-                game.Loss = [Torment(60 + ctx.Mean * 5)];
+                game.Loss = [Torment(ctx, 60 + ctx.Mean * 5)];
                 game.Phase = 1;
                 return (game, GreenOrRed(game, ctx));
             }
@@ -245,7 +253,7 @@ public static class Games
             case GameType.TwoEnvelopes:
             {
                 var mercy = new List<Consequence> { Rest(45), Bonus(8) };
-                var cruelty = r.Next(0, 2) == 0 ? new List<Consequence> { Torment(90 + ctx.Mean * 5) } : [Edges(ctx, 5, 10)];
+                var cruelty = r.Next(0, 2) == 0 ? new List<Consequence> { Torment(ctx, 90 + ctx.Mean * 5) } : [Edges(ctx, 5, 10)];
                 game.Secret = r.Next(1, 3); // the envelope holding mercy
                 game.Win = mercy; game.Loss = cruelty;
                 double truthful = ctx.Mood switch { DommeMood.Cruel => 30, DommeMood.Playful or DommeMood.Teasing => 70, _ => 55 };
@@ -389,7 +397,7 @@ public static class Games
                 game.Phase = 1;
                 game.EdgesAtPhaseStart = ctx.EdgesThisStep;
                 game.Win = [Bonus(answer * 3)];
-                game.Loss = [Torment(20 * answer + ctx.Mean * 3)];
+                game.Loss = [Torment(ctx, 20 * answer + ctx.Mean * 3)];
                 game.Input = GameInput.None; game.Choices = [];
                 int seconds = WagerSeconds(answer);
                 return GameStep.Continue(Step(8, StepCategory.Game) with { Method = ctx.StrokeMethod }, Say(game, "bet").With("bet", answer).With("seconds", seconds), seconds);
@@ -442,11 +450,14 @@ public static class Games
         }));
 
     private static Consequence Rest(int seconds) => new(ConsequenceKind.Rest, seconds);
-    private static Consequence Torment(int seconds) => new(ConsequenceKind.Torment, seconds);
+    // Stakes are in the currency of what she is doing to him: in the middle of testing his control
+    // a loss is more edges; in the middle of overwhelm it is more of that.
+    private static Consequence Torment(GameContext ctx, int seconds)
+        => ctx.Aim == Plan.Purpose.Control && ctx.DommeOwnsEdges ? new(ConsequenceKind.ExtraEdges, Math.Clamp(seconds / 25, 2, 6), 10) : new(ConsequenceKind.Torment, seconds);
     private static Consequence Bonus(int points) => new(ConsequenceKind.Points, points);
     private static Consequence Penalty(int points) => new(ConsequenceKind.Points, -points);
     private static Consequence Edges(GameContext ctx, int count, int hold)
-        => ctx.DommeOwnsEdges ? new(ConsequenceKind.ExtraEdges, count, hold) : new(ConsequenceKind.Torment, count * 20);
+        => ctx.DommeOwnsEdges && ctx.Aim != Plan.Purpose.Overwhelm ? new(ConsequenceKind.ExtraEdges, count, hold) : new(ConsequenceKind.Torment, count * 20 + hold);
 
     private static List<Consequence> Fates(GameContext ctx) =>
     [

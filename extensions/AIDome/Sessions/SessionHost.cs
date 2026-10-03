@@ -59,11 +59,32 @@ public sealed record SessionView
 
 public sealed record OfferView(Guid Id, OfferBuys Buys, OfferKind Kind, string Text, int SecondsLeft);
 
-public sealed record PlanSegmentView(string Type, string Name, string Goal, double Share, int Steps, string Status, string Origin);
+public sealed record PlanSegmentView(string Type, string Name, string Goal, double Share, int Steps, string Status, string Origin)
+{
+    public string Purpose { get; init; } = "";
+    public string Role { get; init; } = "";
+    public bool Written { get; init; }
+    /// <summary>Why she chose it, the parameters she gave it, and why it ended.</summary>
+    public string Reason { get; init; } = "";
+    public string Parameters { get; init; } = "";
+    public string Ended { get; init; } = "";
+    public int Aim { get; init; }
+}
+
+/// <summary>One of her aims: a purpose, what she wants achieved, why she chose it and why it ended.</summary>
+public sealed record PlanAimView(string Purpose, string Name, string Goal, string Why, string Ended, double Share, string Status, string Written, string Origin);
+
+/// <summary>His state as she estimates it, 0 to 1, and what she believes about his body.</summary>
+public sealed record BodyView(double Closeness, double Need, double Control, double Overwhelm,
+    double Pace, string PaceSource, double Recovery, string RecoverySource, double Tolerance, string ToleranceSource);
 
 /// <summary>What she intends, for the debug view: the plan, the ending she leans toward and why, her persona and mood.</summary>
 public sealed record PlanView(IReadOnlyList<PlanSegmentView> Segments, string Ending, string Presentation, string EndingReason,
-    IReadOnlyList<string> Revisions, SessionPersona Persona, string Mood, string MoodCause, double Annoyance, double Points, double Budget);
+    IReadOnlyList<string> Revisions, SessionPersona Persona, string Mood, string MoodCause, double Annoyance, double Points, double Budget)
+{
+    public IReadOnlyList<PlanAimView> Aims { get; init; } = [];
+    public BodyView? Body { get; init; }
+}
 
 /// <summary>
 /// Owns one account's running session: applies engine transitions under a lock, persists what they
@@ -172,7 +193,7 @@ public sealed class SessionHost : IDisposable
         var state = new SessionState
         {
             SessionId = record.Id, Contract = contract, Methods = methods, Enders = enders, OfferTemplates = offers, Recall = recall,
-            Plan = new SessionPlan { Preferences = settings.Segments }, Lengths = settings.Lengths,
+            Lengths = settings.Lengths,
             HoursSinceLastOrgasmAtStart = metrics.LastOrgasmAtUtc is DateTime last ? (now - last).TotalHours : null,
         };
         Transition t;
@@ -405,7 +426,7 @@ public sealed class SessionHost : IDisposable
 
         var state = new SessionState
         {
-            SessionId = record.Id, Contract = contract, Methods = methods, Recall = recall, Plan = new SessionPlan { Preferences = settings.Segments },
+            SessionId = record.Id, Contract = contract, Methods = methods, Recall = recall,
             Lengths = settings.Lengths,
         };
         var result = Simulation.Run(state, SimulatedUser.Obedient with { Name = "homework", Offers = "decline", FailsChallenges = 0, BegEvery = 0 },
@@ -516,10 +537,30 @@ public sealed class SessionHost : IDisposable
                 var seg = plan.Segments[i];
                 var type = catalogue.Find(seg.Type);
                 string status = i < plan.Index ? "done" : i == plan.Index && seg.Started ? "now" : "planned";
-                segments.Add(new(seg.Type, type?.Name ?? seg.Type, type?.Goal ?? "", seg.Share, seg.Steps, status, seg.Origin));
+                segments.Add(new(seg.Type, type?.Name ?? seg.Type, type?.Goal ?? "", seg.Share, seg.Steps, status, seg.Origin)
+                {
+                    Purpose = Purposes.Name(seg.Purpose), Role = seg.Role.ToString(), Written = seg.Written, Reason = seg.Reason,
+                    Parameters = seg.Type == SegmentCatalogue.Ending ? "" : seg.Parameters(), Ended = seg.Ended, Aim = seg.Aim,
+                });
             }
+        var aims = new List<PlanAimView>();
+        if (plan is not null)
+            for (int i = 0; i < plan.Aims.Count; i++)
+            {
+                var aim = plan.Aims[i];
+                string status = aim.Ended.Length > 0 ? "done" : aim.Started ? "now" : "planned";
+                aims.Add(new(Purposes.Id(aim.Purpose), Purposes.Name(aim.Purpose), aim.Goal, aim.Why, aim.Ended, aim.Share, status,
+                    catalogue.FindAim(aim.Written)?.Name ?? "", aim.Origin));
+            }
+        var b = s.Body;
+        var p = s.Profile;
         return new(segments, s.Ending.Kind.ToString(), s.Ending.Presentation.ToString(), s.Ending.Reason, plan?.Revisions.ToList() ?? [],
-            s.Persona, s.Mood.Mood.ToString(), s.Mood.Cause.ToString(), Math.Round(s.Mood.Annoyance, 2), Math.Round(s.Points, 1), Math.Round(s.Budget, 1));
+            s.Persona, s.Mood.Mood.ToString(), s.Mood.Cause.ToString(), Math.Round(s.Mood.Annoyance, 2), Math.Round(s.Points, 1), Math.Round(s.Budget, 1))
+        {
+            Aims = aims,
+            Body = new(Math.Round(b.Closeness, 2), Math.Round(b.Need, 2), Math.Round(b.Control, 2), Math.Round(b.Overwhelm, 2),
+                Math.Round(p.Pace, 2), p.PaceSource, Math.Round(p.Recovery), p.RecoverySource, Math.Round(p.Tolerance), p.ToleranceSource),
+        };
     }
 
     // ── Recovery ──

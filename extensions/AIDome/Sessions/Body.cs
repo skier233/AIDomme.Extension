@@ -67,6 +67,9 @@ public sealed class BodyState
     public string RunMethod { get; set; } = "";
     /// <summary>The cap the run is under: only a run that was heading for the edge says anything about his pace.</summary>
     public double RunCap { get; set; } = 1;
+    /// <summary>His control when the run began, and his tolerance on the grip he is on: for setting her estimate right when the edge comes.</summary>
+    public double RunControlStart { get; set; } = 1;
+    public double RunTolerance { get; set; } = 45;
 
     // For the session's summary.
     public double SecondsBelow50 { get; set; }
@@ -107,18 +110,55 @@ public static class Body
     public const double AfterEdge = 0.85;
     public const double NearEdge = 0.9;
 
-    /// <summary>Seconds from cold to the edge on a method at a typical pace, before need shortens it.</summary>
+    /// <summary>How much of his arousal leaks away while he is being stimulated, relative to resting.</summary>
+    public const double LeakWhileStroking = 0.25;
+    /// <summary>The longest she will reckon an edge can take; beyond it the method cannot get him there.</summary>
+    public const double Unreachable = 900;
+
+    /// <summary>How hard a method drives him toward the edge at a typical pace: the seconds it would take from cold if nothing leaked away.</summary>
     public static double BaseSeconds(MethodInfo? m)
     {
         double reach = Math.Max(0.5, m?.Closeness ?? 5);
         return 45 * Math.Pow(10 / reach, 0.8);
     }
 
-    public static double SpeedFactor(int speed) => speed is >= 1 and <= 10 ? 0.5 + speed * 0.1 : 1.0;
+    public static double SpeedFactor(int speed) => speed is >= 1 and <= 10 ? 0.25 + speed * 0.125 : 1.0;
 
-    /// <summary>Seconds from cold to the edge for him, on this method at this speed, at his current need.</summary>
+    /// <summary>The drive of this method at this speed for him, as seconds from cold with no leak (see <see cref="ExpectedSeconds"/> for the real time).</summary>
     public static double TimeToEdge(ProfileState p, MethodInfo? m, int speed, double need)
-        => Math.Max(8, p.Pace * BaseSeconds(m) / SpeedFactor(speed) * (1 - 0.3 * need));
+        => Math.Max(8, p.Pace * Typical(m, speed, need));
+
+    private static double Typical(MethodInfo? m, int speed, double need) => BaseSeconds(m) / SpeedFactor(speed) * (1 - 0.3 * need);
+
+    /// <summary>The rate his closeness leaks away while stroking: a weak method at a crawl plateaus well short of the edge.</summary>
+    public static double Leak(ProfileState p, double need) => Math.Log(2) / RecoveryHalfLife(p, need) * LeakWhileStroking;
+
+    /// <summary>Where a method at a speed levels off for him (above 1: it reaches the edge).</summary>
+    public static double Plateau(ProfileState p, MethodInfo? m, int speed, double need) => 1 / (TimeToEdge(p, m, speed, need) * Leak(p, need));
+
+    /// <summary>Seconds for him to reach the edge from <paramref name="from"/> on this method at this speed; <see cref="Unreachable"/> when it cannot get him there.</summary>
+    public static double ExpectedSeconds(ProfileState p, MethodInfo? m, int speed, double need, double from)
+        => ToEdge(TimeToEdge(p, m, speed, need), Leak(p, need), from);
+
+    private static double ToEdge(double drive, double leak, double from)
+    {
+        double plateau = 1 / (drive * leak);
+        if (plateau <= 1.02) return Unreachable;
+        return Math.Min(Unreachable, -Math.Log((plateau - 1) / (plateau - Math.Min(from, 0.99))) / leak);
+    }
+
+    /// <summary>Seconds of rest, from where he is, for his control to come back to <paramref name="to"/>.</summary>
+    public static double RestToRegain(ProfileState p, double need, double closeness, double control, double to)
+    {
+        double halfLife = RecoveryHalfLife(p, need);
+        int seconds = 0;
+        for (; seconds < 120 && control < to; seconds++)
+        {
+            closeness *= Math.Pow(0.5, 1 / halfLife);
+            control += Regain(closeness);
+        }
+        return seconds;
+    }
 
     /// <summary>How long he can stay near the edge on a method: far longer on a mild one than an intense one.</summary>
     public static double Tolerance(ProfileState p, MethodInfo? m)
@@ -130,11 +170,17 @@ public static class Body
     public static double RestFor(ProfileState p, double need, double from, double to)
         => to >= from || to <= 0 ? 0 : RecoveryHalfLife(p, need) * Math.Log2(from / to);
 
+    /// <summary>
+    /// How fast his control comes back, per second at rest: quickly when he is well down, hardly at
+    /// all while he is kept high. This is what makes the gap after an edge her lever.
+    /// </summary>
+    public static double Regain(double closeness) => Math.Max(0, AfterEdge - closeness) / AfterEdge / 30;
+
     /// <summary>How fast a method builds overwhelm, per second: only torture does.</summary>
     public static double OverwhelmRate(MethodInfo? m, int speed)
     {
         double torture = (m?.TortLevel ?? 0) / 10.0;
-        return torture * torture * (0.5 + 0.07 * (speed is >= 1 and <= 10 ? speed : 5)) / 160;
+        return torture * torture * (0.5 + 0.07 * (speed is >= 1 and <= 10 ? speed : 5)) / 110;
     }
 
     /// <summary>
@@ -155,6 +201,7 @@ public static class Body
             b.RunRestBefore = b.RestSinceEdge;
             b.RunMethod = method?.Name ?? "";
             b.RunCap = cap;
+            b.RunControlStart = b.Control;
         }
         // Rest is counted from the last edge (or the hold that followed it) until stroking resumes.
         if (mode == BodyMode.Stroke) b.RestSinceEdge = -1;
@@ -172,16 +219,23 @@ public static class Body
                 case BodyMode.Stroke:
                 {
                     double t = TimeToEdge(p, method, speed, b.Need);
-                    double typical = BaseSeconds(method) / SpeedFactor(speed) * (1 - 0.3 * b.Need);
-                    // Rises toward the cap; if it is already above the cap it stays where it is.
-                    b.Closeness = Math.Min(Math.Min(1, Math.Max(cap, b.Closeness)), b.Closeness + dt / t);
+                    double typical = Typical(method, speed, b.Need);
+                    // The method drives him up while some of it leaks away, so a weak one levels off.
+                    // Above the cap (he is keeping himself under the edge) he eases back to it.
+                    double next = b.Closeness + dt / t - dt * Leak(p, b.Need) * b.Closeness;
+                    if (next > cap) next = b.Closeness <= cap ? cap : Math.Max(cap, b.Closeness * Math.Pow(0.5, dt / RecoveryHalfLife(p, b.Need)));
+                    b.Closeness = Math.Clamp(next, 0, 1);
                     b.RunWork += dt / Math.Max(8, typical);
                     b.RunSeconds += dt;
                     b.Overwhelm = Math.Min(1, b.Overwhelm + dt * OverwhelmRate(method, speed));
                     if ((method?.TortLevel ?? 0) < 3) b.Overwhelm = Math.Max(0, b.Overwhelm - dt / 240);
                     // The last stretch before the edge costs him more the nearer he is; a hold costs it in full.
-                    if (b.Closeness >= NearEdge) b.Control = Math.Max(0, b.Control - dt * (b.Closeness - NearEdge) / (1 - NearEdge) / Tolerance(p, method));
-                    else if (b.Closeness < 0.75) b.Control = Math.Min(1, b.Control + dt / 90);
+                    // While her estimate waits at its cap for him to report the edge she does not know where
+                    // he is, so nothing is charged; the edge itself settles the account (see OnEdge).
+                    bool waiting = cap < 1 && b.Closeness >= cap - 1e-6;
+                    b.RunTolerance = Tolerance(p, method);
+                    if (b.Closeness >= NearEdge) { if (!waiting) b.Control = Math.Max(0, b.Control - dt * (b.Closeness - NearEdge) / (1 - NearEdge) / b.RunTolerance); }
+                    else b.Control = Math.Min(1, b.Control + dt * Regain(b.Closeness) / 2);
                     break;
                 }
                 case BodyMode.Hold:
@@ -192,7 +246,7 @@ public static class Body
                 default:
                     b.Closeness *= Math.Pow(0.5, dt / RecoveryHalfLife(p, b.Need));
                     if (b.RestSinceEdge >= 0) b.RestSinceEdge += dt;
-                    if (b.Closeness < AfterEdge) b.Control = Math.Min(1, b.Control + dt / 45);
+                    b.Control = Math.Min(1, b.Control + dt * Regain(b.Closeness));
                     b.Overwhelm = Math.Max(0, b.Overwhelm - dt / 120);
                     break;
             }
@@ -219,12 +273,24 @@ public static class Body
     /// chose the method and the pace, so the run is comparable), the run teaches her his pace or his
     /// recovery, and the expectation is recorded beside what happened.
     /// </summary>
-    public static void OnEdge(BodyState b, ProfileState p, bool learn, double atSeconds)
+    public static void OnEdge(BodyState b, ProfileState p, bool learn, double atSeconds, bool estimate = false)
     {
+        if (estimate && b.RunSeconds >= 1 && b.RunWork > 0 && b.RunCap >= EstimateCap)
+        {
+            // Now she knows when he got there, so she knows roughly how long he spent on the last
+            // stretch, and what that cost him: her running guess is replaced by that.
+            double leak = Leak(p, b.Need), decay = Math.Exp(-leak * b.RunSeconds), from = Math.Min(b.RunStartCloseness, 0.97);
+            double plateau = Math.Max(1.02, (1 - from * decay) / (1 - decay));
+            double near = from >= NearEdge ? b.RunSeconds : Math.Min(b.RunSeconds, -Math.Log((plateau - 1) / (plateau - NearEdge)) / leak);
+            b.Control = Math.Clamp(b.RunControlStart - near * 0.5 / b.RunTolerance, 0, 1);
+        }
         if (learn && b.RunSeconds >= 3 && b.RunWork > 0 && b.RunCap >= EstimateCap)
         {
-            double gap = Math.Max(0.03, 1 - b.RunStartCloseness);
-            double expected = gap * p.Pace * (b.RunSeconds / b.RunWork);
+            // The run as one stretch at its average drive: what she expected, and what his pace or
+            // his recovery must have been for it to take as long as it did.
+            double drive = b.RunSeconds / b.RunWork, leak = Leak(p, b.Need), decay = Math.Exp(-leak * b.RunSeconds);
+            double from = Math.Min(b.RunStartCloseness, 0.97);
+            double expected = ToEdge(p.Pace * drive, leak, from);
             b.Checks.Add(new(atSeconds, b.RunMethod, b.RunStartCloseness, expected, b.RunSeconds, b.RunRestBefore));
             if (b.Checks.Count > 300) b.Checks.RemoveAt(0);
 
@@ -233,14 +299,16 @@ public static class Body
                 // No rest to account for: the run measures his pace. From low down it is a clean
                 // measure; straight after an edge it rests on a guess at how far he eased off.
                 double weight = b.RunRestBefore < 0 && b.RunStartCloseness <= 0.6 ? 1 : 0.3;
-                double sample = Math.Clamp(b.RunWork / gap, 0.3, 3);
+                double plateau = (1 - from * decay) / (1 - decay);
+                double sample = Math.Clamp(1 / (leak * plateau * drive), 0.3, 3);
                 p.Pace = Blend(p.Pace, p.PaceEvidence, sample, weight);
                 p.PaceEvidence = Math.Min(30, p.PaceEvidence + weight);
             }
             else
             {
                 // After a rest following an edge: how far he had come down measures his recovery.
-                double start = Math.Clamp(1 - b.RunWork / p.Pace, 0.03, 0.97);
+                double plateau = 1 / (p.Pace * drive * leak);
+                double start = Math.Clamp(plateau + (1 - plateau) / decay, 0.03, 0.97);
                 double halfLife = b.RunRestBefore * Math.Log(0.5) / Math.Log(start) / (1 + 0.6 * b.Need);
                 p.Recovery = Blend(p.Recovery, p.RecoveryEvidence, Math.Clamp(halfLife, 5, 180), 1);
                 p.RecoveryEvidence = Math.Min(30, p.RecoveryEvidence + 1);
@@ -262,6 +330,7 @@ public static class Body
         b.Control = 1;
         b.JustEdged = false;
         b.RestSinceEdge = -1;
+        b.CurrentAbove80 = 0;
     }
 
     /// <summary>A new sample moves a belief in proportion to how little evidence it rests on.</summary>

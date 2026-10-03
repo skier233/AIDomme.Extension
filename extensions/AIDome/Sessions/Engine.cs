@@ -71,7 +71,7 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
         Mood.Start(s, random);
         var a = AuthoritiesFor(s, random);
         var planner = Planner(a);
-        s.Plan = a.PlansSteps ? planner.Plans.Make(s, a, s.Plan?.Preferences ?? new Dictionary<string, SegmentPreference>()) : null;
+        s.Plan = a.PlansSteps ? planner.Plans.Make(s, a) : null;
         s.Ending = EndingAuthority.Lean(s, random);
 
         var start = Utterance.Of(SpeechAct.SessionStart, $"mode:{s.Contract.Mode}", $"mood:{s.Mood.Mood}", $"cause:{s.Mood.Cause}");
@@ -95,8 +95,9 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
         s.EdgesThisSession++;
         s.EdgesThisStep++;
         // An edge is 100% by definition; where she chose the method and pace it also teaches her his body.
-        Body.OnEdge(s.Body, s.Profile, learn: a.Pacing.DommeSets && s.ActiveMethod is { IsUserChoice: false } && s.Game is null,
-            (Now - s.StartedAtUtc).TotalSeconds);
+        // Only the first edge of a step does: after it, how long he waits before the next is his own business.
+        Body.OnEdge(s.Body, s.Profile, learn: a.Pacing.DommeSets && s.ActiveMethod is { IsUserChoice: false } && s.Game is null && s.EdgesThisStep == 1,
+            (Now - s.StartedAtUtc).TotalSeconds, estimate: true);
         PayOwedEdge(s, t);
 
         if (s.Game is { } game)
@@ -595,7 +596,7 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
         var a = AuthoritiesFor(s, random);
         var planner = Planner(a);
         if (!a.PlansSteps) s.Plan = null;
-        else if (s.Plan is null) s.Plan = planner.Plans.Make(s, a, new Dictionary<string, SegmentPreference>());
+        else if (s.Plan is null) s.Plan = planner.Plans.Make(s, a);
         else planner.Plans.OnContractChanged(s, a, Now);
         bool paused = s.Paused;
         s.Paused = false;

@@ -80,7 +80,6 @@ public sealed class TranscriptTests(ITestOutputHelper output)
             Methods = real?.Methods.ToList() ?? Library.ToList(),
             OfferTemplates = real?.Offers.ToList() ?? Offers.ToList(),
             Enders = real?.Enders.ToList() ?? [],
-            Plan = new SessionPlan { Preferences = real?.Settings.Segments ?? new(StringComparer.OrdinalIgnoreCase) },
             Lengths = real?.Settings.Lengths ?? new(),
             Endings = real?.Settings.Endings ?? new(),
         };
@@ -158,6 +157,17 @@ public sealed class TranscriptTests(ITestOutputHelper output)
             Assert.NotEqual(Data.SessionOutcome.Unknown, s.Outcome);
             outcomes.Add(s.Outcome.ToString());
             foreach (var seg in s.Plan?.Segments ?? []) if (seg.Started) segments.Add(seg.Type);
+            // Every choice she made says why, and every finished aim and segment says why it ended.
+            foreach (var seg in s.Plan?.Segments ?? [])
+            {
+                Assert.False(string.IsNullOrWhiteSpace(seg.Reason), $"A segment without a reason in {name}: {seg.Type}");
+                if (seg.Started && seg != s.Plan!.Current) Assert.False(string.IsNullOrWhiteSpace(seg.Ended), $"A segment ended without saying why in {name}: {seg.Type}");
+            }
+            foreach (var aim in s.Plan?.Aims ?? [])
+            {
+                Assert.False(string.IsNullOrWhiteSpace(aim.Why), $"An aim without a reason in {name}");
+                Assert.False(string.IsNullOrWhiteSpace(aim.Goal), $"An aim without a goal in {name}");
+            }
 
             var hers = result.Lines.Where(x => x.Who.StartsWith("Her")).ToList();
             foreach (var line in hers)

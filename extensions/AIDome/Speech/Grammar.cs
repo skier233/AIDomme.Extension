@@ -96,7 +96,7 @@ public static class Grammar
             _ => d.Kind switch
             {
                 InstructionKind.Rest => $"Hands off for {time}.",
-                InstructionKind.EdgeCount => EdgeCount(d, paced, r),
+                InstructionKind.EdgeCount => EdgeCount(d, paced, r, u),
                 InstructionKind.TimedMethod when d.ForbidEdge => $"{Sentence(paced)}, for {time}, and do not edge.",
                 InstructionKind.TimedMethod when d.CountEdges => $"{Sentence(paced)}, for {time}. Every edge you give me counts.",
                 InstructionKind.TimedMethod => r.Next(0, 3) switch
@@ -109,11 +109,19 @@ public static class Grammar
         };
     }
 
-    private static string EdgeCount(Directive d, string paced, IRandom r)
+    private static string EdgeCount(Directive d, string paced, IRandom r, Utterance u)
     {
         int n = d.DurationOrCount;
         string hold = d.HoldSeconds <= 0 ? ""
             : n > 1 ? $" Hold the last one for {Duration(d.HoldSeconds)}." : $" When you get there, hold it for {Duration(d.HoldSeconds)}.";
+        // One edge after another with the count kept from him: "again", and only what changed.
+        if (n == 1 && (u.Has("again") || u.Has("again-same")))
+        {
+            string left = u.Tags.FirstOrDefault(x => x.StartsWith("left:")) is { } tag && int.TryParse(tag[5..], out int more)
+                ? more == 1 ? " This is the last one." : $" {Sentence(Number(more))} to go."
+                : "";
+            return u.Has("again-same") ? $"Again.{left}{hold}" : $"{Sentence(paced)}, and edge again.{left}{hold}";
+        }
         string edge = n == 1
             ? r.Next(0, 2) == 0 ? "and bring yourself to the edge" : "and edge for me"
             : r.Next(0, 2) == 0 ? $"and edge {Times(n)}" : $"and give me {Edges(n)}";

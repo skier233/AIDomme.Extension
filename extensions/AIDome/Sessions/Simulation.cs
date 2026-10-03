@@ -108,17 +108,20 @@ public static class Simulation
             "maybe-edge" or "maybe-fail" => pushes ? 1 : Body.TimedCap,
             _ => s.Current?.Category == StepCategory.FreePlay ? Body.SelfPacedCap : Body.TimedCap,
         };
+        // Asked for several edges in one go, he takes his own breather between them when he needs it.
+        DateTime pausedUntil = start;
         void MoveTo(DateTime at)
         {
             double seconds = (at - clock.UtcNow).TotalSeconds;
-            if (seconds > 0) Body.Advance(truth, stepProfile, SessionEngine.ModeOf(s), s.ActiveMethod, s.ActiveSpeed, seconds, TruthCap());
+            var mode = clock.UtcNow < pausedUntil ? BodyMode.Rest : SessionEngine.ModeOf(s);
+            if (seconds > 0) Body.Advance(truth, stepProfile, mode, s.ActiveMethod, s.ActiveSpeed, seconds, TruthCap());
             if (at > clock.UtcNow) clock.UtcNow = at;
         }
         // When his body, left to what it is doing now, reaches the edge or gives out.
         (double? Edge, double? Slip) Ahead()
         {
             var mode = SessionEngine.ModeOf(s);
-            if (mode == BodyMode.Rest) return (null, null);
+            if (mode == BodyMode.Rest || clock.UtcNow < pausedUntil) return (null, null);
             var b = truth.Copy();
             double cap = TruthCap();
             bool canSlip = !slipped && !s.PermissionGranted;
@@ -231,6 +234,7 @@ public static class Simulation
             var candidates = new List<(DateTime At, string What)>();
             if (s.TimerDueUtc is DateTime due) candidates.Add((due, "timer"));
             if (chatter && voice.NextChatter(s, now) is DateTime talk) candidates.Add((talk, "chatter"));
+            if (now < pausedUntil) candidates.Add((pausedUntil, "ready"));
             var (edgeIn, slipIn) = Ahead();
             if (UserAction(s, user) is { } action)
             {
@@ -238,7 +242,8 @@ public static class Simulation
                 if (action is "edge" or "maybe-edge" or "maybe-fail")
                 {
                     if (edgeIn is double seconds) candidates.Add((now.AddSeconds(seconds), "edge!"));
-                    else if (action == "edge" && SessionEngine.ModeOf(s) != BodyMode.Stroke) candidates.Add((stepAction, "edge!"));
+                    // Nothing to time it by, or a grip that will not quite take him there: he manages it in the end.
+                    else if (action == "edge" && slipIn is null && now >= pausedUntil) candidates.Add((SessionEngine.ModeOf(s) != BodyMode.Stroke ? stepAction : stepAction.AddSeconds(200), "edge!"));
                 }
                 else candidates.Add((stepAction, action));
             }
@@ -282,8 +287,14 @@ public static class Simulation
                     nextFreeEdge = null;
                     User("(edge)");
                     Edged();
+                    int stepBefore = s.StepNumber;
                     Say(engine.Edge(s));
+                    // More edges wanted in the same step, and he is close to going over: he waits until he can.
+                    if (s.StepNumber == stepBefore && s.Active && UserAction(s, user) == "edge" && truth.Control < 0.6)
+                        pausedUntil = clock.UtcNow.AddSeconds(Math.Max(5, Body.RestToRegain(trueProfile, truth.Need, truth.Closeness, truth.Control, 0.7)));
                     lastStep = -1;
+                    break;
+                case "ready":
                     break;
                 case "cum":
                     User("(cums, with permission)");
@@ -371,9 +382,53 @@ public static class Simulation
         sb.AppendLine($"Persona tonight: harshness {s.Persona.Harshness}, humiliation {s.Persona.Humiliation}, manipulation {s.Persona.Manipulation}, talkativeness {s.Persona.Talkativeness}");
         sb.AppendLine($"Mood: {view.Mood} ({view.MoodCause}), annoyance {view.Annoyance}");
         sb.AppendLine($"Ending she leans toward: {view.Ending} ({view.EndingReason}); {view.Presentation switch { "Honest" => "she will be honest about it", "Lie" => "she may lie about it", _ => "she will keep it to herself" }}");
-        if (view.Segments.Count == 0) sb.AppendLine("No plan of segments: he sets the pace, she decides the ending.");
-        foreach (var seg in view.Segments)
-            sb.AppendLine($"  - {seg.Name} ({seg.Type}), {seg.Share:P0} of the budget{(seg.Origin == "plan" ? "" : $" [{seg.Origin}]")}: {seg.Goal}");
+        sb.AppendLine($"His profile as she starts: pace {s.Profile.Pace:0.00} ({s.Profile.PaceSource}), recovery {s.Profile.Recovery:0}s ({s.Profile.RecoverySource}), tolerance {s.Profile.Tolerance:0}s ({s.Profile.ToleranceSource})");
+        if (view.Aims.Count == 0) sb.AppendLine("No aims: he sets the pace, she decides the ending.");
+        else sb.AppendLine("Her aims (segments are chosen as she goes, from his state):");
+        int n = 0;
+        foreach (var aim in view.Aims)
+            sb.AppendLine($"  {++n}. {aim.Name}{(aim.Written.Length > 0 ? $", as \"{aim.Written}\"" : "")}, {aim.Share:P0} of the session{(aim.Origin == "plan" ? "" : $" [{aim.Origin}]")}. She wants: {aim.Goal}. Why: {aim.Why}.");
+        return sb.ToString();
+    }
+
+    /// <summary>Every aim and the segments inside it: what each was for, the parameters she chose, why she chose it and why it ended.</summary>
+    public static string AimsAndSegments(SimulationResult result)
+    {
+        var s = result.State;
+        var sb = new StringBuilder();
+        if (s.Plan is not { } plan || plan.Aims.Count == 0) return "";
+        var view = SessionHost.PlanOf(s);
+        string At(DateTime? t) => t is DateTime at ? Clock(at - s.StartedAtUtc) : "";
+        sb.AppendLine("## Aims and segments");
+        for (int i = 0; i < plan.Aims.Count; i++)
+        {
+            var aim = plan.Aims[i];
+            sb.AppendLine();
+            sb.AppendLine($"**Aim {i + 1}: {view.Aims[i].Name}**{(view.Aims[i].Written.Length > 0 ? $" (written: {view.Aims[i].Written})" : "")}, {aim.Share:P0} of the session{(aim.Origin == "plan" ? "" : $" [{aim.Origin}]")}, {(aim.Started ? $"{At(aim.StartedUtc)} to {At(aim.EndedUtc ?? s.LastActivityUtc)}" : "never begun")}");
+            sb.AppendLine($"- She wanted: {aim.Goal}{(aim.Achieved ? " (reached)" : "")}");
+            sb.AppendLine($"- Why she chose it: {aim.Why}");
+            if (aim.Ended.Length > 0) sb.AppendLine($"- Why it ended: {aim.Ended}");
+            var segments = plan.Segments.Where(x => x.Aim == i && x.Started && x.Type != SegmentCatalogue.Ending).ToList();
+            if (segments.Count == 0) continue;
+            sb.AppendLine();
+            sb.AppendLine("| At | Took | Segment | Purpose | Role | Kind | Parameters | Why she chose it | Why it ended |");
+            sb.AppendLine("|---|---|---|---|---|---|---|---|---|");
+            foreach (var seg in segments)
+            {
+                var took = (seg.EndedUtc ?? s.LastActivityUtc) - (seg.StartedUtc ?? s.StartedAtUtc);
+                sb.AppendLine($"| {At(seg.StartedUtc)} | {Span(took)} | {SegmentCatalogue.Default.Find(seg.Type)?.Name ?? seg.Type} | {Purposes.Name(seg.Purpose)} | {seg.Role} | {(seg.Written ? "written" : "improvised")} " +
+                    $"| {seg.Parameters()} | {seg.Reason}{(seg.Origin == "plan" ? "" : $" [{seg.Origin}]")} | {seg.Ended} |");
+            }
+        }
+        sb.AppendLine();
+        var byPurpose = plan.Segments.Where(x => x.Started && x.Type != SegmentCatalogue.Ending)
+            .GroupBy(x => x.Purpose)
+            .Select(g => (g.Key, Time: g.Aggregate(TimeSpan.Zero, (sum, x) => sum + ((x.EndedUtc ?? s.LastActivityUtc) - (x.StartedUtc ?? s.StartedAtUtc)))))
+            .OrderByDescending(x => x.Time).ToList();
+        if (byPurpose.Count > 0) sb.AppendLine($"**Time by purpose:** {string.Join(", ", byPurpose.Select(x => $"{Purposes.Name(x.Key)} {Span(x.Time)}"))}.");
+        int written = plan.Segments.Count(x => x.Started && x.Written && x.Type != SegmentCatalogue.Ending), all = plan.Segments.Count(x => x.Started && x.Type != SegmentCatalogue.Ending);
+        sb.AppendLine($"**Segments:** {all}, of which {written} written.");
+        sb.AppendLine();
         return sb.ToString();
     }
 
@@ -397,7 +452,8 @@ public static class Simulation
             StepCategory.Offer => "A deal on the table",
             StepCategory.Hold => $"Hold at the edge {Seconds(d.DurationOrCount)}",
             StepCategory.Rest or StepCategory.Psych when d.Method is null => $"Hands off {Seconds(d.DurationOrCount)}",
-            StepCategory.Finish when d.Kind == InstructionKind.Finish && d.Method is not null => $"Finish: {how}, {Seconds(d.DurationOrCount)} to cum",
+            StepCategory.Finish when d.Kind == InstructionKind.TimedMethod && d.Method is not null => $"The ending: {how}, {Seconds(d.DurationOrCount)} to cum",
+            StepCategory.Finish when d.Kind == InstructionKind.TimedMethod => "The ending: a punishment ending",
             StepCategory.Finish => "The ending: no orgasm",
             _ => d.Kind switch
             {
@@ -505,6 +561,7 @@ public static class Simulation
         if (result.Steps.Count > 0) sb.Append(WhatHappened(result));
         sb.AppendLine("## Her plan at the start");
         sb.AppendLine(result.PlanAtStart);
+        sb.Append(AimsAndSegments(result));
         sb.AppendLine("## Session");
         string? segment = null;
         foreach (var line in result.Lines)

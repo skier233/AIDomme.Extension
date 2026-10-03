@@ -6,7 +6,7 @@
     // ── Any step ──
     { "id": "instruct.bare", "act": "Instruct", "weight": 3, "variants": ["[Instruction]"] },
     { "id": "instruct.lead", "act": "Instruct", "when": ["step.category!=Rest"], "weight": 1.2, "variants": ["Now. [Instruction]", "Next. [Instruction]", "Good. [Instruction]"] },
-    { "id": "instruct.again", "act": "Instruct", "when": ["step.category!=Rest", "segment.steps>=2"], "weight": 0.6, "variants": ["Again. [Instruction]", "Once more. [Instruction]"] },
+    { "id": "instruct.again", "act": "Instruct", "when": ["step.category!=Rest", "segment.steps>=2", "!#again", "!#again-same"], "weight": 0.6, "variants": ["Again. [Instruction]", "Once more. [Instruction]"] },
     {
       "id": "instruct.cruel", "act": "Instruct", "when": ["step.category!=Rest", "mood=Cruel", "harsh>=4"],
       "variants": ["[Instruction] Don't you dare slow down.", "[Instruction] No complaints.", "[Instruction] I don't care how it feels.", "[Instruction] And keep your whining to yourself."]
@@ -81,7 +81,7 @@
     },
     {
       "id": "instruct.rapid-fire", "act": "Instruct", "when": ["step.category!=Rest", "segment=rapid-fire", "segment.steps>=2"], "weight": 2.5,
-      "variants": ["Again. [Instruction]", "[Instruction] No rest.", "Don't stop to breathe. [Instruction]", "Straight back to it. [Instruction]", "[Instruction] Faster than last time."]
+      "variants": [ "[Instruction] No rest.", "Don't stop to breathe. [Instruction]", "Straight back to it. [Instruction]", "[Instruction] Faster than last time."]
     },
     {
       "id": "instruct.long-hold", "act": "Instruct", "when": ["step.category!=Rest", "segment=long-hold"], "weight": 2.5,

@@ -16,9 +16,9 @@ public sealed record PlannedStep(Directive? Directive, int TimerSeconds, GameTyp
 }
 
 /// <summary>
-/// Decides steps within the plan: runs the current segment's step template, and builds the
-/// directives the engine needs for holds, rests, endings, prices and free play. It never makes
-/// text; the words come from the narrator.
+/// Decides steps within the plan: steers the current segment from his state (or runs its template
+/// when it is a written one), and builds the directives the engine needs for holds, rests, endings,
+/// prices and free play. It never makes text; the words come from the narrator.
 /// </summary>
 public interface IPlanner
 {
@@ -63,18 +63,123 @@ public sealed class SegmentPlanner(IRandom r, Authorities a) : IPlanner
         Mood.Drift(s, r);
         if (s.Retaliation.Active && --s.Retaliation.StepsLeft <= 0) s.Retaliation.Active = false;
 
-        var plan = s.Plan ??= Plans.Make(s, a, new Dictionary<string, SegmentPreference>());
+        var plan = s.Plan ??= Plans.Make(s, a);
         var say = new List<Utterance>();
-        if (plan.Current is not { Started: true } || Plans.Done(s)) say.AddRange(Plans.Next(s, a, now));
+        if (plan.Current is not { Started: true } || Plans.Done(s, now)) say.AddRange(Plans.Next(s, a, now));
         if (plan.AtEnding) return new(null, 0, Ending: true) { Say = say };
         var segment = plan.Current!;
         var type = Plans.Catalogue.Find(segment.Type)!;
-        var built = Build(s, type, segment);
+        // Whatever she is running, she does not ask for an edge from someone about to go over: his
+        // control is hers to spend, so first he gets long enough to have some again.
+        bool edgesNext = segment.Written ? type.Step.Kind is StepKind.Edges or StepKind.Hold or StepKind.MaxEdges : segment.Edges;
+        if (edgesNext && a.Pacing.DommeSets && a.Edges.DommeSets && s.Body.Control < 0.25 && s.Current?.Kind != InstructionKind.Rest)
+        {
+            int wait = (int)Math.Clamp(Body.RestToRegain(s.Profile, s.Body.Need, s.Body.Closeness, s.Body.Control, 0.5), 10, 90);
+            return new(Rest(s, wait) with { Segment = type.Id }, wait) { Say = say, Tags = ["gap"] };
+        }
+        var built = segment.Written ? Build(s, type, segment) : Steer(s, type, segment, now);
         segment.Steps++;
         return built with { Say = say.Concat(built.Say).ToList() };
     }
 
-    // ── Steps from a segment's template ──
+    // ── Steps she improvises ──
+
+    /// <summary>
+    /// The next step of an improvised segment, from the parameters she chose for it and his state as
+    /// she estimates it. The gap after an edge is her main lever: none keeps him at the edge, a
+    /// short one keeps him high, a long one makes the next edge a fresh climb. Holds are sized
+    /// within what she believes he can take; a slip is his to answer for.
+    /// </summary>
+    private PlannedStep Steer(SessionState s, SegmentType type, PlannedSegment seg, DateTime now)
+    {
+        var b = s.Body;
+        var phase = Phase(type);
+        int left = Math.Max(0, seg.Seconds - (int)(now - (seg.StartedUtc ?? now)).TotalSeconds);
+        if (seg.Purpose == Purpose.Cool || seg.Purpose == Purpose.Starve && seg.SpeedHigh == 0)
+        {
+            int rest = Math.Max(8, seg.Steps == 0 ? seg.Seconds : left);
+            return Record(s, StepCategory.Rest, Rest(s, rest) with { Segment = type.Id, Phase = SessionPhase.Resting });
+        }
+
+        if (seg.Edges && a.Edges.DommeSets)
+        {
+            // Coming down from the last edge, as far as this segment lets him.
+            if (a.Pacing.DommeSets && seg.Steps > 0 && seg.Floor < 0.99 && b.Closeness > seg.Floor + 0.03)
+            {
+                double gap = Body.RestFor(s.Profile, b.Need, b.Closeness, seg.Floor);
+                // His control is hers to spend, not to waste: a longer gap when it is thin.
+                if (b.Control < 0.3) gap = Math.Max(gap, (0.45 - b.Control) * 45 + Body.RestFor(s.Profile, b.Need, b.Closeness, Body.AfterEdge));
+                if (gap >= 4)
+                    return Record(s, StepCategory.Rest, Rest(s, (int)Math.Clamp(Math.Round(gap), 4, 90)) with { Segment = type.Id }) with { Tags = ["gap"] };
+            }
+            var method = Pick(s, seg);
+            int speed = a.Pacing.DommeSets ? r.Next(seg.SpeedLow, seg.SpeedHigh + 1) : 0;
+            (method, speed) = Reachable(s, method, speed);
+            // The count is hidden unless she announced one: "edge", then "again".
+            int count = seg.Announce > 0 && seg.EdgesAsked == 0 ? seg.Announce : 1;
+            int hold = 0;
+            if (seg.HoldChance > 0 && b.Control >= 0.4 && r.NextDouble() < seg.HoldChance)
+                hold = (int)Math.Clamp(seg.HoldFraction * Body.Tolerance(s.Profile, method) * b.Control, 5, 75);
+            bool again = seg.EdgesAsked > 0 && count == 1;
+            bool same = again && seg.LastMethodId == method.Id && seg.LastSpeed == speed;
+            seg.EdgesAsked += count;
+            seg.LastMethodId = method.Id;
+            seg.LastSpeed = speed;
+            var step = Record(s, StepCategory.Edge, new Directive
+            {
+                Kind = InstructionKind.EdgeCount, Method = method, Speed = speed, DurationOrCount = count, HoldSeconds = hold,
+                Category = StepCategory.Edge, Phase = phase, Segment = type.Id,
+            });
+            return again && step.Directive?.Kind == InstructionKind.EdgeCount ? step with { Tags = [.. step.Tags, same ? "again-same" : "again"] } : step;
+        }
+
+        // Timed stimulation: kept under the edge (ache), too much (overwhelm) or too little (starve).
+        if (seg.Purpose == Purpose.Overwhelm && seg.Steps > 0 && b.Overwhelm >= 0.97 && a.Pacing.DommeSets && r.Chance(30))
+            return Record(s, StepCategory.Rest, Rest(s, r.Next(8, 16)) with { Segment = type.Id });
+        var grip = Pick(s, seg);
+        int pace = a.Pacing.DommeSets ? r.Next(Math.Max(1, seg.SpeedLow), Math.Max(1, seg.SpeedHigh) + 1) : 0;
+        int seconds = seg.Purpose switch { Purpose.Overwhelm => r.Next(30, 81), Purpose.Starve => r.Next(60, 151), _ => r.Next(45, 111) };
+        // The last step runs the segment out rather than leaving a stub.
+        if (left < seconds * 1.4) seconds = Math.Max(20, Math.Min(left, 180));
+        var category = Category(type, StepKind.Timed);
+        return Record(s, category, Timed(grip, pace, seconds) with { Category = category, Phase = phase, Segment = type.Id });
+    }
+
+    /// <summary>
+    /// An edge she asks for has to be one he can reach in reasonable time: she speeds up until it
+    /// is, and failing that takes a grip that gets him there.
+    /// </summary>
+    private (MethodInfo Method, int Speed) Reachable(SessionState s, MethodInfo method, int speed, double within = 200, double margin = 2.0)
+    {
+        if (method.IsUserChoice || !a.Pacing.DommeSets || speed <= 0) return (method, speed);
+        double from = Math.Min(s.Body.Closeness, Body.AfterEdge);
+        // Enough drive that he gets there even if he is slower than she thinks: a grip that only just
+        // reaches the edge leaves him hovering under it, which is a hold she did not ask for.
+        // Until she has seen a few of his edges she leaves more room.
+        if (s.Profile.PaceEvidence < 2) margin *= 1.25;
+        bool Enough(MethodInfo m, int at) => Body.Plateau(s.Profile, m, at, s.Body.Need) >= margin && Body.ExpectedSeconds(s.Profile, m, at, s.Body.Need, from) <= within;
+        while (speed < 10 && !Enough(method, speed)) speed++;
+        if (Enough(method, speed) || !a.Methods.DommeChooses) return (method, speed);
+        var closer = s.Methods.Where(m => m.Closeness > method.Closeness && (!s.LubeActive || m.RequiresLube || !s.Methods.Any(x => x.RequiresLube && x.Closeness > method.Closeness)))
+            .OrderByDescending(m => Body.Plateau(s.Profile, m, speed, s.Body.Need)).FirstOrDefault();
+        return (closer ?? method, speed);
+    }
+
+    /// <summary>One of the segment's methods: all of them fit, so she may stay on one or move between them.</summary>
+    private MethodInfo Pick(SessionState s, PlannedSegment seg)
+    {
+        if (!a.Methods.DommeChooses) return MethodInfo.UserChoice(s.Methods);
+        var pool = seg.MethodIds.Select(id => s.Methods.FirstOrDefault(m => m.Id == id)).Where(m => m is not null).Select(m => m!).ToList();
+        if (pool.Count == 0) return a.Methods.Choose(s, new(s.Intensity, Basic: true, MinCloseness: seg.Edges ? MethodPreference.EdgeReach : 0));
+        // Once the lube is on, the dry ones wait.
+        if (s.LubeActive && pool.Where(m => m.RequiresLube).ToList() is { Count: > 0 } lubed) pool = lubed;
+        var chosen = pool.Count > 1 && seg.LastMethodId is int last && r.Chance(55) ? r.Pick(pool.Where(m => m.Id != last).ToList()) : r.Pick(pool);
+        s.RecentMethodIds.Add(chosen.Id);
+        if (s.RecentMethodIds.Count > 10) s.RecentMethodIds.RemoveAt(0);
+        return chosen;
+    }
+
+    // ── Steps from a written segment's template ──
 
     private PlannedStep Build(SessionState s, SegmentType type, PlannedSegment seg)
     {
@@ -99,7 +204,8 @@ public sealed class SegmentPlanner(IRandom r, Authorities a) : IPlanner
         }
 
         // Steps that ask for edges need a method that can get him there.
-        bool edging = tpl.Kind is StepKind.Edges or StepKind.Hold or StepKind.MaxEdges;
+        // So does a challenge not to edge: it is only one on a grip that would take him there.
+        bool edging = tpl.Kind is StepKind.Edges or StepKind.Hold or StepKind.MaxEdges or StepKind.NoEdge or StepKind.Burst;
         bool hard = edging && tpl.Reach == "hard";
         var method = Method(s, tpl.Method, seg,
             hard ? MethodPreference.HardReachMin : edging ? MethodPreference.EdgeReach : 0,
@@ -107,14 +213,20 @@ public sealed class SegmentPlanner(IRandom r, Authorities a) : IPlanner
         int speed = Speed(s, tpl, seg, type);
         Directive d = tpl.Kind switch
         {
-            StepKind.Edges or StepKind.Hold when a.Edges.DommeSets => EdgeCount(s, tpl, method, speed),
+            StepKind.Edges or StepKind.Hold when a.Edges.DommeSets => hard
+                ? EdgeCount(s, tpl, method, Reachable(s, method, speed, 300, 1.25).Speed)
+                : EdgeCount(s, tpl, Reachable(s, method, speed).Method, Reachable(s, method, speed).Speed),
             StepKind.NoEdge => Timed(method, speed, seconds()) with { ForbidEdge = true },
             StepKind.MaxEdges => Timed(method, speed, seconds()) with { CountEdges = true },
             StepKind.Burst => Timed(method, speed, Between(tpl.Seconds)),
             // Without edge authority, edge steps are timed pushes toward the edge.
             _ => Timed(method, speed, seconds()),
         };
-        return Record(s, category, d with { Category = category, Phase = phase, Segment = type.Id });
+        var step = Record(s, category, d with { Category = category, Phase = phase, Segment = type.Id });
+        // A countdown is counted: every edge after the first is "again", with what is left.
+        return seg.Announce > 0 && seg.Steps > 0 && step.Directive?.Kind == InstructionKind.EdgeCount
+            ? step with { Tags = [.. step.Tags, "again", $"left:{seg.Announce - seg.Steps}"] }
+            : step;
     }
 
     private Directive EdgeCount(SessionState s, StepTemplate tpl, MethodInfo m, int speed)
@@ -332,7 +444,12 @@ public sealed class SegmentPlanner(IRandom r, Authorities a) : IPlanner
     public MethodInfo Stroke(SessionState s) => a.Methods.Choose(s, new(Math.Min(10, s.Intensity + 1), Basic: true, MinCloseness: MethodPreference.EdgeReach));
 
     public GameContext GameContext(SessionState s, MethodInfo stroke, DateTime? now = null)
-        => new(s.Mean, s.Intensity, s.Arousal, s.Mood.Mood, stroke, a.Edges.DommeSets, s.EdgesThisStep, now ?? s.LastActivityUtc, r);
+        => new(s.Mean, s.Intensity, s.Arousal, s.Mood.Mood, stroke, a.Edges.DommeSets, s.EdgesThisStep, now ?? s.LastActivityUtc, r)
+        {
+            // Stakes come from what she is doing to him; times from how fast he gets to the edge.
+            Aim = s.Plan?.CurrentAim?.Purpose,
+            EdgeSeconds = Math.Min(180, Body.ExpectedSeconds(s.Profile, stroke, 8, s.Body.Need, Math.Min(0.8, s.Body.Closeness))),
+        };
 
     private int Between(int[] range) => r.Next(range[0], range[1] + 1);
 }
