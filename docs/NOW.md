@@ -328,6 +328,12 @@ copy of the real install's tables. The items below are the original scope; the d
 6. Measure with scripted sessions: no contradictory consecutive instructions, no repeated line
    within a session, every announced stake applied, every ledger entry either served or still owed.
 
+## Phase 5 — What she wants him to feel (design in progress)
+
+Purposes instead of mechanical segment types, a per-user estimate of how close he is to the edge
+(learned from edges and the gaps between them), and scheduling from his state. Design and decision
+log: [PHASE-5.md](PHASE-5.md). Nothing built yet.
+
 ## Later — Domme-initiated and mini-sessions (design only now)
 
 Prerequisites to keep in mind during Phases 1–4: sessions creatable by the server, a message the
