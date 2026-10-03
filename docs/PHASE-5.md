@@ -273,11 +273,21 @@ What remains is: three terms, four states, three profile numbers, one steerer, o
 8. **Lines.** For purposes, aims and his state ("That was quicker than usual"); retune from
    transcripts and real use.
 
-## 13. Open questions
+## 13. Settings
 
-1. **Preferences.** What replaces the 17 per-segment settings: purposes, written content, both?
-2. **Tolerance setting.** Its form: plain choices ("I can stay at the edge: briefly / a while / a
-   long time") with an optional exact number, or a number only.
+Few, and high level. A setting exists only if he can answer it without knowing how she works.
+
+- **Removed:** the per-segment "how often" and "length" list. Nothing replaces it; what she does
+  comes from his state, the session's sliders and her persona.
+- **Added:** one question for tolerance, as a plain choice ("I can stay at the edge: briefly / a
+  while / a long time"), with an exact number available in the tuning lab for those who want it.
+- **Her persona stays a handful of high-level dials** (harshness, humiliation, mind games,
+  talkativeness, variety). Anything finer, such as whether she is honest about the ending tonight,
+  how often she uses a false finish, or how she sizes a hold, is derived from those dials, her
+  mood and his state. It is never a setting. It is visible in the debug view and transcripts, so
+  it can be understood and tuned in the design, not by the user.
+
+No open questions remain.
 
 ## 14. Decision log
 
@@ -306,5 +316,8 @@ All 2026-10-03.
 - Simmer is folded into Starve (how much touch is a parameter); five purposes.
 - Improvised stretches are segments too. Improvising is the default; written content is chosen
   only when allowed, fitting the aim, fresh and due, or when an event calls for it.
+- Per-segment preferences are removed with nothing in their place. Tolerance is asked as a plain
+  choice. User-facing settings stay few and high level: fine-grained behaviour (honesty about the
+  ending, how often a device is used) is derived, shown in debug, and never a knob.
 - Consolidation: devices, patterns, build-up and "activity" were folded into the three terms and
   four states (section 11).
