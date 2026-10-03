@@ -1,8 +1,9 @@
 # Phase 5: what she wants him to feel
 
-Status: **draft for discussion, 2026-10-03. Nothing here is built.** The decision log at the end
-records what is settled. This replaces the segment catalogue and the plan engine's selection logic
-from Phase 4; the narrator, the voice scheduler, the ledger, deals and the tuning lab stay.
+Status: **draft for discussion, second revision 2026-10-03. Nothing here is built.** The decision
+log at the end records what is settled. This replaces the segment catalogue and the plan engine's
+selection logic from Phase 4; the narrator, the voice scheduler, the ledger, deals and the tuning
+lab stay.
 
 ## 1. Why
 
@@ -19,9 +20,9 @@ is** from moment to moment, and steers mainly with **how long she lets him recov
 A running estimate, 0 to 100%, of how close he is to the edge. It is never exact; it corrects
 itself every time he reports an edge (that moment is 100% by definition).
 
-- **Stimulation raises it**, at a rate set by the method, the speed, and how long that method
-  takes him to edge from cold.
-- **Rest lowers it**, along his own recovery curve.
+- **Stimulation raises it.** The rate comes from the method's Closeness value (already on every
+  method), the speed, and his build-up (2.3); what she learns about him refines it.
+- **Rest lowers it**, along his recovery curve.
 - **An edge sets it to 100%.**
 
 ### 2.1 Why the gap after an edge matters
@@ -37,30 +38,47 @@ allows is a choice about where she keeps him, and it is her main lever:
 | A real, separate edge | A longer gap |
 | To cool him down | A long break |
 
-### 2.2 Learning his physiology
+### 2.2 Good from the first session: settings first, learning second
 
-Everything needed is already recorded (edge time, method, speed, the step it belonged to), or
-needs one small addition (the rest before it). From his history she learns:
+Anything she has to learn takes sessions, may be wrong, and makes the early sessions worse. A new
+user who gets a badly tuned first week leaves. So:
+
+- **The baseline comes from defaults and from settings he can set himself**, and must give a good
+  session on day one. He can tell her directly: how long he can stay at the edge, roughly how long
+  an edge takes him, how fast he comes down. A few plain questions or sliders, with sensible
+  defaults, on the settings page.
+- **Learning only refines.** What she observes is blended in gradually, weighted by how much
+  evidence there is, and never moves far from his settings on thin data. If learning were switched
+  off, sessions would still be good.
+- **He can see and correct it.** The tuning lab shows what she currently believes and where it
+  came from (his setting, or learned from N edges), and lets him reset or override.
+
+What she can learn, from what is already recorded (edge time, method, speed, the step it belonged
+to) plus the rest before each edge:
 
 - **Time to edge from cold**, per method and speed band.
-- **Recovery curve.** He edged on method X, rested 10 s, then took 25 s to edge again, where from
-  cold it takes 70 s: so after 10 s he was still about 65% of the way there. Many such points give
-  his curve (a half-life, to start with).
-- **Tolerance.** How long he has stayed above about 90% without going over, and what was happening
-  when he did go over (slips, failed holds). Some users can sit at 90% for minutes; she learns
-  which kind he is.
+- **Recovery.** He edged on method X, rested 10 s, then took 25 s to edge again where from cold it
+  takes 70 s: after 10 s he was still about 65% of the way there. Recovery is mostly a property of
+  the person, with a little variation by method.
+- **Tolerance.** How long he can stay near the edge without going over. This depends strongly on
+  the method: far longer on a mild method than on an intense one. So tolerance is a baseline (his
+  setting) scaled by method intensity, not one number.
 
-New accounts start from defaults and the estimate tightens as edges are recorded. The profile is
-visible in the tuning lab ("what she has learned about you") and can be reset.
+### 2.3 Build-up
 
-### 2.3 Two axes, not one
+A session changes him as it goes. After many edges he reaches the edge faster on any method and
+comes down more slowly. She tracks build-up across the session (edges so far, time spent close)
+and it shortens his expected time to edge and lengthens his recovery. Without it, gaps that were
+right in minute five would be wrong in minute fifty.
+
+### 2.4 Two axes, not one
 
 Closeness alone is not the experience. The same 90% is different on a dry stroke and on an intense
 grip:
 
 - **Closeness** (how near the edge) builds **need**: the ache, the wanting.
 - **Method intensity** at that closeness decides **control**: on a mild method at 90% he is aching
-  but in command of himself; on an intense one he is hanging on.
+  but in command of himself, and can stay there a long time; on an intense one he is hanging on.
 - **Torturous methods** often have low reach (Palm barely gets him closer), so overwhelm is its own
   axis: he can be far from the edge and still desperate for it to stop.
 
@@ -70,36 +88,52 @@ From these she tracks, over the session:
 |---|---|---|
 | Need | Time spent close, edges without release | Only an orgasm |
 | Strain | Intense or torturous stimulation | Breaks, mild methods |
-| Control left | Worn by holds and long stretches above his tolerance | Time lower down |
-| Slip risk | High closeness on intense methods beyond his tolerance | Backing off |
-
-These also give a truer measure of how intense a session was than points alone (see open questions).
+| Control | Worn down by time near the edge beyond his tolerance for that method, and by holds; low control means a slip is likely | Time lower down |
+| Build-up | Edges and time spent close, all session | Slowly, with long breaks |
 
 ## 3. Purposes replace segment types
 
-A segment is a stretch with one purpose. Each purpose declares where she wants his closeness, which
-methods serve it, and how she handles breaks.
+A segment is a stretch with one purpose: what she wants him to feel.
 
-| Purpose | What she is doing to him | Closeness she aims for | Methods | Breaks |
-|---|---|---|---|---|
-| Build the ache | Edging to build need | 60 to 100%, coming down between edges | Good reach, moderate intensity; dry is fine | Medium: real edges |
-| Test control | Edging where stopping is hard | 80 to 100%, kept high | High reach, high intensity | Short: little recovery |
-| Overwhelm | He does it only because she ordered it | Wherever it lands | High torture | Few, short |
-| Starve | Too little touch; desperate for more | 30 to 60%, never enough to edge | High tease, low intensity, slow | None needed |
-| Break: cool | Bring him down | Falling to a floor she picks | Hands off | The break is the point |
-| Break: simmer | Hands off but kept wanting (watching, listening to her) | Falling slowly, held above a floor | Hands off, content | The break is the point |
+| Purpose | What she is doing to him | Methods that serve it |
+|---|---|---|
+| Build the ache | Edging to build need | Good reach, moderate intensity; dry is fine |
+| Test control | Edging where stopping is hard | High reach, high intensity |
+| Overwhelm | He does it only because she ordered it | High torture |
+| Starve | Too little touch; desperate for more | High tease, low intensity, slow |
+| Break: cool | Bring him down | Hands off |
+| Break: simmer | Hands off but kept wanting (watching, listening to her) | Hands off, content |
 
-A segment stays on one or two methods. Variety is not a goal in itself; her words are the variety.
+### 3.1 Parameters are hers to choose
 
-Each segment gets its targets when planned, for example "Test control: keep him above 80% for about
-five minutes on Skin-Held Shaft Stroke".
+A purpose does not fix how a segment runs. When she picks a segment she also chooses its
+parameters, and can change them as it goes:
+
+- where she keeps his closeness (for example "no lower than 75%"), or no target at all;
+- how long it lasts;
+- how she handles gaps and breaks;
+- whether edges carry holds, and how long;
+- whether counts are announced or hidden;
+- which methods, and how many.
+
+Each purpose has typical values (Test control usually keeps him high with short gaps; Build the
+ache usually lets him come down between edges), but they are starting points for her choice, not
+rules. The same purpose can run very differently on two nights.
+
+### 3.2 Choosing methods
+
+Methods are chosen **first for what they will make him experience** and how that serves her
+purpose: their reach, intensity, tease and torture, against the purpose and the parameters she
+chose. Variety is a distant third consideration. She may use one method for a whole segment or
+move between three or four, as long as every one of them makes sense for what she is doing. It
+must never feel like a random draw.
 
 ## 4. Devices layer on top
 
 Not segments. They attach to a segment or sit between two.
 
-- **Holds.** Any edge can carry one. Length comes from his tolerance: comfortable, a stretch, or
-  cruel, as she chooses. It starts modest and grows as he proves he can take it.
+- **Holds.** Any edge can carry one. Length comes from his tolerance for that method: comfortable,
+  a stretch, or cruel, as she chooses, but always within what he can plausibly do (see 5.1).
 - **Hidden counts.** By default she says "edge", then "again", and he does not know how many. An
   announced count is the exception, used when the number itself is the point.
 - **Mind games that change what he does**: the false finish, the countdown to an orgasm that does
@@ -111,14 +145,15 @@ Not segments. They attach to a segment or sit between two.
 
 Two levels.
 
-**The plan (up front).** A short list of segments by purpose, with targets, and one purpose
-emphasised for the night ("tonight is about control"). Still visible in debug and at the top of
-transcripts, still revised by events.
+**The plan (up front).** A short list of segments by purpose, each with the parameters she intends.
+A night can be a mix or a single purpose; that depends partly on length (a short session can be
+about one thing; two hours of one thing with no change would be dull). Still visible in debug and
+at the top of transcripts, still revised by events.
 
 **Steering (moment to moment).** Inside a segment she does not follow a script of steps. She looks
-at his estimated closeness and the segment's target and picks the next action: stroke at this
-speed, edge, hold, rest this long. The break length is what she adjusts most. This is what makes
-the session respond to him without rewriting the plan.
+at his estimated closeness and what she intends, and picks the next action: stroke at this speed,
+edge, hold, rest this long. The break length is what she adjusts most. This is what makes the
+session respond to him without rewriting the plan.
 
 **Choosing the next purpose** uses his state, not flat weights:
 
@@ -127,54 +162,81 @@ the session respond to him without rewriting the plan.
 | Low need, early | Build the ache |
 | High need, control intact | Test control |
 | High strain | Break, or starve |
-| Control nearly gone | Ease off if she wants him denied; push if she is cruel or a slip serves her |
+| Low control | Ease off, lower his closeness, or switch to a milder method |
 | Long stretch at one level | Change the level, not just the method |
 
 Her mood, persona, the session's settings, promises and the night's emphasis bend these. The plan
 shows her reason for each choice ("strain high after overwhelm: simmer").
 
-## 6. What changes around it
+### 5.1 Slips are his responsibility, within reason
+
+Not going over is his job. Her side of it: she does not order things that make a slip likely. In
+particular she sizes holds, and long stretches near the edge on intense methods, within his
+tolerance. She never pushes past it on purpose to cause a slip.
+
+## 6. Points
+
+Points stay the session clock, but what earns them is redesigned so closeness and strain count:
+time spent close, and intense or torturous stimulation, are worth more than the same seconds far
+from the edge on a mild grip. Beyond a total, a session then has a profile (how much need it built,
+how much strain), which lets homework, punishments and deals be shaped as well as sized: a
+punishment can be "high strain" rather than merely "many points".
+
+## 7. What changes around it
 
 - **Speech.** New facts for lines: his closeness band, how long he has been kept high, whether the
-  last gap was short. Hidden counts need "again" lines, which exist.
-- **Simulated users** get a physiology (time to edge, recovery, tolerance) so the simulation
-  reacts to gaps the way a person would, and slips happen for a reason.
+  last gap was short, and how this edge compares with his usual ("You got back to the edge fast",
+  "That was quicker than usual"). Hidden counts use the "again" lines that exist.
+- **Settings.** A few baseline questions about him (2.2). What replaces the per-segment preference
+  list is undecided (open question 1).
+- **Simulated users** get a physiology (time to edge, recovery, tolerance by intensity, build-up)
+  so the simulation reacts to gaps the way a person would, and slips happen for a reason.
 - **Transcripts** gain a closeness column in the "What happened" table and a summary: time in each
-  band, time above tolerance, longest stretch above 80%.
-- **Tuning lab** gains the profile view.
+  band, time near the limit of his tolerance, need and strain built.
+- **Tuning lab** gains the view of what she believes about him.
 - **Free play and modes where he sets the pace**: she still estimates closeness from his edges and
   uses it for her verdict and her words; she just does not steer.
 
-## 7. Order of work (mini-phases, each shippable)
+## 8. Order of work (mini-phases, each shippable)
 
-1. **Estimator, no behaviour change.** Closeness estimate from defaults, recorded per step;
-   closeness column and band summary in transcripts; simulated users get a physiology.
-2. **Learning.** Record the rest before each edge; fit time-to-edge and recovery per user; profile
-   view in the lab.
-3. **Purposes.** Replace the catalogue with purposes and method profiles; map old preferences.
-4. **Steering.** The in-segment controller: gaps, holds from tolerance, hidden counts.
-5. **State-driven scheduling.** Need, strain, control; next purpose from state; night emphasis;
-   reasons in the plan.
-6. **Content.** Lines for purposes, closeness and devices; retune from transcripts and real use.
+1. **Estimator, no behaviour change.** Closeness estimate from defaults and his settings, with
+   build-up, recorded per step; closeness column and band summary in transcripts; simulated users
+   get a physiology.
+2. **Baseline settings and learning.** The questions about him; record the rest before each edge;
+   refine time-to-edge, recovery and tolerance from evidence; the view in the lab.
+3. **Purposes.** Replace the catalogue with purposes, parameters and method choice by fit.
+4. **Steering.** The in-segment controller: gaps, holds within tolerance, hidden counts.
+5. **State-driven scheduling.** Need, strain, control, build-up; next purpose from state; reasons
+   in the plan.
+6. **Points.** Closeness and strain in what earns points; session profiles for homework,
+   punishments and deals.
+7. **Content.** Lines for purposes, closeness and devices; retune from transcripts and real use.
 
-## 8. Open questions
+## 9. Open questions
 
-1. **Points.** Keep points as the session clock for now, or move to a measure built from closeness
-   and intensity over time? (Proposal: keep points through steps 1 to 5, compare both in
-   transcripts, decide after.)
-2. **Recovery model.** Start with one half-life per user, or per method from the start? (Proposal:
-   one per user, split later if the data shows it.)
-3. **Slips.** May she ever push past his tolerance on purpose, risking a slip? (Proposal: only
-   when she is cruel and the session settings allow, and never when he has asked not to be ruined.)
-4. **Night emphasis.** A mix with one purpose emphasised (proposed), or sometimes a single-purpose
-   night?
-5. **Segment preferences.** The settings page lists today's 17 segment types. Replace it with the
-   six purposes and the devices?
+1. **Preferences.** The settings page lists today's 17 segment types with "how often" and
+   "length". What should he be able to set instead: the purposes, the devices, both, something
+   else? Undecided.
+2. **Baseline questions.** Exactly which things he tells her about himself, and in what form
+   (seconds, or plain choices like "I can hold an edge: briefly / a while / a long time").
 
-## 9. Decision log
+## 10. Decision log
 
-- 2026-10-03: Agreed in principle: segments are defined by what she wants him to feel, not by
-  mechanics; holds, hidden counts and mind games are devices, not segments; variety is not a goal
-  in itself; the scheduler must use his state. Closeness to the edge is tracked as an estimate and
-  learned per user from edges and the gaps between them; the gap after an edge is her main lever;
-  method intensity is a second axis alongside closeness. A design doc is kept as this is built.
+- 2026-10-03 (first draft): Agreed in principle: segments are defined by what she wants him to
+  feel, not by mechanics; holds, hidden counts and mind games are devices, not segments; variety
+  is not a goal in itself; the scheduler must use his state. Closeness to the edge is tracked as an
+  estimate and learned from edges and the gaps between them; the gap after an edge is her main
+  lever; method intensity is a second axis alongside closeness. A design doc is kept as this is
+  built.
+- 2026-10-03 (second revision): The method's Closeness value drives how fast stimulation raises
+  the estimate. Sessions must be good from day one: the baseline comes from defaults and settings
+  he can set (including tolerance at the edge); learning only refines and must never be required.
+  Tolerance depends on method intensity. Control and slip risk are one thing. Build-up within a
+  session is tracked: faster to edge, slower to recover. A purpose does not fix closeness targets:
+  she picks a segment and chooses its parameters. Methods are chosen for what they make him
+  experience; three or four in a segment is fine if all fit the purpose; never random-feeling.
+  Speech remarks on how fast he got back to the edge. Points stay, redesigned so closeness and
+  strain count, giving sessions a profile usable for homework and punishments. Recovery is mostly
+  per user with a little method variation. Slips are his responsibility; she sizes holds within
+  his tolerance and does not order things that overly risk one. A night can be a mix or a single
+  purpose, depending partly on length.
