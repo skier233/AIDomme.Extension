@@ -369,20 +369,6 @@
       "variants": ["All that begging bought you more of this.", "Every time you ask, it gets longer. You did this."]
     },
     {
-      "id": "segment.annoyed",
-      "act": "SegmentStart",
-      "when": ["#origin:annoyed"],
-      "weight": 3,
-      "variants": ["You've annoyed me. I'm changing my plans for you.", "I was going to be nice. Not anymore."]
-    },
-    {
-      "id": "segment.changed-mind",
-      "act": "SegmentStart",
-      "when": ["#origin:changed-her-mind"],
-      "weight": 3,
-      "variants": ["I was going to do something else with you. I've changed my mind.", "Change of plans."]
-    },
-    {
       "id": "segment.rest-beg-twist",
       "act": "SegmentStart",
       "when": ["#origin:rest-beg"],
@@ -390,11 +376,122 @@
       "variants": ["You wanted a change. Here's your change.", "Break's over. You're going to wish you'd kept quiet."]
     },
     {
-      "id": "segment.resumed",
+      "id": "segment.edge-fresh",
       "act": "SegmentStart",
-      "when": ["#origin:resumed-after-a-rest-beg"],
+      "when": ["#segment:edge-fresh"],
+      "variants": [
+        "One edge at a time. I decide when you get the next.",
+        "Edge for me, then hands off until I say. We'll do that for a while.",
+        "Slow edges now. I want you to feel every climb."
+      ]
+    },
+    {
+      "id": "segment.countdown",
+      "act": "SegmentStart",
+      "when": ["#segment:countdown", "count"],
       "weight": 3,
-      "variants": ["Did you think I forgot where we were? Back to it.", "Now, where were we."]
+      "variants": ["[Count] edges. I'll count them down for you.", "I want [count] edges from you, one at a time. Count with me."]
+    },
+
+    // ── A new aim: what she is after now. Said as its first segment begins. ──
+    {
+      "id": "aim.control",
+      "act": "SegmentStart",
+      "when": ["#aim-start", "#purpose:control"],
+      "weight": 2.5,
+      "variants": [
+        "You're warm enough. Now I want to see how long you last at the edge.",
+        "Enough building. Let's find out how much control you really have.",
+        "Now we go to the edge and stay near it. Try not to fall off."
+      ]
+    },
+    {
+      "id": "aim.ache",
+      "act": "SegmentStart",
+      "when": ["#aim-start", "#purpose:ache"],
+      "weight": 2.5,
+      "variants": [
+        "I want you needing it more than this. Let's build.",
+        "Not desperate enough yet. We'll fix that.",
+        "Now I'm going to make you want it. Really want it."
+      ]
+    },
+    {
+      "id": "aim.overwhelm",
+      "act": "SegmentStart",
+      "when": ["#aim-start", "#purpose:overwhelm", "!#origin:came-without-permission"],
+      "weight": 2.5,
+      "variants": [
+        "That was the nice part. This next part is for me.",
+        "Now I'm going to give you more than you can take. You'll take it anyway.",
+        "Time for something you'll want to stop. You don't get to."
+      ]
+    },
+    {
+      "id": "aim.starve",
+      "act": "SegmentStart",
+      "when": ["#aim-start", "#purpose:starve"],
+      "weight": 2.5,
+      "variants": [
+        "Now I take it all away. Let's see how much you miss it.",
+        "You've had plenty. Now you get almost nothing.",
+        "I'm going to give you so little it aches."
+      ]
+    },
+    {
+      "id": "aim.back",
+      "act": "SegmentStart",
+      "when": ["#back"],
+      "weight": 3,
+      "variants": [
+        "Back to it. We are not done.",
+        "That was a pause, not an ending. Back to work.",
+        "Now, where were we.",
+        "Did you think I'd forgotten what I was doing to you? Back to it."
+      ]
+    },
+    {
+      "id": "aim.back.control",
+      "act": "SegmentStart",
+      "when": ["#back", "#purpose:control"],
+      "weight": 3,
+      "variants": ["Back to the edge. I'm not finished wearing you down.", "Rested? Good. More edges."]
+    },
+    {
+      "id": "aim.back.overwhelm",
+      "act": "SegmentStart",
+      "when": ["#back", "#purpose:overwhelm"],
+      "weight": 3,
+      "variants": ["Break's over. You know what comes back now.", "That's all the mercy you get. Again."]
+    },
+    {
+      "id": "segment.side-torment",
+      "act": "SegmentStart",
+      "when": ["#role:side", "#purpose:overwhelm", "!#origin:failed-a-challenge"],
+      "weight": 2.5,
+      "variants": [
+        "I feel like making you squirm for a minute. Then we carry on.",
+        "A little detour. You won't enjoy it.",
+        "Something different for a moment. For my amusement."
+      ]
+    },
+    {
+      "id": "segment.side-edges",
+      "act": "SegmentStart",
+      "when": ["#role:side", "#purpose:control", "!#origin:rest-beg"],
+      "weight": 2.5,
+      "variants": ["Now edge for me, while you're still reeling.", "Straight to the edge. No time to recover."]
+    },
+    {
+      "id": "segment.ease-off",
+      "act": "SegmentStart",
+      "when": ["#role:supporting", "#purpose:cool|purpose:starve", "control<=30"],
+      "weight": 4,
+      "variants": [
+        "You're hanging on by a thread. Hands off before you ruin it.",
+        "Stop. You're too close to losing it, and I'm not done with you.",
+        "Let go. I can tell how near you are to going over."
+      ]
     },
     {
       "id": "segment.extended",

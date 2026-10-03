@@ -61,6 +61,8 @@ public sealed record SimulationResult(SessionState State, IReadOnlyList<Transcri
     /// <summary>The simulated user's true state at the end, and who he was: what her estimate is checked against.</summary>
     public BodyState? Truth { get; init; }
     public SimulatedUser? User { get; init; }
+    /// <summary>The seed the run was made from: the same state, user and seed replay it exactly.</summary>
+    public int Seed { get; init; }
 }
 
 /// <summary>The four states at one moment, 0 to 1.</summary>
@@ -313,7 +315,7 @@ public static class Simulation
         if (s.Active) lines.Add(new(clock.UtcNow - start, "Note", "the simulation stopped here"));
         if (steps.Count > 0 && steps[^1].End == TimeSpan.MinValue)
             steps[^1] = steps[^1] with { End = clock.UtcNow - start, Edges = s.EdgesThisSession - edgesAtStep, EstimateEnd = BodySnapshot.Of(s.Body), TruthEnd = BodySnapshot.Of(truth) };
-        return new(s, lines, planAtStart, s.Plan?.Revisions.ToList() ?? []) { Steps = steps, Truth = truth, User = user };
+        return new(s, lines, planAtStart, s.Plan?.Revisions.ToList() ?? []) { Steps = steps, Truth = truth, User = user, Seed = seed };
     }
 
     /// <summary>What he does next in this step, if anything (timers take care of the rest).</summary>
@@ -332,7 +334,12 @@ public static class Simulation
         if (d.Kind == InstructionKind.EdgeCount && !s.Holding) return "edge";
         if (d.CountEdges) return "edge";
         if (d.ForbidEdge && s.EdgesThisStep == 0) return "maybe-fail";
-        if (d.Kind == InstructionKind.TimedMethod && d.Category is StepCategory.Edge or StepCategory.Surprise && d.Method is not null) return "maybe-edge";
+        if (d.Kind == InstructionKind.TimedMethod && d.Method is not null)
+        {
+            if (d.Category is StepCategory.Edge or StepCategory.Surprise) return "maybe-edge";
+            // When the edges are his own business he takes some while he strokes, and pays the ones he owes.
+            if (s.Contract.Edges == Authority.User && d.Category is StepCategory.Stroke or StepCategory.Tease) return s.OwedEdges > 0 ? "edge" : "maybe-edge";
+        }
         return null;
     }
 
@@ -474,10 +481,10 @@ public static class Simulation
     {
         var sb = new StringBuilder();
         sb.AppendLine("## What happened");
-        sb.AppendLine("Closeness is her estimate at the start and end of the step, then his true closeness; need, control and overwhelm are her estimates. Gap is the hands-off time just before.");
+        sb.AppendLine("Each state is shown at the start and end of the step. Closeness and control are her estimate, then the simulated truth; need and overwhelm are her estimates. Gap is the hands-off time just before.");
         sb.AppendLine();
-        sb.AppendLine("| At | Took | Segment | What she had him do | Edges | Gap | Close (est) | Close (true) | Need | Control | Overwhelm |");
-        sb.AppendLine("|---|---|---|---|---|---|---|---|---|---|---|");
+        sb.AppendLine("| At | Took | Segment | What she had him do | Edges | Gap | Close (est) | Close (true) | Need | Control (est) | Control (true) | Overwhelm |");
+        sb.AppendLine("|---|---|---|---|---|---|---|---|---|---|---|---|");
         static string Pair(double a, double b) => $"{a * 100:0}→{b * 100:0}";
         TimeSpan gap = TimeSpan.Zero;
         string? segment = null;
@@ -492,7 +499,7 @@ public static class Simulation
             bool handsOffStep = step.Game is null && d.Category != StepCategory.Hold && (d.Method is null || d.Category is StepCategory.Rest or StepCategory.Offer);
             sb.AppendLine($"| {Clock(step.Start)} | {Span(took)} | {seg} | {Describe(step)} | {(step.Edges > 0 ? step.Edges : "")} | {(!handsOffStep && gap > TimeSpan.Zero ? Span(gap) : "")} " +
                 $"| {Pair(step.EstimateStart.Closeness, step.EstimateEnd.Closeness)} | {Pair(step.TruthStart.Closeness, step.TruthEnd.Closeness)} " +
-                $"| {Pair(step.EstimateStart.Need, step.EstimateEnd.Need)} | {Pair(step.EstimateStart.Control, step.EstimateEnd.Control)} | {Pair(step.EstimateStart.Overwhelm, step.EstimateEnd.Overwhelm)} |");
+                $"| {Pair(step.EstimateStart.Need, step.EstimateEnd.Need)} | {Pair(step.EstimateStart.Control, step.EstimateEnd.Control)} | {Pair(step.TruthStart.Control, step.TruthEnd.Control)} | {Pair(step.EstimateStart.Overwhelm, step.EstimateEnd.Overwhelm)} |");
             gap = handsOffStep ? gap + took : TimeSpan.Zero;
             if (step.Game is not null) games += took;
             else if (d.Category == StepCategory.Hold) holds += took;
@@ -528,6 +535,10 @@ public static class Simulation
             sb.AppendLine($"**Time by closeness (true):** under 50% {T(truth.SecondsBelow50)}, 50 to 75% {T(truth.Seconds50To75)}, 75 to 90% {T(truth.Seconds75To90)}, over 90% {T(truth.SecondsAbove90)}; longest stretch over 80% {T(truth.LongestAbove80)}.");
         sb.AppendLine($"**Peaks (her estimate):** need {b.PeakNeed:P0}, overwhelm {b.PeakOverwhelm:P0}, lowest control {b.LowestControl:P0}, time with control under 35% {T(b.SecondsNearLimit)}." +
             (result.Truth is { } t ? $" **True:** need {t.PeakNeed:P0}, overwhelm {t.PeakOverwhelm:P0}, lowest control {t.LowestControl:P0}, under 35% for {T(t.SecondsNearLimit)}." : ""));
+        var e = result.State.Earned;
+        double other = result.State.Points - (e.Stroking + e.Close + e.Torture + e.Edges + e.Holds);
+        sb.AppendLine($"**Points:** {result.State.Points:0} of {result.State.Budget:0}: stroking {e.Stroking:0}, torturous stimulation {e.Torture:0}, what closeness added {e.Close:+0;-0;0}, edges {e.Edges:0}, holds {e.Holds:0}, games and deals {other:+0;-0;0}.");
+        sb.AppendLine($"**Session profile:** need built to {b.PeakNeed:P0}; control tested down to {b.LowestControl:P0} ({T(b.SecondsNearLimit)} under 35%); overwhelm up to {b.PeakOverwhelm:P0}.");
         sb.AppendLine();
         sb.AppendLine("**His profile as she has it at the end**" + (result.User is null ? "" : " (and the simulated truth)"));
         sb.AppendLine();
@@ -562,6 +573,8 @@ public static class Simulation
         sb.AppendLine();
         if (result.Steps.Count > 0) sb.Append(WhatHappened(result));
         sb.AppendLine("## Her plan at the start");
+        if (result.User is { } user)
+            sb.AppendLine($"Simulated user \"{user.Name}\" (true pace {user.Pace:0.00}, recovery {user.Recovery:0}s, tolerance {user.Tolerance:0}s), seed {result.Seed}: the same session, user and seed replay this exactly.");
         sb.AppendLine(result.PlanAtStart);
         sb.Append(AimsAndSegments(result));
         sb.AppendLine("## Session");

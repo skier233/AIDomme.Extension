@@ -316,8 +316,13 @@ public static class Knowledge
             if (s.TimerDueUtc is DateTime due) f.Set("step.left", Math.Max(0, Math.Round((due - now).TotalSeconds)));
             f.Set("step.elapsed", Math.Max(0, Math.Round((now - s.StepStartedAtUtc).TotalSeconds)));
         }
+        // His state as she has it, 0 to 100, and what she is doing about it.
+        f.Set("closeness", Math.Round(s.Body.Closeness * 100)).Set("need", Math.Round(s.Body.Need * 100))
+         .Set("control", Math.Round(s.Body.Control * 100)).Set("overwhelm", Math.Round(s.Body.Overwhelm * 100));
+        if (s.Plan?.CurrentAim is { Started: true } aim) f.Set("aim", Purposes.Id(aim.Purpose));
         if (s.Plan?.Current is { } segment)
         {
+            f.Set("purpose", Purposes.Id(segment.Purpose)).Set("role", segment.Role.ToString().ToLowerInvariant());
             f.Set("segment", segment.Type).Set("segment.steps", (double)segment.Steps);
             if (s.Plan.Index > 0) f.Set("segment.previous", s.Plan.Segments[s.Plan.Index - 1].Type);
             if (SegmentCatalogue.Default.Find(segment.Type) is { } type) f.Set("segment.tags", type.Tags.ToList());

@@ -6,6 +6,28 @@
     // ── Any step ──
     { "id": "instruct.bare", "act": "Instruct", "weight": 3, "variants": ["[Instruction]"] },
     { "id": "instruct.lead", "act": "Instruct", "when": ["step.category!=Rest"], "weight": 1.2, "variants": ["Now. [Instruction]", "Next. [Instruction]", "Good. [Instruction]"] },
+    // The gap after an edge: how long she lets him come down is her doing.
+    { "id": "instruct.gap", "act": "Instruct", "when": ["#gap"], "weight": 4, "variants": [
+      "[Instruction]",
+      "Stop. [Instruction]",
+      "Let go. [Instruction]",
+      "[Instruction] Don't touch.",
+      "Good. [Instruction]"
+    ] },
+    { "id": "instruct.gap.short", "act": "Instruct", "when": ["#gap", "seconds<=12"], "weight": 5, "variants": [
+      "[Instruction] That's all you get.",
+      "[Instruction] Don't get comfortable.",
+      "Hands off. Barely. [Instruction]"
+    ] },
+    { "id": "instruct.gap.long", "act": "Instruct", "when": ["#gap", "seconds>=25"], "weight": 5, "variants": [
+      "[Instruction] Feel it fade a little.",
+      "[Instruction] I want you to come down before the next one.",
+      "Stop. [Instruction] Breathe."
+    ] },
+    { "id": "instruct.gap.thin", "act": "Instruct", "when": ["#gap", "control<=30"], "weight": 8, "variants": [
+      "Hands off, now. [Instruction] You were about to lose it.",
+      "[Instruction] I can see how close you are to going over."
+    ] },
     { "id": "instruct.again", "act": "Instruct", "when": ["step.category!=Rest", "segment.steps>=2", "!#again", "!#again-same"], "weight": 0.6, "variants": ["Again. [Instruction]", "Once more. [Instruction]"] },
     {
       "id": "instruct.cruel", "act": "Instruct", "when": ["step.category!=Rest", "mood=Cruel", "harsh>=4"],

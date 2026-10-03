@@ -56,8 +56,12 @@ public sealed class ProfileState
         };
     }
 
-    /// <summary>He was pushed close to his limit by her reckoning and did not go over: he can take a little more than she thought.</summary>
-    public void Survived() => Tolerance = Math.Min(ToleranceBase * ToleranceUp, Tolerance * 1.03);
+    /// <summary>
+    /// By her reckoning he had nothing left, and he did not go over: he can take more than she
+    /// thought. She does not steer him there herself (she eases off well before), so this only
+    /// happens when he outlasts her idea of him, which is the evidence.
+    /// </summary>
+    public void Survived() => Tolerance = Math.Min(ToleranceBase * ToleranceUp, Tolerance * 1.04);
 
     /// <summary>He went over when she thought he had plenty left. One slip says little, so it moves little.</summary>
     public void Slipped() => Tolerance = Math.Max(ToleranceBase * ToleranceDown, Tolerance * 0.93);
@@ -140,13 +144,18 @@ public static class Body
     public const double EstimateCap = 0.97;
     /// <summary>In a timed step that is not asking for an edge, she assumes he keeps himself just under it.</summary>
     public const double TimedCap = 0.88;
-    /// <summary>When he sets his own pace she assumes he stays comfortable.</summary>
-    public const double SelfPacedCap = 0.8;
+    /// <summary>When he sets his own pace she assumes the same: his state earns the same points in every mode.</summary>
+    public const double SelfPacedCap = TimedCap;
     /// <summary>Straight after an edge he has to ease off a little before he can reach another.</summary>
     public const double AfterEdge = 0.85;
     public const double NearEdge = 0.9;
-    /// <summary>Her estimate of his control below which getting through it counts as evidence about his tolerance.</summary>
-    public const double SurvivedBelow = 0.3;
+    /// <summary>Her estimate of his control below which getting through an edge or a hold counts as evidence about his tolerance.</summary>
+    public const double SurvivedBelow = 0.1;
+    /// <summary>
+    /// Her estimate charges his control a little more than the model says: no two climbs are alike,
+    /// a slow one costs much more than a quick one, and being wrong in this direction is a slip.
+    /// </summary>
+    public const double Caution = 1.2;
 
     /// <summary>How much of his arousal leaks away while he is being stimulated, relative to resting.</summary>
     public const double LeakWhileStroking = 0.25;
@@ -160,7 +169,8 @@ public static class Body
         return 45 * Math.Pow(10 / reach, 0.8);
     }
 
-    public static double SpeedFactor(int speed) => speed is >= 1 and <= 10 ? 0.25 + speed * 0.125 : 1.0;
+    /// <summary>How much the tempo drives him: a crawl does very little, full speed half as much again as a steady stroke.</summary>
+    public static double SpeedFactor(int speed) => speed is >= 1 and <= 10 ? 0.05 + speed * 0.15 : 1.0;
 
     /// <summary>The drive of this method at this speed for him, as seconds from cold with no leak (see <see cref="ExpectedSeconds"/> for the real time).</summary>
     public static double TimeToEdge(ProfileState p, MethodInfo? m, int speed, double need)
@@ -274,13 +284,13 @@ public static class Body
                     // he is, so nothing is charged; the edge itself settles the account (see OnEdge).
                     bool waiting = cap < 1 && b.Closeness >= cap - 1e-6;
                     b.RunTolerance = Tolerance(p, method);
-                    if (b.Closeness >= NearEdge) { if (!waiting) b.Control = Math.Max(0, b.Control - dt * (b.Closeness - NearEdge) / (1 - NearEdge) / b.RunTolerance); }
+                    if (b.Closeness >= NearEdge) { if (!waiting) b.Control = Math.Max(0, b.Control - dt * (cap < 1 ? Caution : 1) * (b.Closeness - NearEdge) / (1 - NearEdge) / b.RunTolerance); }
                     else b.Control = Math.Min(1, b.Control + dt * Regain(b.Closeness) / 2);
                     break;
                 }
                 case BodyMode.Hold:
                     b.Closeness = 1;
-                    b.Control = Math.Max(0, b.Control - dt / Tolerance(p, method));
+                    b.Control = Math.Max(0, b.Control - dt * (cap < 1 ? Caution : 1) / Tolerance(p, method));
                     b.Overwhelm = Math.Max(0, b.Overwhelm - dt / 240);
                     break;
                 default:
@@ -321,8 +331,13 @@ public static class Body
             // stretch, and what that cost him: her running guess is replaced by that.
             double leak = Leak(p, b.Need), decay = Math.Exp(-leak * b.RunSeconds), from = Math.Min(b.RunStartCloseness, 0.97);
             double plateau = Math.Max(1.02, (1 - from * decay) / (1 - decay));
-            double near = from >= NearEdge ? b.RunSeconds : Math.Min(b.RunSeconds, -Math.Log((plateau - 1) / (plateau - NearEdge)) / leak);
-            b.Control = Math.Clamp(b.RunControlStart - near * 0.5 / b.RunTolerance, 0, 1);
+            // The cost of the last stretch is the time spent in it weighted by how near he was, which
+            // for this curve has a closed form. A slow climb hovers under the edge and costs far more
+            // than a fast one.
+            double near = from >= NearEdge ? b.RunSeconds : Math.Min(b.RunSeconds, Math.Log((plateau - NearEdge) / (plateau - 1)) / leak);
+            double start = Math.Max(from, NearEdge);
+            double weighted = ((plateau - NearEdge) * near - (plateau - start) * (1 - Math.Exp(-leak * near)) / leak) / (1 - NearEdge);
+            b.Control = Math.Clamp(b.RunControlStart - Caution * Math.Max(0, weighted) / b.RunTolerance, 0, 1);
             if (b.Control < SurvivedBelow) p.Survived();
         }
         if (learn && b.RunSeconds >= 3 && b.RunWork > 0 && b.RunCap >= EstimateCap)
@@ -335,24 +350,27 @@ public static class Body
             b.Checks.Add(new(atSeconds, b.RunMethod, b.RunStartCloseness, expected, b.RunSeconds, b.RunRestBefore));
             if (b.Checks.Count > 300) b.Checks.RemoveAt(0);
 
-            if (b.RunRestBefore < 2)
+            // What his pace must have been, taking where she thought he started as right. From low
+            // down that is a clean measure. Straight after an edge it rests on a guess at how far he
+            // eased off; after a rest it rests on her idea of his recovery, so the run is split
+            // between the two.
+            bool rested = b.RunRestBefore >= 2;
+            double paceWeight = p.PaceFixed ? 0 : from <= 0.35 ? 1 : rested ? 0.5 : b.RunRestBefore < 0 && from <= 0.6 ? 1 : 0.3;
+            double seen = (1 - from * decay) / (1 - decay);
+            double paceSample = Math.Clamp(1 / (leak * seen * drive), 0.3, 3);
+            if (rested && from > 0.35 && !p.RecoveryFixed)
             {
-                // No rest to account for: the run measures his pace. From low down it is a clean
-                // measure; straight after an edge it rests on a guess at how far he eased off.
-                double weight = b.RunRestBefore < 0 && b.RunStartCloseness <= 0.6 ? 1 : 0.3;
-                double plateau = (1 - from * decay) / (1 - decay);
-                double sample = Math.Clamp(1 / (leak * plateau * drive), 0.3, 3);
-                p.Pace = Blend(p.Pace, p.PaceEvidence, sample, weight);
-                p.PaceEvidence = Math.Min(30, p.PaceEvidence + weight);
-            }
-            else
-            {
-                // After a rest following an edge: how far he had come down measures his recovery.
+                // And what his recovery must have been, taking her idea of his pace as right: how far he had come down.
                 double plateau = 1 / (p.Pace * drive * leak);
                 double start = Math.Clamp(plateau + (1 - plateau) / decay, 0.03, 0.97);
                 double halfLife = b.RunRestBefore * Math.Log(0.5) / Math.Log(start) / (1 + 0.6 * b.Need);
-                p.Recovery = Blend(p.Recovery, p.RecoveryEvidence, Math.Clamp(halfLife, 5, 180), 1);
-                p.RecoveryEvidence = Math.Min(30, p.RecoveryEvidence + 1);
+                p.Recovery = Blend(p.Recovery, p.RecoveryEvidence, Math.Clamp(halfLife, 5, 180), 0.5);
+                p.RecoveryEvidence = Math.Min(30, p.RecoveryEvidence + 0.5);
+            }
+            if (paceWeight > 0)
+            {
+                p.Pace = Blend(p.Pace, p.PaceEvidence, paceSample, paceWeight);
+                p.PaceEvidence = Math.Min(30, p.PaceEvidence + paceWeight);
             }
         }
         b.Closeness = 1;

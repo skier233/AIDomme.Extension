@@ -18,6 +18,32 @@
     { "id": "chat.playful", "act": "Chatter", "when": ["mood=Playful"], "variants": ["This is fun. For me, anyway.", "You're so easy to play with.", "I wonder what I'll make you do next. So do you."] },
     { "id": "chat.teasing", "act": "Chatter", "when": ["mood=Teasing"], "variants": ["Close, aren't you? Shame.", "Mmm. I can tell you want more. You're not getting it.", "I love it when you're this frustrated."] },
 
+    // ── His state, as she reads it ──
+    { "id": "chat.state.need", "act": "Chatter", "when": ["need>=60"], "weight": 1.5, "variants": [
+      "You need it badly now. I can tell. Good.",
+      "Look how much you want it. I made that.",
+      "That ache isn't going anywhere. I'll see to that."
+    ] },
+    { "id": "chat.state.control", "act": "Chatter", "when": ["control<=35", "step.category!=Rest"], "weight": 2, "variants": [
+      "You're hanging on by a thread. Don't you dare let go.",
+      "Careful. You're closer to going over than you think.",
+      "Hold yourself together. I'm not done."
+    ] },
+    { "id": "chat.state.overwhelm", "act": "Chatter", "when": ["overwhelm>=60"], "weight": 2, "variants": [
+      "Too much? It's supposed to be.",
+      "I know you want this to stop. That's why it doesn't.",
+      "You can't think straight any more, can you? Good."
+    ] },
+    { "id": "chat.state.starved", "act": "Chatter", "when": ["purpose=starve", "need>=30"], "weight": 2, "variants": [
+      "You'd give anything for a proper stroke right now. You're not getting one.",
+      "So little. And you want so much.",
+      "Does that feel like enough? No. I know."
+    ] },
+    { "id": "chat.state.close", "act": "Chatter", "when": ["closeness>=85", "purpose=control|ache"], "weight": 1.5, "variants": [
+      "Right there. So close. Stay with me.",
+      "I love keeping you this near the edge."
+    ] },
+
     // ── Mind games ──
     { "id": "chat.mind.undecided", "act": "Chatter", "when": ["manipulation>=5", "!promise.noorgasm"], "variants": [
       "I wonder if I'll let you cum tonight. I haven't decided. Or maybe I have.",

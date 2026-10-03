@@ -155,9 +155,12 @@ public sealed class SessionEngineTests
             engine.Timer(s, s.TimerGeneration);
         }
         // An hour of silence counts at most the unreported-stimulation allowance.
-        double max = Points.ForStimulation(MethodInfo.UserChoice(s.Methods), Points.MaxUnreportedStimulation.TotalSeconds, 0);
+        double max = Points.ForStimulation(MethodInfo.UserChoice(s.Methods), Points.MaxUnreportedStimulation.TotalSeconds, 0)
+            * Points.StateFactor(1, MethodInfo.UserChoice(s.Methods));
         Assert.InRange(s.Points, 0, max + 0.001);
         Assert.False(s.FinishDecided);
+        // And she no longer believes he is close: nothing has been heard from him.
+        Assert.True(s.Body.Closeness < 0.2, $"closeness {s.Body.Closeness}");
     }
 
     [Fact]

@@ -3,10 +3,27 @@
 {
   "modules": [
     // ── Edges ──
-    { "id": "edge.watching", "act": "EdgeRemark", "when": ["!#target"], "variants": ["Good. That's [edges].", "[Edges]. Keep going.", "Mm. [Edges].", "That's [edges] for me."] },
-    { "id": "edge.watching.cruel", "act": "EdgeRemark", "when": ["!#target", "mood=Cruel|Relentless"], "variants": ["[Edges]. Don't you dare go over.", "Another one. [Edges]. Again."] },
-    { "id": "edge.watching.teasing", "act": "EdgeRemark", "when": ["!#target", "mood=Teasing|Playful"], "variants": ["Ooh. That's [edges].", "[Edges], and you're still hard for me. Good.", "I love watching them pile up. [Edges]."] },
-    { "id": "edge.watching.many", "act": "EdgeRemark", "when": ["!#target", "edges>=12"], "weight": 2, "variants": ["[Edges] edges tonight. You're going to feel every one of them later.", "That's [edges]. I could do this all night."] },
+    { "id": "edge.watching", "act": "EdgeRemark", "when": ["!#pace", "!#target"], "variants": ["Good. That's [edges].", "[Edges]. Keep going.", "Mm. [Edges].", "That's [edges] for me."] },
+    { "id": "edge.watching.cruel", "act": "EdgeRemark", "when": ["!#pace", "!#target", "mood=Cruel|Relentless"], "variants": ["[Edges]. Don't you dare go over.", "Another one. [Edges]. Again."] },
+    { "id": "edge.watching.teasing", "act": "EdgeRemark", "when": ["!#pace", "!#target", "mood=Teasing|Playful"], "variants": ["Ooh. That's [edges].", "[Edges], and you're still hard for me. Good.", "I love watching them pile up. [Edges]."] },
+    { "id": "edge.watching.many", "act": "EdgeRemark", "when": ["!#pace", "!#target", "edges>=12"], "weight": 2, "variants": ["[Edges] edges tonight. You're going to feel every one of them later.", "That's [edges]. I could do this all night."] },
+    // How fast he got there, against what she expected of him.
+    { "id": "edge.quick", "act": "EdgeRemark", "when": ["#pace", "#quick"], "weight": 8, "variants": [
+      "That was quicker than usual.",
+      "Already? You got there fast.",
+      "That didn't take long. You're closer than you let on.",
+      "Fast. Someone's desperate tonight."
+    ] },
+    { "id": "edge.quick-back", "act": "EdgeRemark", "when": ["#pace", "#quick-back"], "weight": 8, "variants": [
+      "Back at the edge already? You barely came down.",
+      "Wow. You got back to the edge really fast.",
+      "That break did nothing for you, did it? Straight back up."
+    ] },
+    { "id": "edge.slow", "act": "EdgeRemark", "when": ["#pace", "#slow"], "weight": 8, "variants": [
+      "Took your time with that one.",
+      "That was slower than usual. Losing your nerve?",
+      "Finally. I was starting to wonder."
+    ] },
     { "id": "edge.target", "act": "EdgeRemark", "when": ["#target"], "variants": ["Good. [Left] more.", "One down. [Left] to go.", "Again.", "Keep going."] },
     { "id": "edge.target.last", "act": "EdgeRemark", "when": ["#target", "left<=1"], "weight": 3, "variants": ["One more.", "Last one. Make it count."] },
     { "id": "edge.counted", "act": "EdgeCounted", "variants": ["That's [made].", "[Made]. Keep going.", "Another one. [Made].", "[Made]. More."] },

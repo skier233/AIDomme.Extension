@@ -91,13 +91,21 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
         ExpireOffer(s, t);
         s.LastActivityUtc = Now;
         Accrue(s);
-        s.Points += Points.ForEdge(s.ActiveMethod ?? s.Current?.Method ?? MethodInfo.UserChoice(s.Methods), s.EdgesThisSession);
+        { double edgePoints = Points.ForEdge(s.ActiveMethod ?? s.Current?.Method ?? MethodInfo.UserChoice(s.Methods), s.EdgesThisSession); s.Points += edgePoints; s.Earned.Edges += edgePoints; }
         s.EdgesThisSession++;
         s.EdgesThisStep++;
         // An edge is 100% by definition; where she chose the method and pace it also teaches her his body.
         // Only the first edge of a step does: after it, how long he waits before the next is his own business.
+        int checks = s.Body.Checks.Count;
         Body.OnEdge(s.Body, s.Profile, learn: a.Pacing.DommeSets && s.ActiveMethod is { IsUserChoice: false } && s.Game is null && s.EdgesThisStep == 1,
             (Now - s.StartedAtUtc).TotalSeconds, estimate: true);
+        // He got there much faster or slower than she expected: she notices, now and then.
+        if (s.Body.Checks.Count > checks && s.Body.Checks[^1] is { ExpectedSeconds: >= 10 and < Body.Unreachable } check && s.Game is null && s.Price is null && random.Chance(60))
+        {
+            double ratio = check.ActualSeconds / check.ExpectedSeconds;
+            string? pace = ratio <= 0.65 ? (check.RestBefore >= 5 ? "quick-back" : "quick") : ratio >= 1.6 ? "slow" : null;
+            if (pace is not null) t.Say.Add(Utterance.Of(SpeechAct.EdgeRemark, "pace", pace, $"mood:{s.Mood.Mood}").With("edges", s.EdgesThisSession));
+        }
         PayOwedEdge(s, t);
 
         if (s.Game is { } game)
@@ -191,7 +199,7 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
     {
         var t = new Transition();
         if (!s.Active) return t;
-        s.Points += Points.ForEdge(s.ActiveMethod ?? MethodInfo.UserChoice(s.Methods), s.EdgesThisSession);
+        { double edgePoints = Points.ForEdge(s.ActiveMethod ?? MethodInfo.UserChoice(s.Methods), s.EdgesThisSession); s.Points += edgePoints; s.Earned.Edges += edgePoints; }
         s.EdgesThisSession++;
         PayOwedEdge(s, t);
         t.Notices.Add("An edge from an earlier step was recorded. It counts toward the session, but not toward the current target.");
@@ -267,7 +275,7 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
         if (s.Holding && s.Price is not null)
         {
             s.Holding = false;
-            s.Points += Points.ForHold(current.DurationOrCount);
+            { double holdPoints = Points.ForHold(current.DurationOrCount); s.Points += holdPoints; s.Earned.Holds += holdPoints; }
             PayPrice(s, t, planner);
             return t;
         }
@@ -283,7 +291,7 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
         if (s.Holding)
         {
             s.Holding = false;
-            s.Points += Points.ForHold(current.DurationOrCount);
+            { double holdPoints = Points.ForHold(current.DurationOrCount); s.Points += holdPoints; s.Earned.Holds += holdPoints; }
         }
         if (s.Suspended is { } suspended)
         {
@@ -1063,7 +1071,15 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
             if (cutoff < end) end = cutoff;
         }
         if (end > since)
-            s.Points += Points.ForStimulation(s.ActiveMethod ?? MethodInfo.UserChoice(s.Methods), (end - since).TotalSeconds, s.ActiveSpeed);
+        {
+            // The method's own worth, then what his state makes of it: seconds near the edge count for more.
+            var method = s.ActiveMethod ?? MethodInfo.UserChoice(s.Methods);
+            double plain = Points.ForStimulation(method, (end - since).TotalSeconds, s.ActiveSpeed);
+            double earned = plain * Points.StateFactor(s.Body.Closeness, method);
+            s.Points += earned;
+            if (method.TortLevel >= Points.Torturous) s.Earned.Torture += plain; else s.Earned.Stroking += plain;
+            s.Earned.Close += earned - plain;
+        }
         s.ActiveSinceUtc = until ?? Now;
     }
 
@@ -1102,8 +1118,11 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
         if (b.AsOfUtc is not DateTime since) { b.AsOfUtc = now; return; }
         double seconds = (now - since).TotalSeconds;
         if (seconds <= 0) return;
-        Body.Advance(b, s.Profile, ModeOf(s), s.ActiveMethod ?? MethodInfo.UserChoice(s.Methods), s.ActiveSpeed, seconds,
-            CapOf(s, AuthoritiesFor(s, random)));
+        var a = AuthoritiesFor(s, random);
+        var mode = ModeOf(s);
+        // When he sets the pace and has gone quiet, she stops assuming he is still stroking.
+        if (mode == BodyMode.Stroke && !a.Pacing.DommeSets && since >= s.LastActivityUtc + Points.MaxUnreportedStimulation) mode = BodyMode.Rest;
+        Body.Advance(b, s.Profile, mode, s.ActiveMethod ?? MethodInfo.UserChoice(s.Methods), s.ActiveSpeed, seconds, CapOf(s, a));
         b.AsOfUtc = now;
     }
 

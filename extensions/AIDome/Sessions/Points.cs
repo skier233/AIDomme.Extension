@@ -46,6 +46,18 @@ public static class Points
         return method.TimePoints * Math.Min(seconds, MaxUnreportedStimulation.TotalSeconds) * speedFactor;
     }
 
+    /// <summary>
+    /// What his state adds to a second of stimulation: time spent close is worth more than the same
+    /// seconds far from the edge, and more again on an intense method while he is close. It depends
+    /// only on her estimate of his closeness and the method, so it is the same in every mode. It is
+    /// about 1 for a middling method at a typical closeness, so a session's pace is what it was.
+    /// </summary>
+    public static double StateFactor(double closeness, MethodInfo method)
+        => 0.6 + 0.45 * Math.Clamp(closeness, 0, 1) + (closeness >= 0.75 ? 0.12 * method.Intensity / 10.0 : 0);
+
+    /// <summary>A method counts as torturous for the session's profile from here up.</summary>
+    public const int Torturous = 5;
+
     /// <summary>Holding at the edge.</summary>
     public static double ForHold(int seconds) => seconds <= 0 ? 0 : seconds / 5.0 + 1;
 }

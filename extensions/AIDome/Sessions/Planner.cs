@@ -71,8 +71,13 @@ public sealed class SegmentPlanner(IRandom r, Authorities a) : IPlanner
         var type = Plans.Catalogue.Find(segment.Type)!;
         // Whatever she is running, she does not ask for an edge from someone about to go over: his
         // control is hers to spend, so first he gets long enough to have some again.
+        // The same when he has only just come off an edge or a hold with little left: any stroking
+        // at all would keep him there, and that is a hold she did not ask for.
         bool edgesNext = segment.Written ? type.Step.Kind is StepKind.Edges or StepKind.Hold or StepKind.MaxEdges : segment.Edges;
-        if (edgesNext && a.Pacing.DommeSets && a.Edges.DommeSets && s.Body.Control < 0.25 && s.Current?.Kind != InstructionKind.Rest)
+        bool handsOffNext = !segment.Written && (segment.Purpose == Purpose.Cool || segment.Purpose == Purpose.Starve && segment.SpeedHigh == 0)
+            || segment.Written && type.Step.Kind is StepKind.Rest or StepKind.TeaseRest or StepKind.Game;
+        bool thin = edgesNext && a.Edges.DommeSets && s.Body.Control < 0.25 || !handsOffNext && s.Body.Closeness >= Body.NearEdge && s.Body.Control < 0.4;
+        if (thin && a.Pacing.DommeSets && s.Current?.Kind != InstructionKind.Rest)
         {
             int wait = (int)Math.Clamp(Body.RestToRegain(s.Profile, s.Body.Need, s.Body.Closeness, s.Body.Control, 0.5), 10, 90);
             return new(Rest(s, wait) with { Segment = type.Id }, wait) { Say = say, Tags = ["gap"] };
@@ -104,7 +109,8 @@ public sealed class SegmentPlanner(IRandom r, Authorities a) : IPlanner
         if (seg.Edges && a.Edges.DommeSets)
         {
             // Coming down from the last edge, as far as this segment lets him.
-            if (a.Pacing.DommeSets && seg.Steps > 0 && seg.Floor < 0.99 && b.Closeness > seg.Floor + 0.03)
+            // (Also when the segment begins straight after an edge or a hold in the one before.)
+            if (a.Pacing.DommeSets && seg.Floor < 0.99 && b.Closeness > seg.Floor + 0.03 && (seg.Steps > 0 || b.Closeness >= Body.NearEdge) && s.Current?.Kind != InstructionKind.Rest)
             {
                 double gap = Body.RestFor(s.Profile, b.Need, b.Closeness, seg.Floor);
                 // His control is hers to spend, not to waste: a longer gap when it is thin.
@@ -151,7 +157,7 @@ public sealed class SegmentPlanner(IRandom r, Authorities a) : IPlanner
     /// </summary>
     private (MethodInfo Method, int Speed) Reachable(SessionState s, MethodInfo method, int speed, double within = 200, double margin = 2.0)
     {
-        if (method.IsUserChoice || !a.Pacing.DommeSets || speed <= 0) return (method, speed);
+        if (!a.Pacing.DommeSets || speed <= 0) return (method, speed);
         double from = Math.Min(s.Body.Closeness, Body.AfterEdge);
         // Enough drive that he gets there even if he is slower than she thinks: a grip that only just
         // reaches the edge leaves him hovering under it, which is a hold she did not ask for.
@@ -159,7 +165,7 @@ public sealed class SegmentPlanner(IRandom r, Authorities a) : IPlanner
         if (s.Profile.PaceEvidence < 2) margin *= 1.25;
         bool Enough(MethodInfo m, int at) => Body.Plateau(s.Profile, m, at, s.Body.Need) >= margin && Body.ExpectedSeconds(s.Profile, m, at, s.Body.Need, from) <= within;
         while (speed < 10 && !Enough(method, speed)) speed++;
-        if (Enough(method, speed) || !a.Methods.DommeChooses) return (method, speed);
+        if (Enough(method, speed) || !a.Methods.DommeChooses || method.IsUserChoice) return (method, speed);
         var closer = s.Methods.Where(m => m.Closeness > method.Closeness && (!s.LubeActive || m.RequiresLube || !s.Methods.Any(x => x.RequiresLube && x.Closeness > method.Closeness)))
             .OrderByDescending(m => Body.Plateau(s.Profile, m, speed, s.Body.Need)).FirstOrDefault();
         return (closer ?? method, speed);

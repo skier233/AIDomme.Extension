@@ -138,6 +138,8 @@ public sealed class SessionState
     public MethodInfo? ActiveMethod { get; set; }
     public int ActiveSpeed { get; set; }
 
+    /// <summary>Where the points came from, so a session has a profile as well as a total.</summary>
+    public PointsEarned Earned { get; set; } = new();
     /// <summary>His state as she estimates it: closeness, need, control, overwhelm.</summary>
     public BodyState Body { get; set; } = new();
     /// <summary>What she believes about his body: pace, recovery, tolerance.</summary>
@@ -229,3 +231,17 @@ public sealed class SessionState
 
 /// <summary>An offer he refused, remembered so the next one for the same thing costs more.</summary>
 public sealed record RefusedOffer(OfferBuys Buys, int TemplateId, double Points);
+
+/// <summary>
+/// What earned the session's points, counted separately: plain stimulation, what being close added
+/// to it, torturous stimulation, edges and holds. Whatever is left of the total came from games and deals.
+/// </summary>
+public sealed class PointsEarned
+{
+    public double Stroking { get; set; }
+    /// <summary>What his closeness added to (or, far from the edge, took from) the stimulation.</summary>
+    public double Close { get; set; }
+    public double Torture { get; set; }
+    public double Edges { get; set; }
+    public double Holds { get; set; }
+}

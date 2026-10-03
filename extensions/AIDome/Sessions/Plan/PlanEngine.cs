@@ -326,7 +326,9 @@ public sealed class PlanEngine(IRandom r, SegmentCatalogue catalogue)
             // Back to what she was doing after a break, a game or a side of something else.
             if (!aimStarted && seg.Role == SegmentRole.Advancing && before is { Role: not SegmentRole.Advancing }) start = start.Tagged("back");
             if (seg.Announce > 0) start = start.With("count", seg.Announce);
-            say.Add(start);
+            // More of the same inside one aim needs no announcement.
+            bool same = before is not null && before.Type == seg.Type && before.Aim == seg.Aim && !aimStarted && !seg.Written;
+            if (!same) say.Add(start);
         }
 
         // Past the middle, she may hint at the ending: the truth, or a lie.
