@@ -19,7 +19,7 @@ Three terms. Everything else in this doc is a property of one of them.
 
 | Term | What it is | Lives |
 |---|---|---|
-| **Purpose** | What she wants him to feel. About six exist (section 4). | A small data entry each. No steps, no sentences. |
+| **Purpose** | What she wants him to feel. Five exist (section 4). | A small data entry each. No steps, no sentences. |
 | **Aim** | What she is pursuing over a longer stretch: a purpose plus what she wants achieved ("a long stretch of intense edging"). Spans several segments. | Run time only, in her plan. |
 | **Segment** | What is happening now: one purpose with the parameters she chose, for a few minutes. | Run time only, in her plan. |
 
@@ -27,8 +27,11 @@ A purpose is a definition; aims and segments are occurrences of it. "Test contro
 "Tonight's main aim: test his control for about fifteen minutes" is an aim. "Minutes 12 to 17, kept
 above 80% on Skin-Held Shaft Stroke, counts hidden" is a segment.
 
-Aims and segments are normally **improvised**: nothing is written for them. Either can instead be
-**written** where a specific shape is the point (section 7). Speech is separate, as in Phase 4:
+Everything that happens inside an aim is a segment, whether improvised or written. Most segments
+are **improvised**: nothing is written for them, and the steerer makes their steps. A new segment
+begins whenever she changes what she is doing: a different purpose, a different set of methods, a
+different way of handling gaps, a break. A segment (or a whole aim) can instead be **written** where
+a specific shape is the point (section 7). Speech is separate, as in Phase 4:
 lines are picked by facts (the purpose, his state, what just happened).
 
 ## 3. His state
@@ -68,10 +71,20 @@ The estimate needs three things about him:
 2. **Recovery:** how fast he comes down (one half-life; mostly a property of the person).
 3. **Tolerance:** how long he can stay near the edge (a baseline, scaled down by method intensity).
 
-Sessions must be good on day one, so these come from **defaults and from settings he can set
-himself**. Learning only refines them, gradually and in proportion to the evidence (edge times,
-the rest before each edge, holds survived, slips), and is never required. The tuning lab shows each
-value and where it came from, and lets him reset or override it.
+Sessions must be good on day one. How each value is found differs:
+
+- **Pace and recovery are learned, quickly.** Every edge is evidence: how long it took, and how
+  long the rest before it was. A handful of edges in the first session is enough to move off the
+  defaults, and she measures these better than he could describe them. He is not asked to set
+  them.
+- **Tolerance is his setting.** She can only observe "too much" when he slips, which may take
+  hours, and a slip does not say why. So he tells her (one question, with a sensible default).
+  Learning adjusts it slowly and mostly upward from what he demonstrably survives: long holds and
+  long stretches near the edge without a slip are clear evidence; a single slip is weak evidence
+  and moves it little.
+
+The tuning lab shows each value and where it came from, and lets him reset or override any of
+them.
 
 Per-method learning (he is unusually quick on one grip) can come later if the data shows it is
 needed. It is not in this phase.
@@ -83,9 +96,8 @@ needed. It is not in this phase.
 | Build the ache | Edging to build need | Good reach, moderate intensity; dry is fine |
 | Test control | Edging where stopping is hard | High reach, high intensity |
 | Overwhelm | He does it only because she ordered it | High torture |
-| Starve | Too little touch; desperate for more | High tease, low intensity, slow |
-| Cool | Bring him down | Hands off |
-| Simmer | Hands off but kept wanting (watching, listening) | Hands off, content |
+| Starve | Too little touch, or none; desperate for more | High tease, low intensity, slow; or hands off while he watches and listens |
+| Cool | Bring him down: a real break | Hands off |
 
 A purpose entry holds: which method properties fit, typical parameter values, what it does to his
 state, and who must hold the controls. For example:
@@ -97,6 +109,10 @@ Starve
   does to him:  need up slowly, overwhelm down, control recovers
   needs:        she sets the pace
 ```
+
+Starve covers both minimal touch and none at all (what earlier drafts called "simmer"): the purpose
+is the same, to make him desperate for stimulation, and how much touch he gets is a parameter. Cool
+is different in kind: its purpose is to bring him down.
 
 **Parameters are hers to choose** for each segment, starting from the purpose's typical values:
 where she keeps his closeness (or no target), how long, the gaps, whether edges carry holds and how
@@ -116,8 +132,8 @@ intense edging is part of that stretch.
 An aim gives the stretch a focus; it does not forbid everything else. Segments inside an aim are:
 
 - **Advancing:** the aim's own purpose. Most of the aim's time.
-- **Supporting:** there so the aim can continue or bite harder. A short cool-down, a simmer, a
-  game whose stakes come from the aim.
+- **Supporting:** there so the aim can continue or bite harder. A short cool-down, a hands-off
+  starve, a game whose stakes come from the aim.
 - **Side:** another purpose where it makes sense, such as a burst of torment inside an intense
   edging aim. More likely when she is cruel or it is a punishment session; rare otherwise.
 
@@ -137,7 +153,7 @@ debug and transcripts, revised by events.
 |---|---|
 | Low need, early | Build the ache |
 | High need, control intact | Test control |
-| High overwhelm | Cool or simmer, or starve |
+| High overwhelm | Cool, or starve |
 | Low control | Ease off: lower his closeness, lengthen gaps, or a milder method |
 | Long stretch at one level | Change the level, not just the method |
 
@@ -162,6 +178,27 @@ that keeps stories rare, so it does not become repetitive. Writing is always opt
 |---|---|
 | Segments | Games (fixed rules); an edge ladder; a countdown to an orgasm that does not come; a false finish |
 | Aims | Back and forth: rounds of overwhelm, then intense edging. Dread: she names what is coming, starves him while he waits, then delivers it. Mercy with a catch: he begs for a change and gets a worse one |
+
+### 7.1 When she chooses something written
+
+Improvising is the default. At each point where she decides what comes next, written segments and
+aims are candidates beside "improvise the next stretch", and one is picked only when all of these
+hold:
+
+- **It is allowed:** his limits and settings, who holds the controls, her persona (a false finish
+  needs her to play mind games; games must be switched on).
+- **It serves what she is doing:** its declared purpose and effect fit the current aim, as an
+  advancing, supporting or side segment.
+- **It is fresh:** not used too recently, by the usage table (within the session and across
+  sessions).
+- **Its turn comes up:** each has a base rarity, bent by her persona and mood (playful: more
+  games) and by his preference for it.
+
+Some are also offered by events rather than by her schedule: he begs to stop during overwhelm
+(mercy with a catch, or the back and forth), he fails a challenge, a deal.
+
+Written content is the seasoning: a bounded share of a session, so most of the time is improvised
+and steered to him.
 
 **Games** change in two ways. Their windows and targets come from his profile ("a little under his
 usual time on this method"). And a game inside an aim takes its stakes from that aim: during
@@ -226,7 +263,7 @@ What remains is: three terms, four states, three profile numbers, one steerer, o
 
 1. **Estimator, no behaviour change.** The four states from defaults; simulated users get a
    physiology; transcripts show states per step and the estimator check.
-2. **Profile.** His three settings; learning that refines them; the view in the lab.
+2. **Profile.** Pace and recovery learned from edges; his tolerance setting; the view in the lab.
 3. **Purposes and method choice.** Purposes replace the catalogue; methods chosen by fit.
 4. **Steering.** Gaps, holds within tolerance, hidden counts.
 5. **Aims and choosing from state.** Aims, segment roles, reasons.
@@ -239,8 +276,8 @@ What remains is: three terms, four states, three profile numbers, one steerer, o
 ## 13. Open questions
 
 1. **Preferences.** What replaces the 17 per-segment settings: purposes, written content, both?
-2. **Profile settings.** Their form: plain choices ("I can hold an edge: briefly / a while / a long
-   time") with an optional exact number, or numbers only.
+2. **Tolerance setting.** Its form: plain choices ("I can stay at the edge: briefly / a while / a
+   long time") with an optional exact number, or a number only.
 
 ## 14. Decision log
 
@@ -264,5 +301,10 @@ All 2026-10-03.
   his tolerance. A night can be one aim or several, depending partly on length.
 - Speech remarks on his state and on how an edge compares with his usual.
 - Transcripts and the debug view must show every concept in this doc.
+- Pace and recovery are learned quickly from edges and are not user settings; tolerance is his
+  setting, adjusted slowly and mainly from what he survives.
+- Simmer is folded into Starve (how much touch is a parameter); five purposes.
+- Improvised stretches are segments too. Improvising is the default; written content is chosen
+  only when allowed, fitting the aim, fresh and due, or when an event calls for it.
 - Consolidation: devices, patterns, build-up and "activity" were folded into the three terms and
   four states (section 11).
