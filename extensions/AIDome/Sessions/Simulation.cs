@@ -437,5 +437,5 @@ public static class Simulation
     }
 
     /// <summary>A transcript written to be read quickly: see <see cref="SessionReport"/>.</summary>
-    public static string Transcript(SimulationResult result, string title) => SessionReport.Transcript(result, title);
+    public static string Transcript(SimulationResult result, string title, bool detail = false) => SessionReport.Transcript(result, title, detail);
 }

@@ -254,7 +254,7 @@ public sealed class BodyTests
             var user = SimulatedUser.Obedient with { Pace = 0.9, Recovery = 28, Tolerance = 45, Offers = "decline" };
             var result = Simulation.Run(s, user, seed, chatter: false);
             if (Environment.GetEnvironmentVariable("AIDOMME_TRANSCRIPTS") is { Length: > 0 } folder)
-                File.WriteAllText(Path.Combine(Directory.CreateDirectory(folder).FullName, $"Truthful-tolerance-{seed}.md"), Simulation.Transcript(result, $"Truthful-tolerance-{seed}"));
+                File.WriteAllText(Path.Combine(Directory.CreateDirectory(folder).FullName, $"Truthful-tolerance-{seed}.md"), Simulation.Transcript(result, $"Truthful-tolerance-{seed}", detail: true));
             if (result.State.UnauthorizedOrgasms > 0) slips++;
             if (result.State.Body.LowestControl < 0.6) tested++;
             // Every segment she chose says why and with what parameters.
@@ -275,22 +275,20 @@ public sealed class BodyTests
     public void TheTranscript_ShowsWhatIsNeededToDebugASession()
     {
         var result = Simulation.Run(TranscriptTests.NewSession(SessionMode.FullGuided, 33, length: 5), SimulatedUser.Obedient, 33);
+        // By default: what the session started from, what it came to, the methods, the flow and the chat.
         string text = Simulation.Transcript(result, "debug");
-        foreach (var expected in new[]
-        {
-            // The verdict first.
-            "FLAGS", "Outcome", "Length", "Purposes", "Closeness", "Need", "Control", "Overwhelm", "Her model", "sources:", "Points", "seed 33",
-            // Then one line per segment, with her reasons.
-            "## Timeline", "AIM 1", "wanted:", "why:",
-            // Then the detail.
-            "## Detail", "Close est", "Ctl est", "true", "Gap", "Expected", "Actual", "## Session",
-        })
+        foreach (var expected in new[] { "Settings", "intensity", "Result", "Time", "Purposes", "Methods", "## Flow", "AIM 1", "she wanted:", "## Chat", "seed 33" })
             Assert.Contains(expected, text);
-        // It stays narrow enough to read in a plain editor, and the verdict fits on a screen.
+        Assert.DoesNotContain("Model detail", text);
         var lines = text.Split('\n');
-        Assert.True(lines.Take(lines.ToList().FindIndex(x => x.StartsWith("## Timeline"))).Count() <= 30);
+        Assert.True(lines.Take(lines.ToList().FindIndex(x => x.StartsWith("## Flow"))).Count() <= 40);
+        // On request: how her estimates did against the simulated user.
+        string detailed = Simulation.Transcript(result, "debug", detail: true);
+        foreach (var expected in new[] { "## Model detail", "FLAGS", "Her model", "sources:", "Close est", "Ctl est", "true", "Gap", "Expected", "Actual" })
+            Assert.Contains(expected, detailed);
         var metrics = SessionReport.Measure(result, "debug");
-        Assert.NotNull(SessionReport.Summary([metrics]));
+        Assert.DoesNotContain("Model detail", SessionReport.Summary([metrics]));
+        Assert.Contains("Model detail", SessionReport.Summary([metrics], detail: true));
         // The points are all accounted for.
         var e = result.State.Earned;
         Assert.True(e.Stroking + e.Torture + e.Edges > 0);

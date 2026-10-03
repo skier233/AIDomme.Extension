@@ -194,9 +194,12 @@ out as readable transcripts, with her plan and each revision:
 $env:AIDOMME_TRANSCRIPTS="$env:TEMP\aidomme-transcripts"; dotnet test tests/AIDome.Tests --filter "FullyQualifiedName~TranscriptTests"
 ```
 
-Start with `_SUMMARY.md` in that folder: every session in one table, the averages, and every flag
-(anything that suggests the tuning is off) in one list. Each session's own file opens with its
-verdict and flags, then one line per segment with her reason, then the detail.
+Start with `_SUMMARY.md` in that folder: every session in one table (its sliders, outcome, minutes
+against what the Length means, edges, and the mix of purposes). Each session's own file has the
+settings it started from, what it came to, the methods used with time and edges on each, the flow
+(her aims, the segments inside each, every step) and the chat. The user is simulated, so how her
+estimates did against him is left out; set `AIDOMME_TRANSCRIPT_DETAIL=1` as well to add it (his
+state per step, her edge timing, flags) when debugging the model.
 
 To run them with your own settings instead of the defaults (her persona, endings, lengths, your
 method library and deals, your usual session sliders and your pace), point them at

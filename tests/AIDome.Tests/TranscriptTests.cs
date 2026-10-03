@@ -125,6 +125,9 @@ public sealed class TranscriptTests(ITestOutputHelper output)
         yield return ("Promised-denial-with-debt", Simulation.Run(NewSession(SessionMode.FullGuided, 79, owed: owed), SimulatedUser.Beggar, 9));
     }
 
+    /// <summary>AIDOMME_TRANSCRIPT_DETAIL=1 adds how her estimates did against the simulated user (states, edge timing, flags).</summary>
+    public static bool Detail => !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("AIDOMME_TRANSCRIPT_DETAIL"));
+
     [Fact]
     public void TheShippedLinesAndSegmentsAreValid()
     {
@@ -148,7 +151,7 @@ public sealed class TranscriptTests(ITestOutputHelper output)
             measured.Add(SessionReport.Measure(result, name));
             if (!string.IsNullOrWhiteSpace(folder))
             {
-                var text = Simulation.Transcript(result, name);
+                var text = Simulation.Transcript(result, name, Detail);
                 // With real settings, say so under the title.
                 if (RealSettings.FromEnvironment is { } real) text = text.Insert(text.IndexOf('\n') + 1, $"\n_{real.Describe()}_\n");
                 File.WriteAllText(Path.Combine(folder, $"{name}.md"), text);
@@ -205,7 +208,7 @@ public sealed class TranscriptTests(ITestOutputHelper output)
         }
         // The whole run on one page: read this first.
         if (!string.IsNullOrWhiteSpace(folder))
-            File.WriteAllText(Path.Combine(folder, "_SUMMARY.md"), SessionReport.Summary(measured, RealSettings.FromEnvironment?.Describe()));
+            File.WriteAllText(Path.Combine(folder, "_SUMMARY.md"), SessionReport.Summary(measured, RealSettings.FromEnvironment?.Describe(), Detail));
         output.WriteLine($"{measured.Count(x => x.Flags.Count > 0)} of {measured.Count} sessions have flags.");
         var planned = SegmentCatalogue.Default.Types.Where(x => x.Planned).Select(x => x.Id).ToList();
         var missing = planned.Except(segments).ToList();

@@ -10,6 +10,8 @@ public sealed record SessionMetrics
     public string Mode { get; init; } = "";
     public string User { get; init; } = "";
     public string Outcome { get; init; } = "";
+    /// <summary>The session's sliders: intensity/length/denial/meanness.</summary>
+    public string Sliders { get; init; } = "";
     public double Minutes { get; init; }
     public double TargetMinutes { get; init; }
     /// <summary>Why it ended well short of its length, when it did (a deal, permission, a slip).</summary>
@@ -38,9 +40,10 @@ public sealed record SessionMetrics
 }
 
 /// <summary>
-/// Transcripts of simulated sessions, written to be read quickly: a verdict and the flags first,
-/// then one line per segment, then the detail (every step, the estimator check, the chat). All
-/// tables are fixed-width text so they read the same in a plain editor and a markdown viewer.
+/// Transcripts of simulated sessions, written to be read quickly: the settings a session started
+/// from, what it came to, the methods used, its flow (aims, segments, steps) and the chat. Because
+/// the user is simulated, how her estimates did against him is left out unless detail is asked for.
+/// All tables are fixed-width text so they read the same in a plain editor and a markdown viewer.
 /// <see cref="Summary"/> puts a whole run of sessions on one page.
 /// </summary>
 public static class SessionReport
@@ -78,7 +81,7 @@ public static class SessionReport
 
         var m = new SessionMetrics
         {
-            Name = name, Mode = s.Contract.Mode.ToString(), User = result.User?.Name ?? "", Outcome = s.Outcome.ToString(),
+            Name = name, Sliders = $"{s.Intensity}/{s.Length}/{s.Denial}/{s.Mean}", Mode = s.Contract.Mode.ToString(), User = result.User?.Name ?? "", Outcome = s.Outcome.ToString(),
             Minutes = minutes, TargetMinutes = s.BudgetMinutes, EndedEarly = early,
             Edges = s.EdgesThisSession, Slips = s.UnauthorizedOrgasms, AskedToCum = s.RequestsThisSession, AskedToRest = s.RestRequests,
             Believed = s.Profile, Truth = result.User, EdgeChecks = checks.Count,
@@ -155,7 +158,12 @@ public static class SessionReport
 
     // ── One session ──
 
-    public static string Transcript(SimulationResult result, string title)
+    /// <summary>
+    /// A session as it would be read: the settings it started from, what it came to, the methods
+    /// used, the flow (aims, segments, steps) and the chat. <paramref name="detail"/> adds what is
+    /// only useful for debugging her model against the simulated user (states, estimates, flags).
+    /// </summary>
+    public static string Transcript(SimulationResult result, string title, bool detail = false)
     {
         var s = result.State;
         var m = Measure(result, title);
@@ -163,46 +171,21 @@ public static class SessionReport
         sb.AppendLine($"# {title}");
         sb.AppendLine();
         sb.AppendLine("```");
-        Glance(sb, result, m);
+        Overview(sb, result, m);
         sb.AppendLine("```");
         sb.AppendLine();
-        if (s.Plan is { Aims.Count: > 0 })
-        {
-            sb.AppendLine("## Timeline");
-            sb.AppendLine("One line per segment: when, how long, what (* written, the rest improvised), purpose, edges, then her estimate of his closeness, need, control and overwhelm when it ended, then why she chose it.");
-            sb.AppendLine("```");
-            Timeline(sb, result);
-            sb.AppendLine("```");
-            sb.AppendLine();
-        }
+        sb.AppendLine("## Flow");
+        sb.AppendLine("```");
+        Flow(sb, result);
+        sb.AppendLine("```");
         if (result.Revisions.Count > 0)
         {
-            sb.AppendLine("## How the plan changed");
+            sb.AppendLine();
+            sb.AppendLine("Changes of plan:");
             foreach (var revision in result.Revisions) sb.AppendLine($"- {revision}");
-            sb.AppendLine();
-        }
-        sb.AppendLine("## Detail");
-        if (result.Steps.Count > 0)
-        {
-            sb.AppendLine("Every step, with each segment's parameters on the line that opens it. States are start>end; est is her estimate, true the simulated user. Gap is the hands-off time just before.");
-            sb.AppendLine("```");
-            StepTable(sb, result);
-            sb.AppendLine("```");
-        }
-        if (s.Body.Checks.Count > 0)
-        {
-            sb.AppendLine();
-            sb.AppendLine("Each edge where she set the method and pace: how long she expected it to take, and how long it took.");
-            sb.AppendLine("```");
-            sb.AppendLine($"{"At",-6}{"Method",-28}{"From",6}{"Rest",7}{"Expected",10}{"Actual",8}{"Off",7}");
-            foreach (var c in s.Body.Checks)
-                sb.AppendLine($"{Clock(TimeSpan.FromSeconds(c.AtSeconds)),-6}{Fit(c.Method, 27),-28}{Pct(c.ClosenessBefore),6}{(c.RestBefore >= 0 ? Span(c.RestBefore) : "-"),7}" +
-                    $"{(c.ExpectedSeconds >= Body.Unreachable ? "never" : $"{c.ExpectedSeconds:0}s"),10}{$"{c.ActualSeconds:0}s",8}" +
-                    $"{(c.ExpectedSeconds >= Body.Unreachable ? "" : $"{(c.ActualSeconds - c.ExpectedSeconds) / Math.Max(1, c.ExpectedSeconds):+0%;-0%}"),7}");
-            sb.AppendLine("```");
         }
         sb.AppendLine();
-        sb.AppendLine("## Session");
+        sb.AppendLine("## Chat");
         sb.AppendLine("```");
         string? segment = null;
         foreach (var line in result.Lines)
@@ -216,7 +199,133 @@ public static class SessionReport
             sb.AppendLine($"{Clock(line.At)}  {who} {(line.Who == "Note" ? $"({line.Text})" : line.Text)}");
         }
         sb.AppendLine("```");
+        if (!detail) return sb.ToString();
+
+        sb.AppendLine();
+        sb.AppendLine("## Model detail (simulated user: only for debugging her estimates)");
+        sb.AppendLine("```");
+        Glance(sb, result, m);
+        sb.AppendLine("```");
+        if (s.Plan is { Aims.Count: > 0 })
+        {
+            sb.AppendLine("One line per segment: her estimate of his closeness, need, control and overwhelm when it ended.");
+            sb.AppendLine("```");
+            Timeline(sb, result);
+            sb.AppendLine("```");
+        }
+        if (result.Steps.Count > 0)
+        {
+            sb.AppendLine("Every step. States are start>end; est is her estimate, true the simulated user. Gap is the hands-off time just before.");
+            sb.AppendLine("```");
+            StepTable(sb, result);
+            sb.AppendLine("```");
+        }
+        if (s.Body.Checks.Count > 0)
+        {
+            sb.AppendLine("Each edge where she set the method and pace: how long she expected it to take, and how long it took.");
+            sb.AppendLine("```");
+            sb.AppendLine($"{"At",-6}{"Method",-28}{"From",6}{"Rest",7}{"Expected",10}{"Actual",8}{"Off",7}");
+            foreach (var c in s.Body.Checks)
+                sb.AppendLine($"{Clock(TimeSpan.FromSeconds(c.AtSeconds)),-6}{Fit(c.Method, 27),-28}{Pct(c.ClosenessBefore),6}{(c.RestBefore >= 0 ? Span(c.RestBefore) : "-"),7}" +
+                    $"{(c.ExpectedSeconds >= Body.Unreachable ? "never" : $"{c.ExpectedSeconds:0}s"),10}{$"{c.ActualSeconds:0}s",8}" +
+                    $"{(c.ExpectedSeconds >= Body.Unreachable ? "" : $"{(c.ActualSeconds - c.ExpectedSeconds) / Math.Max(1, c.ExpectedSeconds):+0%;-0%}"),7}");
+            sb.AppendLine("```");
+        }
         return sb.ToString();
+    }
+
+    private static bool HandsOff(StepRecord step)
+        => step.Game is null && step.Directive.Category != StepCategory.Hold
+            && (step.Directive.Method is null || step.Directive.Category is StepCategory.Rest or StepCategory.Offer);
+
+    /// <summary>The settings the session started from, what it came to, and the methods she used.</summary>
+    private static void Overview(StringBuilder sb, SimulationResult result, SessionMetrics m)
+    {
+        var s = result.State;
+        void Line(string label, string text) => sb.AppendLine($"{label,-10}{text}");
+        Line("Settings", $"{s.Contract.Mode}{(s.Contract.Punishment ? ", punishment session" : "")}; intensity {s.Intensity}, length {s.Length}" +
+            $"{(m.TargetMinutes > 0 ? $" (about {m.TargetMinutes:0} min)" : "")}, denial {s.Denial}, meanness {s.Mean}");
+        Line("Her", $"harshness {s.Persona.Harshness}, humiliation {s.Persona.Humiliation}, mind games {s.Persona.Manipulation}, talkativeness {s.Persona.Talkativeness}; " +
+            $"leaned toward {s.Ending.Kind} ({s.Ending.Reason})");
+        if (result.User is { } u) Line("User", $"simulated \"{u.Name}\", seed {result.Seed}");
+        sb.AppendLine();
+        Line("Result", $"{m.Outcome} after {Span(m.Minutes * 60)}; {m.Edges} edge{(m.Edges == 1 ? "" : "s")}" +
+            $"{(m.Slips > 0 ? $", came without permission {m.Slips}x" : "")}; asked to cum {m.AskedToCum}x, to rest {m.AskedToRest}x" +
+            (m.EndedEarly.Length > 0 ? $"; ended early: {m.EndedEarly}" : ""));
+
+        TimeSpan stroking = TimeSpan.Zero, handsOff = TimeSpan.Zero, holds = TimeSpan.Zero, games = TimeSpan.Zero;
+        var methods = new Dictionary<string, (TimeSpan Time, int Edges, int Steps)>();
+        foreach (var step in result.Steps)
+        {
+            var took = step.End - step.Start;
+            var d = step.Directive;
+            if (step.Game is not null) games += took;
+            else if (d.Category == StepCategory.Hold) holds += took;
+            else if (HandsOff(step)) handsOff += took;
+            else stroking += took;
+            if (d.Method is null || HandsOff(step) || d.Category == StepCategory.Hold) continue;
+            string name = d.Method.IsUserChoice ? "(his choice of grip)" : d.Method.Name;
+            var was = methods.GetValueOrDefault(name);
+            methods[name] = (was.Time + took, was.Edges + step.Edges, was.Steps + 1);
+        }
+        Line("Time", $"stroking {Span(stroking)}, hands off {Span(handsOff)}, holding at the edge {Span(holds)}, games {Span(games)}");
+        if (m.Purposes.Count > 0)
+        {
+            double total = m.Purposes.Sum(x => x.Seconds);
+            Line("Purposes", string.Join(", ", m.Purposes.Select(x => $"{Short(x.Purpose)} {Pct(x.Seconds / total)}")) + $"  ({m.Aims} aims, {m.Segments} segments, {m.Written} written)");
+        }
+        if (methods.Count == 0) return;
+        sb.AppendLine();
+        sb.AppendLine($"{"Methods",-34}{"Time",7}{"Times",7}{"Edges",7}");
+        foreach (var (name, x) in methods.OrderByDescending(x => x.Value.Time))
+            sb.AppendLine($"  {Fit(name, 31),-32}{Span(x.Time),7}{x.Steps,7}{(x.Edges > 0 ? x.Edges.ToString() : ""),7}");
+    }
+
+    /// <summary>The session as it went: her aims, the segments inside each, and every step with its method, speed, time and edges.</summary>
+    private static void Flow(StringBuilder sb, SimulationResult result)
+    {
+        var s = result.State;
+        var plan = s.Plan;
+        TimeSpan At(DateTime? t) => (t ?? s.LastActivityUtc) - s.StartedAtUtc;
+        var segments = plan?.Segments.Where(x => x.Started && x.Type != SegmentCatalogue.Ending).ToList() ?? [];
+        PlannedSegment? current = null;
+        int aim = -1;
+        bool ending = false;
+        foreach (var step in result.Steps)
+        {
+            var planned = step.Directive.Category == StepCategory.Finish ? null
+                : segments.LastOrDefault(x => x.StartedUtc is DateTime since && since - s.StartedAtUtc <= step.Start);
+            if (planned is not null && planned != current)
+            {
+                current = planned;
+                if (planned.Aim != aim && planned.Aim >= 0 && planned.Aim < plan!.Aims.Count)
+                {
+                    if (aim >= 0) sb.AppendLine();
+                    aim = planned.Aim;
+                    var a = plan.Aims[aim];
+                    string written = SegmentCatalogue.Default.FindAim(a.Written) is { } shape ? $" as \"{shape.Name}\"" : "";
+                    sb.AppendLine($"AIM {aim + 1}: {Purposes.Name(a.Purpose).ToUpperInvariant()}{written}{(a.Origin == "plan" ? "" : $" [{a.Origin}]")}   {Clock(At(a.StartedUtc))}-{Clock(At(a.EndedUtc))}");
+                    sb.AppendLine($"       she wanted: {a.Goal}{(a.Ended.Length > 0 ? $"; ended because {a.Ended}" : "")}");
+                }
+                var inside = result.Steps.Where(x => x.Start >= At(planned.StartedUtc) && x.Start < At(planned.EndedUtc)).ToList();
+                int edges = inside.Sum(x => x.Edges);
+                string role = planned.Role switch { SegmentRole.Advancing => "", SegmentRole.Supporting => ", supporting", _ => ", on the side" };
+                string name = SegmentCatalogue.Default.Find(planned.Type)?.Name ?? planned.Type;
+                sb.AppendLine($"  {name}{(planned.Written ? " (written)" : "")}{role}: {Span(At(planned.EndedUtc) - At(planned.StartedUtc))}" +
+                    $"{(edges > 0 ? $", {edges} edge{(edges == 1 ? "" : "s")}" : "")}{(planned.Origin == "plan" ? "" : $"   [{planned.Origin}]")}");
+            }
+            else if (step.Directive.Category == StepCategory.Finish && !ending)
+            {
+                ending = true;
+                current = null;
+                sb.AppendLine();
+                sb.AppendLine("THE ENDING");
+            }
+            var d = step.Directive;
+            // An edge step says its own count; anywhere else an edge is worth noting.
+            string noted = step.Edges > 0 && d.Kind != Data.InstructionKind.EdgeCount ? $"   <- {step.Edges} edge{(step.Edges == 1 ? "" : "s")}" : "";
+            sb.AppendLine($"    {Clock(step.Start)} {Span(step.End - step.Start),5}  {Simulation.Describe(step)}{noted}");
+        }
     }
 
     private static void Glance(StringBuilder sb, SimulationResult result, SessionMetrics m)
@@ -327,62 +436,66 @@ public static class SessionReport
 
     // ── A whole run on one page ──
 
-    /// <summary>Every session of a run in one table, the flags gathered in one list, and the averages that say whether the tuning holds.</summary>
-    public static string Summary(IReadOnlyList<SessionMetrics> runs, string? settings = null)
+    /// <summary>
+    /// A run of sessions on one page: what each started from and came to. <paramref name="detail"/>
+    /// adds how her model did against the simulated users, and the flags.
+    /// </summary>
+    public static string Summary(IReadOnlyList<SessionMetrics> runs, string? settings = null, bool detail = false)
     {
         var sb = new StringBuilder();
-        sb.AppendLine("# Summary of simulated sessions");
+        sb.AppendLine("# Simulated sessions");
         sb.AppendLine();
         if (settings is not null) sb.AppendLine($"_{settings}_").AppendLine();
-        var flagged = runs.Where(x => x.Flags.Count > 0).ToList();
         var guided = runs.Where(x => x.TargetMinutes > 0 && x.Segments > 0).ToList();
         var full = guided.Where(x => x.EndedEarly.Length == 0).ToList();
-        var learned = runs.Where(x => x.Truth is not null && x.EdgeChecks >= 6).ToList();
         sb.AppendLine("```");
-        sb.AppendLine($"Sessions        {runs.Count}; {flagged.Count} with flags ({runs.Sum(x => x.Flags.Count)} flags)");
-        sb.AppendLine($"Outcomes        {string.Join(", ", runs.GroupBy(x => x.Outcome).OrderByDescending(g => g.Count()).Select(g => $"{g.Key} {g.Count()}"))}");
+        sb.AppendLine($"Sessions   {runs.Count}");
+        sb.AppendLine($"Outcomes   {string.Join(", ", runs.GroupBy(x => x.Outcome).OrderByDescending(g => g.Count()).Select(g => $"{g.Key} {g.Count()}"))}");
         if (full.Count > 0)
-            sb.AppendLine($"Length          {Pct(full.Average(x => x.Minutes / x.TargetMinutes))} of what the setting means on average, from {Pct(full.Min(x => x.Minutes / x.TargetMinutes))} to {Pct(full.Max(x => x.Minutes / x.TargetMinutes))} " +
-                $"({full.Count} sessions that ran to her ending; {guided.Count - full.Count} ended early by a deal, permission or a slip)");
-        sb.AppendLine($"Slips           {runs.Count(x => x.Slips > 0)} sessions; by user: {string.Join(", ", runs.GroupBy(x => x.User).Select(g => $"{g.Key} {g.Count(x => x.Slips > 0)}/{g.Count()}"))}");
-        if (learned.Count > 0)
-        {
-            sb.AppendLine($"Her model       pace off by {Pct(learned.Average(x => Math.Abs(x.Believed.Pace - x.Truth!.Pace) / x.Truth.Pace))}, recovery by {Pct(learned.Average(x => Math.Abs(x.Believed.Recovery - x.Truth!.Recovery) / x.Truth.Recovery))} " +
-                $"at the end; edge timing off by {Pct(learned.Average(x => x.Miss))}, {Pct(learned.Average(x => x.LateMiss))} in the later half; control estimate {learned.Average(x => x.ControlGap):+0;-0;0} points against the truth (below zero is the careful side) ({learned.Count} sessions with 6 or more measured edges)");
-        }
+            sb.AppendLine($"Length     {Pct(full.Average(x => x.Minutes / x.TargetMinutes))} of what the Length setting means on average ({Pct(full.Min(x => x.Minutes / x.TargetMinutes))} to {Pct(full.Max(x => x.Minutes / x.TargetMinutes))}); " +
+                $"{guided.Count - full.Count} more ended early (marked *)");
         if (guided.Count > 0)
         {
             double total = guided.Sum(x => x.Purposes.Sum(p => p.Seconds));
             var mix = guided.SelectMany(x => x.Purposes).GroupBy(x => x.Purpose).Select(g => (g.Key, g.Sum(x => x.Seconds))).OrderByDescending(x => x.Item2);
-            sb.AppendLine($"Purposes        {string.Join(", ", mix.Select(x => $"{Short(x.Key)} {Pct(x.Item2 / total)}"))}; {Pct(guided.Sum(x => x.Written) / (double)Math.Max(1, guided.Sum(x => x.Segments)))} of segments written");
-            sb.AppendLine($"His state       need built to {Pct(guided.Average(x => x.PeakNeed))} on average; lowest control {Pct(guided.Average(x => x.LowestControl))}; peak overwhelm {Pct(guided.Average(x => x.PeakOverwhelm))}");
+            sb.AppendLine($"Purposes   {string.Join(", ", mix.Select(x => $"{Short(x.Key)} {Pct(x.Item2 / total)}"))}; {Pct(guided.Sum(x => x.Written) / (double)Math.Max(1, guided.Sum(x => x.Segments)))} of segments written");
         }
-        sb.AppendLine("```");
         sb.AppendLine();
-
-        sb.AppendLine("## Flags");
-        if (flagged.Count == 0) sb.AppendLine("None.");
-        sb.AppendLine("```");
-        foreach (var run in flagged)
-        {
-            sb.AppendLine(run.Name);
-            foreach (var flag in run.Flags) sb.AppendLine($"  ! {flag}");
-        }
-        sb.AppendLine("```");
+        sb.AppendLine("Sliders: intensity/length/denial/meanness. Minutes: run / what the Length means (* ended early: a deal, permission or a slip).");
+        sb.AppendLine("Mix: share of time on ache/control/overwhelm/starve.");
         sb.AppendLine();
-
-        sb.AppendLine("## Every session");
-        sb.AppendLine("Len: minutes run / minutes the setting means (* ended early by a deal, permission or a slip). Pace and Rec: what she ended up believing / the truth. Miss: edge timing, later half. Ctl: lowest control, her estimate / true. Mix: share of time by purpose (a ache, c control, o overwhelm, s starve).");
-        sb.AppendLine("```");
-        sb.AppendLine($"{"Session",-34}{"Outcome",-20}{"Len",-9}{"Edg",-5}{"Slip",-5}{"Pace",-11}{"Rec",-8}{"Miss",-6}{"Ctl",-9}{"Need",-6}{"Ovw",-6}{"Mix a/c/o/s",-14}{"Flags",-5}");
+        sb.AppendLine($"{"Session",-34}{"Sliders",-10}{"Outcome",-20}{"Minutes",-9}{"Edges",-7}{"Aims",-6}{"Segs",-6}{"Mix a/c/o/s",-13}");
         foreach (var x in runs)
         {
             double total = Math.Max(1, x.Purposes.Sum(p => p.Seconds));
             double Share(Purpose p) => x.Purposes.Where(y => y.Purpose == p).Sum(y => y.Seconds) / total * 100;
             string mix = x.Segments == 0 ? "-" : $"{Share(Purpose.Ache):0}/{Share(Purpose.Control):0}/{Share(Purpose.Overwhelm):0}/{Share(Purpose.Starve):0}";
-            sb.AppendLine($"{Fit(x.Name, 33),-34}{Fit(x.Outcome, 19),-20}{(x.TargetMinutes > 0 ? $"{x.Minutes:0}/{x.TargetMinutes:0}{(x.EndedEarly.Length > 0 ? "*" : "")}" : $"{x.Minutes:0}"),-9}{x.Edges,-5}{(x.Slips > 0 ? x.Slips.ToString() : ""),-5}" +
+            sb.AppendLine($"{Fit(x.Name, 33),-34}{x.Sliders,-10}{Fit(x.Outcome, 19),-20}{(x.TargetMinutes > 0 ? $"{x.Minutes:0}/{x.TargetMinutes:0}{(x.EndedEarly.Length > 0 ? "*" : "")}" : $"{x.Minutes:0}"),-9}" +
+                $"{x.Edges,-7}{(x.Aims > 0 ? x.Aims.ToString() : "-"),-6}{(x.Segments > 0 ? x.Segments.ToString() : "-"),-6}{mix,-13}");
+        }
+        sb.AppendLine("```");
+        if (!detail) return sb.ToString();
+
+        var flagged = runs.Where(x => x.Flags.Count > 0).ToList();
+        var learned = runs.Where(x => x.Truth is not null && x.EdgeChecks >= 6).ToList();
+        sb.AppendLine();
+        sb.AppendLine("## Model detail (simulated users: only for debugging her estimates)");
+        sb.AppendLine("```");
+        sb.AppendLine($"Slips      {runs.Count(x => x.Slips > 0)} sessions; by user: {string.Join(", ", runs.GroupBy(x => x.User).Select(g => $"{g.Key} {g.Count(x => x.Slips > 0)}/{g.Count()}"))}");
+        if (learned.Count > 0)
+            sb.AppendLine($"Her model  pace off by {Pct(learned.Average(x => Math.Abs(x.Believed.Pace - x.Truth!.Pace) / x.Truth.Pace))}, recovery by {Pct(learned.Average(x => Math.Abs(x.Believed.Recovery - x.Truth!.Recovery) / x.Truth.Recovery))}; " +
+                $"edge timing off by {Pct(learned.Average(x => x.LateMiss))} in the later half; control estimate {learned.Average(x => x.ControlGap):+0;-0;0} points against the truth ({learned.Count} sessions with 6 or more measured edges)");
+        sb.AppendLine();
+        sb.AppendLine($"{"Session",-34}{"Slip",-5}{"Pace",-11}{"Rec",-8}{"Miss",-6}{"Ctl",-9}{"Need",-6}{"Ovw",-6}{"Flags",-5}");
+        foreach (var x in runs)
+            sb.AppendLine($"{Fit(x.Name, 33),-34}{(x.Slips > 0 ? x.Slips.ToString() : ""),-5}" +
                 $"{(x.Truth is { } t ? $"{x.Believed.Pace:0.00}/{t.Pace:0.00}" : $"{x.Believed.Pace:0.00}"),-11}{(x.Truth is { } t2 ? $"{x.Believed.Recovery:0}/{t2.Recovery:0}" : $"{x.Believed.Recovery:0}"),-8}" +
-                $"{(x.EdgeChecks > 0 ? Pct(x.LateMiss) : "-"),-6}{$"{x.LowestControl * 100:0}/{x.LowestControlTrue * 100:0}",-9}{Pct(x.PeakNeed),-6}{Pct(x.PeakOverwhelm),-6}{mix,-14}{(x.Flags.Count > 0 ? x.Flags.Count.ToString() : ""),-5}");
+                $"{(x.EdgeChecks > 0 ? Pct(x.LateMiss) : "-"),-6}{$"{x.LowestControl * 100:0}/{x.LowestControlTrue * 100:0}",-9}{Pct(x.PeakNeed),-6}{Pct(x.PeakOverwhelm),-6}{(x.Flags.Count > 0 ? x.Flags.Count.ToString() : ""),-5}");
+        sb.AppendLine();
+        foreach (var run in flagged)
+        {
+            sb.AppendLine(run.Name);
+            foreach (var flag in run.Flags) sb.AppendLine($"  ! {flag}");
         }
         sb.AppendLine("```");
         return sb.ToString();
