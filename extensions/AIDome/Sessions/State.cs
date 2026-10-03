@@ -133,6 +133,9 @@ public sealed class SessionState
     // Points are the session clock: the same activity earns the same points in every mode.
     public double Points { get; set; }
     public double Budget { get; set; }
+    /// <summary>The minutes his Length means (a punishment runs longer), and the pace she assumed going in: the budget follows his pace tonight.</summary>
+    public double BudgetMinutes { get; set; }
+    public double AssumedPace { get; set; }
     /// <summary>Start of stimulation not yet converted into points (null while resting or paused).</summary>
     public DateTime? ActiveSinceUtc { get; set; }
     public MethodInfo? ActiveMethod { get; set; }

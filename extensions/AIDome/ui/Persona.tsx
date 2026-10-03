@@ -232,9 +232,9 @@ export function LengthsPanel() {
   return (
     <div className="aidomme-settings-panel space-y-3">
       <p className="text-sm text-secondary">
-        Roughly how many minutes of play each Length means to you; the lengths between follow. She still runs on what you do,
-        not the clock: a session full of edges ends sooner than one full of slow teasing. She learns your pace from the sessions
-        you finish.
+        Roughly how many minutes of play each Length means to you; the lengths between follow. She follows your pace as the
+        session goes, so a session lands near these minutes; one full of edges still ends a little sooner than one full of slow
+        teasing, and a deal you accept to cum early ends it when you have paid.
       </p>
       {lengthDials.map((dial) => (
         <Row key={dial.key} label={dial.label}>

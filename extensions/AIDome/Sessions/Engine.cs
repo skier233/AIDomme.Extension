@@ -62,6 +62,8 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
         s.StartedAtUtc = s.LastActivityUtc = s.StepStartedAtUtc = Now;
         s.Body.AsOfUtc = Now;
         s.Budget = Points.Budget(s.Length, s.Contract.Punishment, s.Lengths, s.Recall);
+        s.AssumedPace = Points.Pace(s.Recall);
+        s.BudgetMinutes = s.Budget / s.AssumedPace;
         var owed = s.Contract.Obligations;
         s.DenialUntilUtc = owed.NoOrgasmUntilUtc;
         s.DenialReason = owed.NoOrgasmReason;
@@ -1079,6 +1081,14 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
             s.Points += earned;
             if (method.TortLevel >= Points.Torturous) s.Earned.Torture += plain; else s.Earned.Stroking += plain;
             s.Earned.Close += earned - plain;
+        }
+        // The points are her clock, set to his pace as tonight shows it. Bonuses and penalties from
+        // games are not pace: they still move the ending.
+        if (s.BudgetMinutes > 0 && !s.FinishDecided)
+        {
+            var e = s.Earned;
+            double minutes = ((until ?? Now) - s.StartedAtUtc).TotalSeconds / 60 - s.PausedSeconds / 60;
+            s.Budget = s.BudgetMinutes * Points.PaceTonight(s.AssumedPace, e.Stroking + e.Close + e.Torture + e.Edges + e.Holds, minutes);
         }
         s.ActiveSinceUtc = until ?? Now;
     }

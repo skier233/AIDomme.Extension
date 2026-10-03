@@ -10,10 +10,10 @@ public static class Points
 {
     /// <summary>
     /// Points a typical user earns per minute of play (strokes, edges and holds, with rests between),
-    /// as the shipped methods score it: about 4. Each user's own pace replaces it as his sessions
+    /// as the shipped methods score it under her current scheduling: about 5.5. Each user's own pace replaces it as his sessions
     /// are recorded.
     /// </summary>
-    public const double DefaultPointsPerMinute = 4.0;
+    public const double DefaultPointsPerMinute = 5.5;
 
     /// <summary>Stimulation that goes unreported longer than this is not counted (the user may have stepped away).</summary>
     public static readonly TimeSpan MaxUnreportedStimulation = TimeSpan.FromMinutes(5);
@@ -32,6 +32,20 @@ public static class Points
         if (recall is not { PointsPerMinute: double seen, PaceSessions: > 0 and var n }) return DefaultPointsPerMinute;
         double observed = Math.Clamp(seen, DefaultPointsPerMinute / 2, DefaultPointsPerMinute * 2);
         return (DefaultPointsPerMinute * 3 + observed * n) / (3 + n);
+    }
+
+    /// <summary>
+    /// His pace as this session shows it: what she assumed going in, pulled toward the points a
+    /// minute he is actually earning as the minutes add up (half and half after eight minutes, up
+    /// to four fifths). So a Length means roughly its minutes whoever he is, while a session full
+    /// of edges still ends a little sooner than one full of slow teasing.
+    /// </summary>
+    public static double PaceTonight(double assumed, double earned, double minutes)
+    {
+        if (minutes < 2 || assumed <= 0) return assumed;
+        double weight = Math.Min(0.8, minutes / (minutes + 8));
+        double seen = Math.Clamp(earned / minutes, assumed / 2.5, assumed * 2.5);
+        return assumed * (1 - weight) + seen * weight;
     }
 
     /// <summary>One recorded edge. Later edges in a session are worth slightly more (up to +30%).</summary>

@@ -353,7 +353,15 @@ what it was). Plain stimulation, torturous stimulation, what closeness added, ed
 counted separately, so a session has a profile: need built, control tested, overwhelm reached. The
 same seconds earn the same in every mode.
 
-**Lines.** She announces a new aim, says when she comes back to one after a break or a game, eases
+**Length.** The points budget follows his pace tonight: it starts from the pace she assumed (the
+default of 5.5 points a minute, or what his recorded sessions show) and is pulled toward the points
+a minute he is actually earning, half and half after eight minutes and up to four fifths. A Length
+therefore means roughly its minutes whoever he is (simulated sessions at Length 5 with his settings
+run 34 to 36 minutes against 40), while a session full of edges still ends a little sooner than one
+full of slow teasing. Bonuses and penalties from games are not pace and still move the ending.
+
+**Lines.** She sometimes says what she is after when a new aim begins (about three times in ten;
+mostly she just does it), sometimes says when she comes back to one after a break or a game, eases
 off in words when his control is thin, and remarks when he reaches the edge much faster or slower
 than she expected. A hidden count is "edge", then "Again." New facts for line conditions:
 `purpose`, `aim`, `role`, `closeness`, `need`, `control`, `overwhelm` (0 to 100); new tags:
@@ -401,8 +409,16 @@ Nothing in the scheduler asks what kind a segment is.
   stroking she assumes he keeps himself just under the edge.
 - When an edge takes far longer than she expected she does not yet react mid-step (speed up, or
   ask); she only notices afterwards.
-- Simulated sessions earn points faster than his real ones did (about twice the default pace with
-  his real methods), so simulated sessions run shorter than the Length says. Real sessions use his
-  recorded pace.
+- A session he buys his way out of with a deal (he asks to cum, accepts her price and pays it) ends
+  when he has paid, however early that is. That is the deal working, not the clock.
 - The session profile (need built, control tested, overwhelm) is recorded and shown but nothing
   yet shapes homework, punishments or deals by it.
+
+### After first feedback (2026-10-03)
+
+- She no longer announces every aim: stating it each time made her predictable. An aim's opening
+  line is now occasional, and so is "back to it" after a break.
+- Sessions ran at about half the minutes the Length setting means, because the budget assumed a
+  pace measured under the old scheduling. The budget now follows his pace within the session (see
+  Length above) and the default pace is 5.5 points a minute. Transcripts show the minutes a Length
+  means beside how long the session ran.

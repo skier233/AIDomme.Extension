@@ -302,6 +302,25 @@ public sealed class BodyTests
     }
 
     [Fact]
+    public void ALengthMeansItsMinutes_WhateverHisPace()
+    {
+        // Early on she goes by what she assumed; as the minutes add up, by what he is earning.
+        Assert.Equal(5.5, Points.PaceTonight(5.5, 30, 1));
+        Assert.InRange(Points.PaceTonight(5.5, 8 * 9.0, 8), 7.2, 7.3);
+        Assert.InRange(Points.PaceTonight(5.5, 40 * 9.0, 40), 8.2, 8.4);
+        // One wild stretch cannot run away with it.
+        Assert.True(Points.PaceTonight(5.5, 40 * 100.0, 40) <= 5.5 * 2.5);
+
+        foreach (int length in new[] { 3, 5, 7 })
+        {
+            var s = TranscriptTests.NewSession(SessionMode.FullGuided, 60 + length, length: length);
+            var result = Simulation.Run(s, SimulatedUser.Obedient with { Offers = "decline" }, 60 + length, chatter: false);
+            double minutes = (result.Steps[^1].End - result.Steps[0].Start).TotalMinutes;
+            Assert.InRange(minutes, s.BudgetMinutes * 0.7, s.BudgetMinutes * 1.3);
+        }
+    }
+
+    [Fact]
     public void AHiddenCount_IsEdgeThenAgain()
     {
         var r = new SeededRandom(1);

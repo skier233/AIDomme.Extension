@@ -51,7 +51,7 @@ registered in `AiDomeExtension.cs` (`DefineMigrations`).
 
 | What | Where |
 |---|---|
-| Points: per edge, per second, per hold; what his closeness adds; default pace (4 a minute); the budget from Length | `Sessions/Points.cs` |
+| Points: per edge, per second, per hold; what his closeness adds; default pace (5.5 a minute) and how the budget follows his pace within a session; the budget from Length | `Sessions/Points.cs` |
 | His body: how stimulation, rest and holds move closeness, need, control and overwhelm; what an edge teaches her; tolerance defaults | `Sessions/Body.cs` |
 | Her odds of letting him cum (denial slider, edges, mood, cadence, preferences) | `Sessions/Authorities.cs`, `DommePermission` |
 | Ending lean, hints, ruin chance | `Sessions/Plan/Ending.cs` |

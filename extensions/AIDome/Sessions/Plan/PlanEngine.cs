@@ -322,9 +322,10 @@ public sealed class PlanEngine(IRandom r, SegmentCatalogue catalogue)
             var start = Utterance.Of(SpeechAct.SegmentStart, $"segment:{seg.Type}", $"origin:{Slug(seg.Origin)}", $"purpose:{Purposes.Id(seg.Purpose)}", $"role:{seg.Role.ToString().ToLowerInvariant()}")
                 .Tagged((type?.Tags ?? []).Select(x => $"tag:{x}").ToArray());
             if (plan.Index == 0) start = start.Tagged("first");
-            if (aimStarted && plan.AimIndex > 0) start = start.Tagged("aim-start");
+            // She does not always say what she is after: sometimes she tells him, mostly she just does it.
+            if (aimStarted && plan.AimIndex > 0 && r.Chance(30)) start = start.Tagged("aim-start");
             // Back to what she was doing after a break, a game or a side of something else.
-            if (!aimStarted && seg.Role == SegmentRole.Advancing && before is { Role: not SegmentRole.Advancing }) start = start.Tagged("back");
+            if (!aimStarted && seg.Role == SegmentRole.Advancing && before is { Role: not SegmentRole.Advancing } && r.Chance(50)) start = start.Tagged("back");
             if (seg.Announce > 0) start = start.With("count", seg.Announce);
             // More of the same inside one aim needs no announcement.
             bool same = before is not null && before.Type == seg.Type && before.Aim == seg.Aim && !aimStarted && !seg.Written;

@@ -388,6 +388,7 @@ public static class Simulation
         var sb = new StringBuilder();
         var view = SessionHost.PlanOf(s);
         sb.AppendLine($"Mode {s.Contract.Mode}; intensity {s.Intensity}, length {s.Length}, denial {s.Denial}, meanness {s.Mean}{(s.Contract.Punishment ? "; punishment session" : "")}");
+        sb.AppendLine($"Length {s.Length} means about {s.BudgetMinutes:0} minutes; she starts from a pace of {s.AssumedPace:0.0} points a minute and follows his pace tonight.");
         sb.AppendLine($"Persona tonight: harshness {s.Persona.Harshness}, humiliation {s.Persona.Humiliation}, manipulation {s.Persona.Manipulation}, talkativeness {s.Persona.Talkativeness}");
         sb.AppendLine($"Mood: {view.Mood} ({view.MoodCause}), annoyance {view.Annoyance}");
         sb.AppendLine($"Ending she leans toward: {view.Ending} ({view.EndingReason}); {view.Presentation switch { "Honest" => "she will be honest about it", "Lie" => "she may lie about it", _ => "she will keep it to herself" }}");
@@ -513,6 +514,7 @@ public static class Simulation
         var total = result.Steps[^1].End - result.Steps[0].Start;
         var stim = stimulation.Values.Aggregate(TimeSpan.Zero, (a, b) => a + b);
         sb.AppendLine();
+        sb.AppendLine($"**Length:** {Span(total)} against the {result.State.BudgetMinutes:0} minutes his Length means.");
         sb.AppendLine($"**Totals:** {Span(total)} in all; stroking {Span(stim)}, hands off {Span(handsOff)}, holding at the edge {Span(holds)}, games {Span(games)}; " +
             $"{result.State.EdgesThisSession} edges; {result.State.Outcome}.");
         if (stimulation.Count > 0)
