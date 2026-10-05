@@ -454,8 +454,10 @@ From his notes and the log of a 40-minute punishment session (his own grip, her 
 - **She does not wait for ever.** In the log single edges took two to four minutes at "medium
   pace" with nothing from her. Past about twice what she expected she now tells him to go faster
   and raises the beat, up to three times.
-- **She learns his pace on his own grip too.** She learned nothing in that session because the
-  grip was his choice. Now she does, so her speeds and gaps fit him there as well.
+- **She does not learn his pace on his own grip.** When the grip is his choice she cannot know
+  which he is using, and he can change it as he goes, so those edges teach her nothing about his
+  pace or recovery (briefly tried, and taken out again). There she works from what she already
+  believes and relies on telling him to go faster.
 - **One climb cannot empty his control.** A slow climb was reckoned as minutes spent hovering under
   the edge, which put her estimate of his control at zero and had her easing off again and again.
   The cost of a single climb is now capped.

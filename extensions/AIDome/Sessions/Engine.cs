@@ -98,8 +98,9 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
         s.EdgesThisStep++;
         // An edge is 100% by definition; where she chose the method and pace it also teaches her his body.
         // Only the first edge of a step does: after it, how long he waits before the next is his own business.
+        // And only on a method she chose: on his own grip she does not know what he is doing, and he may change it as he goes.
         int checks = s.Body.Checks.Count;
-        Body.OnEdge(s.Body, s.Profile, learn: a.Pacing.DommeSets && s.Game is null && s.EdgesThisStep == 1 && s.HurriedThisStep == 0,
+        Body.OnEdge(s.Body, s.Profile, learn: a.Pacing.DommeSets && s.ActiveMethod is { IsUserChoice: false } && s.Game is null && s.EdgesThisStep == 1 && s.HurriedThisStep == 0,
             (Now - s.StartedAtUtc).TotalSeconds, estimate: true);
         // He got there much faster or slower than she expected: she notices, now and then.
         if (s.Body.Checks.Count > checks && s.Body.Checks[^1] is { ExpectedSeconds: >= 10 and < Body.Unreachable } check && s.Game is null && s.Price is null && random.Chance(60))
