@@ -6,6 +6,18 @@
     // ── Any step ──
     { "id": "instruct.bare", "act": "Instruct", "weight": 3, "variants": ["[Instruction]"] },
     { "id": "instruct.lead", "act": "Instruct", "when": ["step.category!=Rest"], "weight": 1.2, "variants": ["Now. [Instruction]", "Next. [Instruction]", "Good. [Instruction]"] },
+    // He is taking too long to reach the edge she asked for.
+    { "id": "instruct.hurry", "act": "Instruct", "when": ["#hurry"], "weight": 30, "variants": [
+      "[Instruction]",
+      "You're taking too long. [Instruction]",
+      "I'm waiting. [Instruction]",
+      "Don't make me wait for it. [Instruction]"
+    ] },
+    { "id": "instruct.keep-under", "act": "Instruct", "when": ["step.category!=Rest", "segment=keep-under"], "weight": 4, "variants": [
+      "[Instruction]",
+      "[Instruction] Stay under it.",
+      "[Instruction] If you feel it coming, that's your problem. Don't stop."
+    ] },
     // The gap after an edge: how long she lets him come down is her doing.
     { "id": "instruct.gap", "act": "Instruct", "when": ["#gap"], "weight": 4, "variants": [
       "[Instruction]",

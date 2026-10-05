@@ -23,6 +23,8 @@
       "goal": "Warm him up slowly on grips that feel good, kept under the edge." },
     { "id": "stroke-steady", "name": "Steady stroking", "purpose": "ache", "tags": ["stroking"],
       "goal": "Steady stroking on grips that get him close, kept just under the edge so the want builds." },
+    { "id": "keep-under", "name": "Stay away from the edge", "purpose": "ache", "tags": ["stroking", "challenge"],
+      "goal": "Keep stroking on a good grip and do not reach the edge. Getting there costs him." },
     { "id": "edge-fresh", "name": "Slow edges", "purpose": "ache", "tags": ["edging", "slow"],
       "goal": "One unhurried edge at a time, with long enough between them that each is a fresh climb." },
     { "id": "edge-steady", "name": "Edging", "purpose": "control", "tags": ["edging"],

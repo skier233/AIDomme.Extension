@@ -337,7 +337,9 @@ public static class Body
             double near = from >= NearEdge ? b.RunSeconds : Math.Min(b.RunSeconds, Math.Log((plateau - NearEdge) / (plateau - 1)) / leak);
             double start = Math.Max(from, NearEdge);
             double weighted = ((plateau - NearEdge) * near - (plateau - start) * (1 - Math.Exp(-leak * near)) / leak) / (1 - NearEdge);
-            b.Control = Math.Clamp(b.RunControlStart - Caution * Math.Max(0, weighted) / b.RunTolerance, 0, 1);
+            // However long it took, one climb is a climb and not a hold: a very slow one more likely
+            // means he started further down than she thought than that he hovered under the edge.
+            b.Control = Math.Clamp(b.RunControlStart - Math.Min(0.3, Caution * Math.Max(0, weighted) / b.RunTolerance), 0, 1);
             if (b.Control < SurvivedBelow) p.Survived();
         }
         if (learn && b.RunSeconds >= 3 && b.RunWork > 0 && b.RunCap >= EstimateCap)

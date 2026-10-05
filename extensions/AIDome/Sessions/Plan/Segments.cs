@@ -206,7 +206,7 @@ public sealed class SegmentCatalogue
     /// <summary>The names the steerer gives the shapes it improvises. Each must be in the catalogue.</summary>
     public static readonly string[] Shapes =
     [
-        "slow-build", "stroke-steady", "edge-fresh", "edge-steady", "rapid-fire", "long-hold", "torment", "hated-grip", "punish",
+        "slow-build", "stroke-steady", "keep-under", "edge-fresh", "edge-steady", "rapid-fire", "long-hold", "torment", "hated-grip", "punish",
         "tempo-crawl", "tease-rest", "breather",
     ];
 
@@ -347,6 +347,8 @@ public sealed class PlannedSegment
     public double Floor { get; set; }
     /// <summary>Whether its steps ask for edges (otherwise timed stroking).</summary>
     public bool Edges { get; set; }
+    /// <summary>Timed stroking with an order not to reach the edge: an edge fails it.</summary>
+    public bool KeepUnder { get; set; }
     /// <summary>The chance an edge is held, and how much of what he has left a hold spends.</summary>
     public double HoldChance { get; set; }
     public double HoldFraction { get; set; }
@@ -372,6 +374,7 @@ public sealed class PlannedSegment
             parts.Add(HoldChance <= 0 ? "no holds" : $"holds on {HoldChance:P0} of edges, each {HoldFraction:P0} of what he has left");
             parts.Add(Announce > 0 ? $"{Announce} edges announced" : "count hidden");
         }
+        if (KeepUnder) parts.Add("must stay away from the edge");
         if (SpeedHigh > 0) parts.Add(SpeedLow == SpeedHigh ? $"speed {SpeedLow}" : $"speeds {SpeedLow} to {SpeedHigh}");
         if (MethodNames.Count > 0) parts.Add("methods: " + string.Join(", ", MethodNames));
         return string.Join("; ", parts);
@@ -391,6 +394,8 @@ public sealed class SessionPlan
     public int Index { get; set; }
     public List<string> Revisions { get; set; } = [];
     public int Foreshadowed { get; set; }
+    /// <summary>How many times his begging has made the session longer.</summary>
+    public int Pestered { get; set; }
 
     [JsonIgnore] public PlannedSegment? Current => Index < Segments.Count ? Segments[Index] : null;
     [JsonIgnore] public Aim? CurrentAim => AimIndex < Aims.Count ? Aims[AimIndex] : null;

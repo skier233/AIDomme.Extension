@@ -77,9 +77,12 @@ public sealed class SegmentPlanner(IRandom r, Authorities a) : IPlanner
         bool handsOffNext = !segment.Written && (segment.Purpose == Purpose.Cool || segment.Purpose == Purpose.Starve && segment.SpeedHigh == 0)
             || segment.Written && type.Step.Kind is StepKind.Rest or StepKind.TeaseRest or StepKind.Game;
         bool thin = edgesNext && a.Edges.DommeSets && s.Body.Control < 0.25 || !handsOffNext && s.Body.Closeness >= Body.NearEdge && s.Body.Control < 0.4;
-        if (thin && a.Pacing.DommeSets && s.Current?.Kind != InstructionKind.Rest)
+        // And a hold is never followed straight by stroking: without a rest that is only more hold.
+        bool afterHold = !handsOffNext && s.Current?.Category == StepCategory.Hold;
+        if ((thin || afterHold) && a.Pacing.DommeSets && s.Current?.Kind != InstructionKind.Rest)
         {
-            int wait = (int)Math.Clamp(Body.RestToRegain(s.Profile, s.Body.Need, s.Body.Closeness, s.Body.Control, 0.5), 10, 90);
+            int wait = thin ? (int)Math.Clamp(Body.RestToRegain(s.Profile, s.Body.Need, s.Body.Closeness, s.Body.Control, 0.5), 10, 90)
+                : (int)Math.Clamp(Math.Round(Body.RestFor(s.Profile, s.Body.Need, 1, Math.Min(0.8, segment.Edges && segment.Floor < 0.99 ? segment.Floor : 0.7))), 10, 60);
             return new(Rest(s, wait) with { Segment = type.Id }, wait) { Say = say, Tags = ["gap"] };
         }
         var built = segment.Written ? Build(s, type, segment) : Steer(s, type, segment, now);
@@ -148,7 +151,7 @@ public sealed class SegmentPlanner(IRandom r, Authorities a) : IPlanner
         // The last step runs the segment out rather than leaving a stub.
         if (left < seconds * 1.4) seconds = Math.Max(20, Math.Min(left, 180));
         var category = Category(type, StepKind.Timed);
-        return Record(s, category, Timed(grip, pace, seconds) with { Category = category, Phase = phase, Segment = type.Id });
+        return Record(s, category, Timed(grip, pace, seconds) with { Category = category, Phase = phase, Segment = type.Id, ForbidEdge = seg.KeepUnder });
     }
 
     /// <summary>
@@ -217,6 +220,10 @@ public sealed class SegmentPlanner(IRandom r, Authorities a) : IPlanner
             hard ? MethodPreference.HardReachMin : edging ? MethodPreference.EdgeReach : 0,
             hard ? MethodPreference.HardReachMax : 10);
         int speed = Speed(s, tpl, seg, type);
+        // The hard way is a struggle, not an impossibility: a grip that cannot get him there even flat out gives way to one that can.
+        if (hard && a.Methods.DommeChooses && Body.Plateau(s.Profile, method, 10, s.Body.Need) < 1.6)
+            method = s.Methods.Where(m => m.Closeness >= MethodPreference.HardReachMin && m.Closeness <= MethodPreference.HardReachMax + 1 && Body.Plateau(s.Profile, m, 10, s.Body.Need) >= 1.6)
+                .OrderByDescending(m => m.TortLevel).ThenBy(m => m.Closeness).FirstOrDefault() ?? Reachable(s, method, 10).Method;
         Directive d = tpl.Kind switch
         {
             StepKind.Edges or StepKind.Hold when a.Edges.DommeSets => hard

@@ -99,7 +99,7 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
         // An edge is 100% by definition; where she chose the method and pace it also teaches her his body.
         // Only the first edge of a step does: after it, how long he waits before the next is his own business.
         int checks = s.Body.Checks.Count;
-        Body.OnEdge(s.Body, s.Profile, learn: a.Pacing.DommeSets && s.ActiveMethod is { IsUserChoice: false } && s.Game is null && s.EdgesThisStep == 1,
+        Body.OnEdge(s.Body, s.Profile, learn: a.Pacing.DommeSets && s.Game is null && s.EdgesThisStep == 1 && s.HurriedThisStep == 0,
             (Now - s.StartedAtUtc).TotalSeconds, estimate: true);
         // He got there much faster or slower than she expected: she notices, now and then.
         if (s.Body.Checks.Count > checks && s.Body.Checks[^1] is { ExpectedSeconds: >= 10 and < Body.Unreachable } check && s.Game is null && s.Price is null && random.Chance(60))
@@ -167,8 +167,10 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
 
         if (current.Kind == InstructionKind.TimedMethod && current.Category != StepCategory.Finish)
         {
-            int remaining = TimerRemaining(s);
-            if (remaining > 5) { s.Suspended = current; s.SuspendedRemainingSeconds = remaining; }
+            // Every edge he reaches takes half of what was left to serve; with little left the step is over.
+            int remaining = TimerRemaining(s) / 2;
+            if (remaining >= 15) { s.Suspended = current; s.SuspendedRemainingSeconds = remaining; }
+            else s.Suspended = null;
             if (random.Chance(25 + s.Mean * 5))
             {
                 int hold = s.Contract.Punishment ? random.Next(5, 15) : random.Next(3, 10);
@@ -177,7 +179,7 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
             }
             else
             {
-                int cooldown = random.Next(3, 8);
+                int cooldown = AfterEdgeRest(s, held: false);
                 Present(s, t, planner.Cooldown(s, cooldown), cooldown, newStep: false, act: SpeechAct.Cooldown);
             }
             return t;
@@ -294,6 +296,26 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
         {
             s.Holding = false;
             { double holdPoints = Points.ForHold(current.DurationOrCount); s.Points += holdPoints; s.Earned.Holds += holdPoints; }
+            // A hold is never followed straight by more stroking: that would only be more hold.
+            if (a.Pacing.DommeSets && current.Category == StepCategory.Hold && s.Suspended is not null && s.Price is null && s.Game is null)
+            {
+                int cooldown = AfterEdgeRest(s, held: true);
+                Present(s, t, planner.Cooldown(s, cooldown), cooldown, newStep: false, act: SpeechAct.Cooldown);
+                return t;
+            }
+        }
+        // She has waited long enough for this edge: faster.
+        if (current.Kind == InstructionKind.EdgeCount && s.Price is null && s.Game is null && a.Pacing.DommeSets)
+        {
+            Accrue(s);
+            int faster = Math.Min(10, Math.Max(current.Speed, 1) + 2);
+            var hurried = current with { Speed = faster, Tempo = Sessions.Tempo.For(faster, current.Method) };
+            s.Current = hurried;
+            s.ActiveSpeed = faster;
+            s.HurriedThisStep++;
+            if (faster < 10 || s.HurriedThisStep < 3) SetTimer(s, HurryAfter(s, hurried));
+            t.Say.Add((Utterance.Instruct(hurried, SpeechAct.Instruct) with { Directive = hurried, Instruction = true }).Tagged("hurry"));
+            return t;
         }
         if (s.Suspended is { } suspended)
         {
@@ -892,12 +914,17 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
     {
         if (s.OfferTemplates.Count == 0 || s.Contract.GamesOnly) return false;
         if (buys == OfferBuys.Orgasm && (s.Progress < 0.2 || s.Retaliation is { Active: true, Reason: RetaliationReason.UnauthorizedOrgasm })) return false;
+        // She has told him, truthfully, that he is not cumming tonight: that is not for sale.
+        bool deniedTonight = s.Ending.Kind is EndingKind.Denied or EndingKind.PunishmentEnding;
+        if (buys == OfferBuys.Orgasm && deniedTonight && s.Ending is { Presentation: Presentation.Honest, HintedOrgasm: false }) return false;
         double chance = buys switch
         {
             OfferBuys.Orgasm => 30 + 12 * Math.Max(0, s.RequestsThisSession - 1),
             OfferBuys.Rest => 35,
             _ => 30,
         };
+        // An orgasm she was not going to give, or one in a punishment, is a much harder sell.
+        if (buys == OfferBuys.Orgasm) chance *= (deniedTonight ? 0.5 : 1) * (s.Contract.Punishment ? 0.4 : 1);
         chance *= s.Mood.Mood switch { DommeMood.Playful => 1.4, DommeMood.Teasing => 1.2, DommeMood.Cruel => 0.8, _ => 1 };
         return random.Chance(Math.Min(75, chance));
     }
@@ -1029,7 +1056,7 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
         bool stimulating = Stimulating(d);
         d = d with
         {
-            Tempo = stimulating && d.Category != StepCategory.Hold ? a.Pacing.Tempo(d.Speed) : 0,
+            Tempo = stimulating && d.Category != StepCategory.Hold && a.Pacing.Tempo(d.Speed) > 0 ? Sessions.Tempo.For(d.Speed, d.Method) : 0,
             DurationOrCount = d.Kind == InstructionKind.FreeText && d.DurationOrCount == 0 && timerSeconds > 0 ? timerSeconds : d.DurationOrCount,
             Text = "",
         };
@@ -1038,6 +1065,13 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
         {
             s.StepNumber++;
             s.EdgesThisStep = 0;
+            s.HurriedThisStep = 0;
+        }
+        // An edge she is waiting for has no countdown, but she does not wait for ever.
+        if (newStep && act == SpeechAct.Instruct && d.Kind == InstructionKind.EdgeCount && timerSeconds == 0 && a.Pacing.DommeSets && s.Price is null && s.Game is null)
+        {
+            d = d with { HiddenTimer = true };
+            timerSeconds = HurryAfter(s, d);
         }
         s.Current = d;
         s.StepStartedAtUtc = Now;
@@ -1091,6 +1125,20 @@ public sealed class SessionEngine(IRandom random, IClock clock, Func<IRandom, Au
             s.Budget = s.BudgetMinutes * Points.PaceTonight(s.AssumedPace, e.Stroking + e.Close + e.Torture + e.Edges + e.Holds, minutes);
         }
         s.ActiveSinceUtc = until ?? Now;
+    }
+
+    /// <summary>
+    /// Hands off after an edge inside a timed step: long enough that going back to stroking is
+    /// stroking again and not more edge. Longer after a hold.
+    /// </summary>
+    private int AfterEdgeRest(SessionState s, bool held)
+        => (int)Math.Clamp(Math.Round(Body.RestFor(s.Profile, s.Body.Need, 1, held ? 0.62 : 0.72)), held ? 12 : 8, 45);
+
+    /// <summary>How long she waits for an edge before telling him to go faster: well past when she expected it.</summary>
+    public int HurryAfter(SessionState s, Directive d)
+    {
+        double expected = Body.ExpectedSeconds(s.Profile, d.Method ?? MethodInfo.UserChoice(s.Methods), d.Speed, s.Body.Need, Math.Min(s.Body.Closeness, Body.AfterEdge));
+        return (int)Math.Clamp(expected * 1.8 * Math.Max(1, d.DurationOrCount), 45, 120);
     }
 
     /// <summary>What his body is doing right now, as far as the engine knows.</summary>

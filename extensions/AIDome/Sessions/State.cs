@@ -132,6 +132,8 @@ public sealed class SessionState
 
     // Points are the session clock: the same activity earns the same points in every mode.
     public double Points { get; set; }
+    /// <summary>How many times she has told him to go faster while waiting for the edge in this step.</summary>
+    public int HurriedThisStep { get; set; }
     public double Budget { get; set; }
     /// <summary>The minutes his Length means (a punishment runs longer), and the pace she assumed going in: the budget follows his pace tonight.</summary>
     public double BudgetMinutes { get; set; }

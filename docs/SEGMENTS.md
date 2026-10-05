@@ -65,6 +65,7 @@ debug view and her lines have something to call them (`"written": false` in
 |---|---|---|
 | Slow build | Ache | Steady stroking at the start of a session |
 | Steady stroking | Ache | Steady stroking later on |
+| Stay away from the edge | Ache | Steady stroking with an order not to reach the edge (now and then) |
 | Slow edges | Ache | Single edges with long gaps |
 | Edging | Control | Edges with gaps |
 | Rapid-fire edges | Control | He is let back in at 85% or more, or not let down at all |

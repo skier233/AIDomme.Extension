@@ -376,6 +376,17 @@
       "variants": ["You wanted a change. Here's your change.", "Break's over. You're going to wish you'd kept quiet."]
     },
     {
+      "id": "segment.keep-under",
+      "act": "SegmentStart",
+      "when": ["#segment:keep-under"],
+      "weight": 3,
+      "variants": [
+        "Keep stroking, and stay away from the edge. Get there and you'll pay for it.",
+        "No edges now. Stroke, and keep yourself under it.",
+        "I want you close, and no closer. Don't you dare edge."
+      ]
+    },
+    {
       "id": "segment.edge-fresh",
       "act": "SegmentStart",
       "when": ["#segment:edge-fresh"],

@@ -125,8 +125,12 @@ public static class Offers
                 // Length, so a long session doesn't make every price its maximum.
                 double scale = 72 * (0.7 + 0.06 * s.Length);
                 double left = s.Budget <= 0 ? 1 : Math.Clamp(1 - s.Points / s.Budget, 0, 1);
-                double value = scale * (0.35 + 0.6 * left);
+                double value = scale * (0.6 + 0.6 * left);
                 value *= 0.6 + s.Denial / 10.0;
+                // Buying what she had decided against costs far more than buying it a little early,
+                // and a punishment is not something he pays his way out of cheaply.
+                if (s.Ending.Kind is Plan.EndingKind.Denied or Plan.EndingKind.PunishmentEnding) value *= 1.8;
+                if (s.Contract.Punishment) value *= 1.6;
                 return value * s.Mood.Mood switch { DommeMood.Cruel => 1.2, DommeMood.Playful => 0.85, _ => 1.0 };
             }
             case OfferBuys.Rest:
@@ -176,6 +180,9 @@ public static class Offers
                 _ => 1,
             };
             var (low, high) = Range(t);
+            // An orgasm is never sold for much less than it is worth: a deal that cannot cost enough is no deal,
+            // and when none can she simply says no.
+            if (buys == OfferBuys.Orgasm && high < value * 0.75) continue;
             if (value < low * 0.8 || value > high * 1.25) w *= 0.15;
             if (s.RecentOfferTemplates.Contains(t.Id)) w *= 0.3;
             if (lastRefused is not null)

@@ -531,6 +531,10 @@ public sealed class PlanEngine(IRandom r, SegmentCatalogue catalogue)
                 break;
             case Purpose.Ache:
                 seg.Edges = a.Edges.DommeSets && (!a.Pacing.DommeSets || r.Chance(55)) && s.Progress >= 0.05;
+                // Now and then the stroking comes with an order: stay away from the edge. Reaching it costs him.
+                seg.KeepUnder = !seg.Edges && a.Pacing.DommeSets && a.Edges.DommeSets && b.Need >= 0.25 && role == SegmentRole.Advancing
+                    && !plan.Segments.TakeLast(5).Any(x => x.KeepUnder || x.Type == "no-edge") && r.Chance(22);
+                if (seg.KeepUnder) seg.Seconds = Math.Min(seg.Seconds, r.Next(90, 151));
                 seg.Floor = Math.Round(0.45 + r.NextDouble() * 0.2, 2);
                 seg.SpeedLow = Math.Clamp(2 + (int)Math.Round(intensity * 2), 1, 10);
                 seg.SpeedHigh = Math.Clamp(seg.SpeedLow + 2, 1, 10);
@@ -579,7 +583,7 @@ public sealed class PlanEngine(IRandom r, SegmentCatalogue catalogue)
     private static string Label(PlannedSegment seg, SessionPlan plan, SessionState s) => seg.Purpose switch
     {
         Purpose.Control => seg.HoldChance >= 1 ? "long-hold" : seg.Floor >= 0.85 ? "rapid-fire" : "edge-steady",
-        Purpose.Ache => seg.Edges ? "edge-fresh" : s.Progress < 0.12 ? "slow-build" : "stroke-steady",
+        Purpose.Ache => seg.Edges ? "edge-fresh" : seg.KeepUnder ? "keep-under" : s.Progress < 0.12 ? "slow-build" : "stroke-steady",
         Purpose.Overwhelm => seg.MethodIds.Count == 1 ? "hated-grip" : "torment",
         Purpose.Starve => seg.SpeedHigh > 0 ? "tempo-crawl" : "tease-rest",
         _ => "breather",
@@ -655,7 +659,9 @@ public sealed class PlanEngine(IRandom r, SegmentCatalogue catalogue)
     public void OnPestering(SessionState s, Authorities a, DateTime now)
     {
         var plan = s.Plan;
-        if (plan is null || s.RequestsDenied < 3 || !r.Chance(50) || plan.AtEnding) return;
+        // Twice at most: after that asking again changes nothing, and the night still ends.
+        if (plan is null || s.RequestsDenied < 3 || plan.Pestered >= 2 || !r.Chance(50) || plan.AtEnding) return;
+        plan.Pestered++;
         var purpose = Eligible(s, a, Purpose.Control) && r.Chance(60) ? Purpose.Control : Eligible(s, a, Purpose.Overwhelm) ? Purpose.Overwhelm : Purpose.Ache;
         if (!Eligible(s, a, purpose)) return;
         plan.Aims.Add(NewAim(s, a, plan, purpose, 0.08, "he kept asking to cum", "pestering", s.Body));
@@ -757,7 +763,8 @@ public static class MethodFit
         return p switch
         {
             // Pleasure that brings him close and keeps him there: not torture, not a tease.
-            Purpose.Ache => close * (1 - torture * 0.8) * (1 - tease * 0.3) * (0.7 + 0.3 * (1 - Math.Abs(intense - 0.5))),
+            // Intense methods build need too, but they belong to testing his control: here the milder the better.
+            Purpose.Ache => close * (1 - torture * 0.8) * (1 - tease * 0.3) * (1.15 - intense * 0.85),
             // Gets him to the edge, and is hard to hold back from.
             Purpose.Control => close * (0.4 + 0.6 * intense) * (1 - torture * 0.6),
             Purpose.Overwhelm => torture * (0.6 + 0.4 * intense),
@@ -769,7 +776,7 @@ public static class MethodFit
     /// <summary>The intensity ceiling for a purpose, from the session's intensity slider.</summary>
     public static int Ceiling(SessionState s, Purpose p, int raise = 0) => Math.Clamp(s.Intensity + raise + p switch
     {
-        Purpose.Control => 1, Purpose.Overwhelm => 3, Purpose.Starve => -1, _ => 0,
+        Purpose.Control => 1, Purpose.Overwhelm => 3, Purpose.Starve => -1, _ => -1,
     }, 2, 10);
 
     /// <summary>Up to <paramref name="count"/> methods that all fit the purpose.</summary>
@@ -784,7 +791,8 @@ public static class MethodFit
         var must = p switch
         {
             Purpose.Control => pool.Where(m => m.Closeness >= MethodPreference.EdgeReach).ToList(),
-            Purpose.Ache => pool.Where(m => m.Closeness >= MethodPreference.EdgeReach && m.TortLevel < 5).ToList(),
+            Purpose.Ache => pool.Where(m => m.Closeness >= MethodPreference.EdgeReach && m.TortLevel < 5 && m.Intensity <= 6).ToList() is { Count: > 0 } mild ? mild
+                : pool.Where(m => m.Closeness >= MethodPreference.EdgeReach && m.TortLevel < 5).ToList(),
             Purpose.Overwhelm => pool.Where(m => m.TortLevel >= 5).ToList() is { Count: > 0 } t ? t
                 : all.Where(m => m.TortLevel >= 5 && m.Intensity <= ceiling + 2).ToList(),
             Purpose.Starve => pool.Where(m => m.Tease >= 4 && m.TortLevel < 5).ToList(),

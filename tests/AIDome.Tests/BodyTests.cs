@@ -260,7 +260,8 @@ public sealed class BodyTests
             // Every segment she chose says why and with what parameters.
             Assert.All(result.State.Plan!.Segments, x => Assert.NotEmpty(x.Reason));
         }
-        Assert.True(slips <= 1, $"{slips} of 12 sessions ended in a slip.");
+        // (The cost of one climb is capped in her estimate since real sessions showed her far too cautious; the simulated user pays for that now and then.)
+        Assert.True(slips <= 2, $"{slips} of 12 sessions ended in a slip.");
         Assert.True(tested >= 6, $"His control was tested in only {tested} of 12 sessions.");
     }
 
@@ -304,6 +305,33 @@ public sealed class BodyTests
         Assert.True(Points.StateFactor(0.9, Strong) > Points.StateFactor(0.9, Mild));
         Assert.InRange(Points.StateFactor(0.8, Strong with { Intensity = 5 }), 0.95, 1.08);
         Assert.Equal(Body.TimedCap, Body.SelfPacedCap);
+    }
+
+    [Fact]
+    public void AFastBeatIsFast_AndAnIntenseGripNeedsFewerStrokes()
+    {
+        Assert.True(Tempo.FromSpeed(7) >= 160, "fast should feel fast");
+        Assert.True(Tempo.FromSpeed(5) >= 110, "medium should not feel slow");
+        Assert.True(Tempo.For(7, Strong with { Intensity = 9 }) < Tempo.For(7, Strong with { Intensity = 2 }));
+        Assert.Equal(0, Tempo.For(0, Strong));
+    }
+
+    [Fact]
+    public void AnOrgasmSheDecidedAgainst_IsNotSoldCheaply()
+    {
+        var s = TranscriptTests.NewSession(SessionMode.FullGuided, 5, punishment: true);
+        new SessionEngine(new SeededRandom(5), new SimulatedClock(DateTime.UtcNow)).Begin(s);
+        s.Points = s.Budget * 0.8;
+        s.Ending.Kind = EndingKind.Full;
+        var punishment = s.Contract;
+        double meant = Offers.Value(s, OfferBuys.Orgasm);
+        s.Ending.Kind = EndingKind.Denied;
+        double denied = Offers.Value(s, OfferBuys.Orgasm);
+        Assert.True(denied > meant * 1.5);
+        // Near the end of a punishment she meant to deny, eight edges do not buy it: no deal in the library is that cheap.
+        for (int i = 0; i < 40; i++)
+            if (Offers.Make(s, OfferBuys.Orgasm, new SeededRandom(i), DateTime.UtcNow) is { } offer)
+                Assert.True(offer.Points >= denied * 0.7, $"{offer.Name} x{offer.Amount} for {offer.Points} against a worth of {denied:0}");
     }
 
     [Fact]

@@ -105,6 +105,18 @@ public sealed record MethodInfo
 /// <summary>Stroke speed 1–10 as a metronome tempo. 0 means no prescribed tempo.</summary>
 public static class Tempo
 {
-    private static readonly int[] Bpm = [40, 50, 60, 75, 90, 105, 120, 140, 160, 180];
+    private static readonly int[] Bpm = [40, 55, 75, 95, 120, 145, 170, 195, 220, 250];
     public static int FromSpeed(int speed) => speed is >= 1 and <= 10 ? Bpm[speed - 1] : 0;
+
+    /// <summary>
+    /// The beat for a speed on a method: an intense grip takes fewer strokes a minute to be "fast"
+    /// than a mild one, so the same word feels the same whatever she has him doing.
+    /// </summary>
+    public static int For(int speed, MethodInfo? method)
+    {
+        int bpm = FromSpeed(speed);
+        if (bpm == 0 || method is null) return bpm;
+        double factor = Math.Clamp(1.2 - 0.04 * method.Intensity, 0.8, 1.15);
+        return (int)(Math.Round(bpm * factor / 5) * 5);
+    }
 }

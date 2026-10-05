@@ -429,3 +429,33 @@ Nothing in the scheduler asks what kind a segment is.
   pace measured under the old scheduling. The budget now follows his pace within the session (see
   Length above) and the default pace is 5.5 points a minute. Transcripts show the minutes a Length
   means beside how long the session ran.
+
+### After the first real session (2026-10-05, version 0.16.1)
+
+From his notes and the log of a 40-minute punishment session (his own grip, her pace and edges):
+
+- **After a hold, always a rest.** An edge during timed stroking used to be followed by a hold or
+  a three-second pause and then straight back to stroking, which is only more hold. Now an edge in
+  a timed step is followed by hands off sized to bring him down (8 to 45 seconds, longer after a
+  hold), and no stroking of any kind follows a hold without one.
+- **Edges shorten the time left.** Each edge he reaches in a timed step halves what was left to
+  serve; with under 15 seconds left the step is over.
+- **Speeds.** The beat for each speed is faster (speed 5 is 120 a minute, 7 is 170, 10 is 250; it
+  was 90, 120, 180), and it is scaled by the method: an intense grip needs fewer strokes a minute to
+  be "fast" than a mild one.
+- **Begging.** An orgasm she has honestly told him he is not getting is not for sale. One she had
+  decided against costs 1.8 times as much, one in a punishment 1.6 times, and she never sells one
+  for much less than it is worth: a deal that cannot cost enough is not offered, and when none can
+  she says no. Begging lengthens a session at most twice.
+- **The ache uses milder methods.** Intense methods belong to testing his control; building the
+  ache now prefers the milder ones that still get him there.
+- **Stay away from the edge.** A new shape of the ache, used sparingly: timed stroking with an
+  order not to reach the edge; reaching it costs him.
+- **She does not wait for ever.** In the log single edges took two to four minutes at "medium
+  pace" with nothing from her. Past about twice what she expected she now tells him to go faster
+  and raises the beat, up to three times.
+- **She learns his pace on his own grip too.** She learned nothing in that session because the
+  grip was his choice. Now she does, so her speeds and gaps fit him there as well.
+- **One climb cannot empty his control.** A slow climb was reckoned as minutes spent hovering under
+  the edge, which put her estimate of his control at zero and had her easing off again and again.
+  The cost of a single climb is now capped.

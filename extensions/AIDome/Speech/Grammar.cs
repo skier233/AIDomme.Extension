@@ -114,6 +114,8 @@ public static class Grammar
         int n = d.DurationOrCount;
         string hold = d.HoldSeconds <= 0 ? ""
             : n > 1 ? $" Hold the last one for {Duration(d.HoldSeconds)}." : $" When you get there, hold it for {Duration(d.HoldSeconds)}.";
+        // She has waited long enough.
+        if (u.Has("hurry")) return $"Faster. {Sentence(paced)}. Get to the edge.";
         // One edge after another with the count kept from him: "again", and only what changed.
         if (n == 1 && (u.Has("again") || u.Has("again-same")))
         {

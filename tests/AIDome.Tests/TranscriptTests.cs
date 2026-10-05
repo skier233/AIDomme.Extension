@@ -193,6 +193,18 @@ public sealed class TranscriptTests(ITestOutputHelper output)
                         $"Edges asked on {m.Name} (closeness {m.Closeness}) in {name}: {line.Text}");
                 }
             }
+            // Where she sets the pace, a hold she ordered is followed by hands off, never straight by more stroking
+            // (paying a deal's price is his own pace, and a game has its own rules).
+            if (s.Contract.Pacing == Authority.Domme)
+                for (int i = 1; i < result.Steps.Count; i++)
+                {
+                    var (before, after) = (result.Steps[i - 1], result.Steps[i]);
+                    if (before.Directive.Category != StepCategory.Hold || before.Game is not null || after.Game is not null) continue;
+                    if (after.Directive.Category is StepCategory.Finish or StepCategory.Offer || after.Directive.HoldSeconds > 0 && after.Directive.DurationOrCount > 1) continue;
+                    bool paying = result.Lines.Any(x => x.Who == "Note" && x.Text.StartsWith("offer:") && x.At <= before.Start && x.At >= before.Start - TimeSpan.FromMinutes(15));
+                    Assert.True(after.Directive.Kind == Data.InstructionKind.Rest || after.Directive.Method is null || paying,
+                        $"Stroking straight after a hold in {name} at {after.Start}: {Simulation.Describe(after)}");
+                }
             // Asides never repeat within a session; a story is told once.
             var asides = hers.Where(x => x.Who == "Her (aside)").Select(x => x.Text).ToList();
             Assert.True(asides.Count == asides.Distinct().Count(), $"An aside repeated. {name}: {string.Join(" | ", asides.GroupBy(x => x).Where(g => g.Count() > 1).Select(g => g.Key))}");

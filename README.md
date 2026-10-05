@@ -116,6 +116,11 @@ are tracked across sessions so they stay rare. A debug session shows her plan an
 
 ## Upgrading an existing install
 
+Version 0.16.1 follows the first real session on 0.16.0: hands off after every hold and after an
+edge in timed stroking, edges shorten a timed step, faster beats scaled to the method, an orgasm she
+decided against is no longer sold cheaply, milder methods for building the ache, and she tells you
+to go faster when an edge is taking too long. No migration.
+
 Version 0.16.0 is Phase 5: she schedules by what she wants you to feel. She keeps an estimate of
 how close you are, how much you need it, how much control you have left and how overwhelmed you
 are, corrects it every time you report an edge, and learns how fast you get to the edge and how

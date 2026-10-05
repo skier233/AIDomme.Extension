@@ -15,6 +15,9 @@ public sealed class LedgerEngineTests
         Id = 1, Name = "Earn it", Wording = "Edge [amount] more time[s], then you may [what].", Kind = OfferKind.EdgesNow,
         MinAmount = 3, MaxAmount = 10, PointsPerUnit = 4, Flavor = OfferFlavor.Strict, ForOrgasm = true,
     };
+    /// <summary>Deals that can cost what an orgasm is worth early in a session: she no longer sells one for less.</summary>
+    private static OfferTemplate EarnItDear => EarnIt with { MaxAmount = 60 };
+    private static OfferTemplate PayInDaysDear => PayInDays with { MaxAmount = 30 };
     private static readonly OfferTemplate PayInDays = new()
     {
         Id = 3, Name = "Pay in days", Wording = "You may [what], for [amount] day[s] of denial.", Kind = OfferKind.Denial,
@@ -104,7 +107,7 @@ public sealed class LedgerEngineTests
         {
             var clock = new FakeClock();
             var engine = new SessionEngine(new FixedRandom(0.1), clock);
-            var s = State(mode, offers: EarnIt);
+            var s = State(mode, offers: EarnItDear);
             engine.Begin(s);
             s.Points = s.Budget * 0.3;
             var asked = engine.RequestPermission(s);
@@ -131,7 +134,7 @@ public sealed class LedgerEngineTests
     {
         var clock = new FakeClock();
         var engine = new SessionEngine(new FixedRandom(0.1), clock);
-        var s = State(SessionMode.FullGuided, offers: [EarnIt, PayInDays]);
+        var s = State(SessionMode.FullGuided, offers: [EarnItDear, PayInDaysDear]);
         engine.Begin(s);
         s.Points = s.Budget * 0.3;
         var first = Offers.Make(s, OfferBuys.Orgasm, engine.Random, clock.UtcNow)!;
@@ -155,7 +158,7 @@ public sealed class LedgerEngineTests
     {
         var clock = new FakeClock();
         var engine = new SessionEngine(new FixedRandom(0.1), clock);
-        var s = State(SessionMode.FullGuided, offers: EarnIt);
+        var s = State(SessionMode.FullGuided, offers: EarnItDear);
         engine.Begin(s);
         s.Points = s.Budget * 0.3;
         s.Holding = true;
