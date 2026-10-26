@@ -1,0 +1,121 @@
+name: Build and Release Extension
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+env:
+  DOTNET_VERSION: '10.0.x'
+  NODE_VERSION: '24.x'
+  EXTENSION_PROJECT: extensions/AIDomme/AIDomme.csproj
+  TEST_PROJECT: tests/AIDomme.Tests/AIDomme.Tests.csproj
+  EXTENSION_ID: cove.community.aidomme
+  # AI Domme compiles against Cove.Data, which Cove does not publish as a package, so the build needs a
+  # Cove checkout beside this repository. Pin it to the Cove release the extension is built for.
+  COVE_REPOSITORY: yourcove/cove
+  COVE_REF: v1.7.0
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    services:
+      # The integration tests create and drop their own aidomme_*_test_* databases on this server.
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          path: AIDomme.Extension
+
+      - name: Check out Cove beside the extension
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ env.COVE_REPOSITORY }}
+          ref: ${{ env.COVE_REF }}
+          path: cove
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: AIDomme.Extension/package-lock.json
+
+      - name: Build UI bundle
+        working-directory: AIDomme.Extension
+        run: |
+          npm ci
+          npm run build:ui
+
+      - name: Resolve version
+        id: version
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            echo "value=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=0.0.0" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Restore
+        working-directory: AIDomme.Extension
+        run: dotnet restore AIDomme.Extension.slnx
+
+      - name: Build
+        working-directory: AIDomme.Extension
+        run: dotnet build AIDomme.Extension.slnx -c Release --no-restore
+
+      - name: Test
+        working-directory: AIDomme.Extension
+        env:
+          AIDOMME_TEST_POSTGRES: Host=127.0.0.1;Port=5432;Username=postgres;Password=postgres;Database=postgres
+        run: dotnet test ${{ env.TEST_PROJECT }} -c Release --no-build
+
+      - name: Publish
+        working-directory: AIDomme.Extension
+        run: dotnet publish ${{ env.EXTENSION_PROJECT }} -c Release -o artifacts/extension --no-build
+
+      - name: Copy manifest
+        working-directory: AIDomme.Extension
+        run: cp extensions/AIDomme/extension.json artifacts/extension/
+
+      - name: Package
+        if: startsWith(github.ref, 'refs/tags/')
+        working-directory: AIDomme.Extension
+        shell: bash
+        run: |
+          cd artifacts/extension
+          zip -r ../../${{ env.EXTENSION_ID }}-${{ steps.version.outputs.value }}.zip .
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v3
+        with:
+          files: 'AIDomme.Extension/${{ env.EXTENSION_ID }}-*.zip'
+          generate_release_notes: true

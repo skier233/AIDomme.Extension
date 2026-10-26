@@ -9,7 +9,7 @@
     "tools",
     "automation"
   ],
-  "minCoveVersion": "1.4.2-dev.44",
+  "minCoveVersion": "1.7.0",
   "entryDll": "AIDomme.dll",
   "jsBundle": "dist/bundle.js",
   "cssBundle": "dist/bundle.css",

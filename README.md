@@ -189,6 +189,16 @@ tables first:
 Then stage, and restart Cove so the migration runs. Staging also removes assemblies that earlier
 versions shipped but Cove provides itself.
 
+## Releases
+
+`.github/workflows/build.yml` builds the UI bundle and the extension, runs the tests (the PostgreSQL
+ones against a pgvector service container) and publishes the extension folder, on every pull
+request and push to `main`. Pushing a tag `vX.Y.Z` also zips the published folder as
+`cove.community.aidomme-X.Y.Z.zip` and attaches it to a GitHub release. The workflow checks out
+Cove (`yourcove/cove` at the tag in `COVE_REF`) beside the repository, because the extension
+compiles against `Cove.Data`, which is not published as a package; bump `COVE_REF` and
+`minCoveVersion` together when moving to a newer Cove.
+
 ## Verify
 
 ```powershell
