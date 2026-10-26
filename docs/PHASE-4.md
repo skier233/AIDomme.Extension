@@ -491,7 +491,7 @@ From the user's first live sessions and transcript reading:
   waits). Ruin deals are never offered where ruins are off.
 - **Settings location.** The hidden Tuning page is gone; its content, her persona and preferences
   and the narration voice are panels in an AI Domme tab of Cove's settings
-  (/settings/extensions/aidome), linked from the AI Domme page.
+  (/settings/extensions/aidomme), linked from the AI Domme page.
 - **How the ending is decided** (unchanged, now documented): one random draw is made when the
   session starts. Her lean compares it with the odds projected to the end. When the budget is
   spent she recomputes the odds from what actually happened and compares the same draw: below
@@ -507,7 +507,7 @@ the label and hint on the left and the control on the right, in Cove's theme tok
 automatically through one shared settings store. The hand-written stylesheet is imported into the
 components layer so utility classes win over it. The settings tab has five panels (persona, how
 sessions end, session length, what she plans, narration voice) and a link to the tuning lab, a
-page again (`/aidome-tuning`) for methods, punishment endings and deals with a points readout.
+page again (`/aidomme-tuning`) for methods, punishment endings and deals with a points readout.
 
 ## 18. Calibration and pace (0.13.0)
 

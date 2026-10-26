@@ -1,7 +1,7 @@
 import { extensionFetch } from "@cove/runtime/api";
 
 export async function companionPost(path: string, body: unknown) {
-  const response = await extensionFetch(`/api/ext/aidome/companion/${path}`, {
+  const response = await extensionFetch(`/api/ext/aidomme/companion/${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),

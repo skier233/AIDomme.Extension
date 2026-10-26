@@ -27,7 +27,7 @@ import {
 } from "./SessionControls";
 
 const { useEffect, useMemo, useState } = React;
-const API_BASE = "/api/ext/aidome";
+const API_BASE = "/api/ext/aidomme";
 
 type Authority = "Domme" | "User";
 type Contract = {
@@ -161,7 +161,7 @@ function SetupScreen() {
           <button
             type="button"
             className="aidomme-link"
-            onClick={() => navigateToUrl("/settings/extensions/aidome")}
+            onClick={() => navigateToUrl("/settings/extensions/aidomme")}
           >
             Her settings
           </button>
@@ -785,7 +785,7 @@ export function TuningLabPage() {
             Compare methods side by side to calibrate what each is worth in session points, edit her methods, punishment endings and deals directly, or see what she believes about your body.
           </p>
         </div>
-        <button type="button" className={secondaryBtn} onClick={() => navigateToUrl("/settings/extensions/aidome")}>
+        <button type="button" className={secondaryBtn} onClick={() => navigateToUrl("/settings/extensions/aidomme")}>
           Her settings
         </button>
       </div>

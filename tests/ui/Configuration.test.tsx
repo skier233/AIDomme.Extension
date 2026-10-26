@@ -78,7 +78,7 @@ describe("personal definitions", () => {
     );
     await screen.findByText("Shared default restored.");
     await waitFor(() => expect((screen.getByLabelText("Intensity") as HTMLInputElement).value).toBe("3"));
-    expect(calls[1]).toBe("/api/ext/aidome/configuration/methods/1/override");
+    expect(calls[1]).toBe("/api/ext/aidomme/configuration/methods/1/override");
   });
   it("keeps an unsaved edit when saving fails", async () => {
     const original = api.fetch.getMockImplementation()!;
@@ -133,7 +133,7 @@ describe("adding and removing", () => {
     fireEvent.click(within(screen.getByRole("navigation", { name: "Definitions" })).getByRole("button", { name: /^Methods*Intensity/ }));
     fireEvent.click(await screen.findByRole("button", { name: "Remove this method" }));
     await screen.findByText("Removed from your methods. She won't use it.");
-    expect(posted[1]).toBe("/api/ext/aidome/configuration/methods/1/remove");
+    expect(posted[1]).toBe("/api/ext/aidomme/configuration/methods/1/remove");
     expect(screen.getByText("Removed")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Put back in my library" })).toBeTruthy();
   });

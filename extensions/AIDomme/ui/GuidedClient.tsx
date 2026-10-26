@@ -10,7 +10,7 @@ export async function guidedApi(
   method = body === undefined ? "GET" : "POST",
   signal?: AbortSignal,
 ) {
-  const response = await extensionFetch(`/api/ext/aidome${path}`, {
+  const response = await extensionFetch(`/api/ext/aidomme${path}`, {
     method,
     signal,
     headers: { "Content-Type": "application/json" },

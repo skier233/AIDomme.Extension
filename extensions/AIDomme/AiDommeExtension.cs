@@ -41,7 +41,7 @@ public sealed class AiDommeExtension : FullExtensionBase
     private TtsOptions? _ttsOptions;
     private GuidedRuntimes? _runtimes;
 
-    public override string Id => "cove.community.aidome";
+    public override string Id => "cove.community.aidomme";
     public override string Name => "AI Domme";
     public override string Version => "0.16.1";
     public override string Description => "A rule-driven domme for guided edging sessions on your Cove library, with an app-wide edge tracker, orgasm permission, games and persistent commitments.";
@@ -90,25 +90,25 @@ public sealed class AiDommeExtension : FullExtensionBase
         if (_runtimes is not null) await _runtimes.DisposeAsync();
     }
 
-    /// <summary>AI Domme's own tab in Cove's settings (/settings/extensions/aidome).</summary>
-    public const string SettingsTab = "extensions/aidome";
+    /// <summary>AI Domme's own tab in Cove's settings (/settings/extensions/aidomme).</summary>
+    public const string SettingsTab = "extensions/aidomme";
 
     public override UIManifest GetUIManifest()
         => ManifestBuilder()
-            .AddPage("aidome", "AI Domme", "CommandCenterPage", icon: "flame", showInNav: true, navOrder: 90)
+            .AddPage("aidomme", "AI Domme", "CommandCenterPage", icon: "flame", showInNav: true, navOrder: 90)
             // Everything the user sets once lives in Cove's settings, under its own tab.
             .AddSettingsTab(SettingsTab, "AI Domme", order: 110, icon: "flame",
                 description: "Her persona, how your sessions end, session length, her methods and deals, and narration.",
                 searchKeywords: ["ai domme", "domme", "persona", "denial", "ruin", "orgasm", "methods", "offers", "deals", "tts"],
-                aliases: ["aidome", "aidomme"])
-            .AddSettingsPanel(new UISettingsPanel("aidome-persona", "Her persona", Id, "HerPersonaPanel", 10, TargetTab: SettingsTab))
-            .AddSettingsPanel(new UISettingsPanel("aidome-endings", "How your sessions end", Id, "EndingsPanel", 20, TargetTab: SettingsTab))
-            .AddSettingsPanel(new UISettingsPanel("aidome-lengths", "Session length", Id, "LengthsPanel", 30, TargetTab: SettingsTab))
-            .AddSettingsPanel(new UISettingsPanel("aidome-body", "Your body", Id, "BodyPanel", 40, TargetTab: SettingsTab))
-            .AddSettingsPanel(new UISettingsPanel("aidome-tuning", "Tuning lab", Id, "TuningLabLinkPanel", 50, TargetTab: SettingsTab))
-            .AddSettingsPanel(new UISettingsPanel("aidome-settings", "Narration voice", Id, "AiDommeSettingsPanel", 60, TargetTab: SettingsTab))
+                aliases: ["aidomme", "aidomme"])
+            .AddSettingsPanel(new UISettingsPanel("aidomme-persona", "Her persona", Id, "HerPersonaPanel", 10, TargetTab: SettingsTab))
+            .AddSettingsPanel(new UISettingsPanel("aidomme-endings", "How your sessions end", Id, "EndingsPanel", 20, TargetTab: SettingsTab))
+            .AddSettingsPanel(new UISettingsPanel("aidomme-lengths", "Session length", Id, "LengthsPanel", 30, TargetTab: SettingsTab))
+            .AddSettingsPanel(new UISettingsPanel("aidomme-body", "Your body", Id, "BodyPanel", 40, TargetTab: SettingsTab))
+            .AddSettingsPanel(new UISettingsPanel("aidomme-tuning", "Tuning lab", Id, "TuningLabLinkPanel", 50, TargetTab: SettingsTab))
+            .AddSettingsPanel(new UISettingsPanel("aidomme-settings", "Narration voice", Id, "AiDommeSettingsPanel", 60, TargetTab: SettingsTab))
             // The tuning lab is a full page; the settings tab links to it.
-            .AddPage("aidome-tuning", "AI Domme tuning lab", "TuningLabPage", icon: "sliders-horizontal", showInNav: false)
+            .AddPage("aidomme-tuning", "AI Domme tuning lab", "TuningLabPage", icon: "sliders-horizontal", showInNav: false)
             .AddSlot("app-floating-ui", "TrackerCompanion")
             .AddKeyboardAction("tracker-edge", "Record edge", ["Alt+E"], [new("global"), new("overlay")], group: "AI Domme")
             .AddKeyboardAction("tracker-orgasm", "Record orgasm", ["Alt+O"], [new("global"), new("overlay")], group: "AI Domme")
@@ -146,7 +146,7 @@ public sealed class AiDommeExtension : FullExtensionBase
 
     public override void MapEndpoints(IEndpointRouteBuilder endpoints)
     {
-        var group = endpoints.MapGroup("/api/ext/aidome").WithTags("AIDomme").AllowWithoutCovePermission();
+        var group = endpoints.MapGroup("/api/ext/aidomme").WithTags("AIDomme").AllowWithoutCovePermission();
         group.AddEndpointFilter(async (invocation, next) =>
         {
             var path = invocation.HttpContext.Request.Path.Value ?? "";
@@ -155,7 +155,7 @@ public sealed class AiDommeExtension : FullExtensionBase
             // Load (or restore) the account's runtime before any handler borrows it.
             var runtime = await invocation.HttpContext.RequestServices.GetRequiredService<GuidedRuntimes>().EnsureCurrentAsync(invocation.HttpContext.RequestAborted);
             // Tracker delivery owns the runtime gate. Other guided requests serialize by account.
-            if (path.StartsWith("/api/ext/aidome/tracker/", StringComparison.OrdinalIgnoreCase)
+            if (path.StartsWith("/api/ext/aidomme/tracker/", StringComparison.OrdinalIgnoreCase)
                 || path.EndsWith("/tts", StringComparison.OrdinalIgnoreCase)
                 || path.EndsWith("/settings", StringComparison.OrdinalIgnoreCase))
                 return await next(invocation);

@@ -83,7 +83,7 @@ it("keeps the edit and shows her refusal when saving fails", async () => {
 it("links to the tuning lab", async () => {
   render(<TuningLabLinkPanel />);
   fireEvent.click(screen.getByRole("button", { name: "Open the tuning lab" }));
-  expect(runtime.navigate).toHaveBeenCalledWith("/aidome-tuning");
+  expect(runtime.navigate).toHaveBeenCalledWith("/aidomme-tuning");
 });
 
 it("shows her plan, the ending she leans toward and how the plan changed", async () => {

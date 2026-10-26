@@ -18,7 +18,7 @@ import {
   useRegisterExtensionKeyboardActions,
 } from "@cove/runtime/components";
 
-const ID = "cove.community.aidome";
+const ID = "cove.community.aidomme";
 const OPEN_TRACKER = "aidomme:open-tracker";
 export function openTracker() {
   window.dispatchEvent(new Event(OPEN_TRACKER));
@@ -60,7 +60,7 @@ type Request = {
 };
 
 async function api(path: string, method = "GET", body?: unknown) {
-  const response = await extensionFetch(`/api/ext/aidome/tracker${path}`, {
+  const response = await extensionFetch(`/api/ext/aidomme/tracker${path}`, {
     method,
     headers: { "Content-Type": "application/json" },
     body: body === undefined ? undefined : JSON.stringify(body),

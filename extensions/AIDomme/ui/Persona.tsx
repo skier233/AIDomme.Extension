@@ -415,7 +415,7 @@ export function TuningLabLinkPanel() {
         Her methods, punishment endings and deals: what they ask of you, how intense they are, and how many points each is worth.
         Adjust them, compare them, and calibrate the points to how they feel for you.
       </p>
-      <button type="button" className={`${secondaryBtn} shrink-0`} onClick={() => navigateToUrl("/aidome-tuning")}>
+      <button type="button" className={`${secondaryBtn} shrink-0`} onClick={() => navigateToUrl("/aidomme-tuning")}>
         Open the tuning lab
       </button>
     </div>

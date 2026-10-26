@@ -81,7 +81,7 @@ The code compiles and the automated checks pass. What follows is about whether i
    `RemainingCount`, or forces a punishment session. `PunishmentEnder` definitions are only used by
    the debug homework generator. The confession prompt is unreachable because
    `SuspectedUnauthorizedOrgasm` is never set true.
-6. **Naming drift.** "AI Domme" (product), `AIDomme` (paths, IDs), `aidomme_*` (tables), `aidome-*`
+6. **Naming drift.** "AI Domme" (product), `AIDomme` (paths, IDs), `aidomme_*` (tables), `aidomme-*`
    and `aidomme-*` (CSS), namespace `AIDomme2025` (all domain code). This should be settled once.
 
 ## What needs fixing (engineering)
@@ -123,7 +123,7 @@ The code compiles and the automated checks pass. What follows is about whether i
   host theme variables and the shared component barrel. The setup screen is the old form: five
   -1..10 sliders, toy and kink checkboxes, debug/homework buttons.
 - Three independent pollers run at once (guided 1–2 s, tracker 5 s, commitments 10 s).
-- Two nav pages are registered (`aidome`, `aidome-tuning`); tuning is also embedded on the main
+- Two nav pages are registered (`aidomme`, `aidomme-tuning`); tuning is also embedded on the main
   page behind a `<details>`.
 - Manifest `icon` values are not ones the host recognizes.
 

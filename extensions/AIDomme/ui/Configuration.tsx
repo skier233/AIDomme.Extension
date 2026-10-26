@@ -74,7 +74,7 @@ const fields = { methods: methodFields, enders: enderFields, offers: offerFields
 
 export async function request(path = "", method = "GET", body?: unknown) {
   const response = await extensionFetch(
-    `/api/ext/aidome/configuration${path}`,
+    `/api/ext/aidomme/configuration${path}`,
     {
       method,
       headers: { "Content-Type": "application/json" },

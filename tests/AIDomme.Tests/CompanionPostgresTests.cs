@@ -90,22 +90,22 @@ public sealed partial class TrackerPostgresTests
     public async Task CompanionHttp_NonDebugSessionsCanBePausedButNotEnded()
     {
         await InstallCompanionAsync(); await using var app = await CompanionAppAsync(); using var client = Client(app);
-        var started = await JsonAsync(await client.PostAsJsonAsync("/api/ext/aidome/session/start", StartBody()));
+        var started = await JsonAsync(await client.PostAsJsonAsync("/api/ext/aidomme/session/start", StartBody()));
         var session = started.GetProperty("session");
         Assert.False(session.GetProperty("isDebugSession").GetBoolean());
         var (id, step) = (session.GetProperty("sessionId").GetInt32(), session.GetProperty("stepNumber").GetInt32());
-        Assert.Equal(HttpStatusCode.Conflict, (await client.PostAsJsonAsync("/api/ext/aidome/session/control", new SessionControlRequest(Guid.NewGuid(), id, step, "end"))).StatusCode);
-        var paused = await JsonAsync(await client.PostAsJsonAsync("/api/ext/aidome/session/control", new SessionControlRequest(Guid.NewGuid(), id, step, "pause")));
+        Assert.Equal(HttpStatusCode.Conflict, (await client.PostAsJsonAsync("/api/ext/aidomme/session/control", new SessionControlRequest(Guid.NewGuid(), id, step, "end"))).StatusCode);
+        var paused = await JsonAsync(await client.PostAsJsonAsync("/api/ext/aidomme/session/control", new SessionControlRequest(Guid.NewGuid(), id, step, "pause")));
         Assert.True(paused.GetProperty("sessionActive").GetBoolean());
         Assert.True(paused.GetProperty("session").GetProperty("isPaused").GetBoolean());
-        Assert.Equal(HttpStatusCode.Conflict, (await client.PostAsJsonAsync("/api/ext/aidome/session/start", StartBody())).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, (await client.PostAsJsonAsync("/api/ext/aidomme/session/start", StartBody())).StatusCode);
 
         var runtime = await app.Services.GetRequiredService<GuidedRuntimes>().ForUserAsync(1);
         runtime.Session.Abandon("test reset");
-        var debug = await JsonAsync(await client.PostAsJsonAsync("/api/ext/aidome/session/start", StartBody(debug: true)));
+        var debug = await JsonAsync(await client.PostAsJsonAsync("/api/ext/aidomme/session/start", StartBody(debug: true)));
         session = debug.GetProperty("session");
         Assert.True(session.GetProperty("isDebugSession").GetBoolean());
-        var ended = await JsonAsync(await client.PostAsJsonAsync("/api/ext/aidome/session/control",
+        var ended = await JsonAsync(await client.PostAsJsonAsync("/api/ext/aidomme/session/control",
             new SessionControlRequest(Guid.NewGuid(), session.GetProperty("sessionId").GetInt32(), session.GetProperty("stepNumber").GetInt32(), "end")));
         Assert.False(ended.GetProperty("sessionActive").GetBoolean());
     }
@@ -116,8 +116,8 @@ public sealed partial class TrackerPostgresTests
         await InstallCompanionAsync();
         await using var app = await CompanionAppAsync();
         using var first = Client(app); using var second = Client(app, 2); using var anonymous = Client(app, 0);
-        Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.GetAsync("/api/ext/aidome/state")).StatusCode);
-        var started = await JsonAsync(await first.PostAsJsonAsync("/api/ext/aidome/session/start", StartBody(SessionMode.FreePlay)));
+        Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.GetAsync("/api/ext/aidomme/state")).StatusCode);
+        var started = await JsonAsync(await first.PostAsJsonAsync("/api/ext/aidomme/session/start", StartBody(SessionMode.FreePlay)));
         var view = started.GetProperty("session");
         var session = view.GetProperty("sessionId").GetInt32();
         var step = view.GetProperty("stepNumber").GetInt32();
@@ -126,31 +126,31 @@ public sealed partial class TrackerPostgresTests
         Assert.Equal(-1, view.GetProperty("remainingSeconds").GetInt32());
         Assert.Null(started.GetProperty("stepEndsAtUtc").Deserialize<DateTime?>());
         Assert.False(view.GetProperty("canRequestRest").GetBoolean());
-        Assert.False((await JsonAsync(await second.GetAsync("/api/ext/aidome/state"))).GetProperty("sessionActive").GetBoolean());
+        Assert.False((await JsonAsync(await second.GetAsync("/api/ext/aidomme/state"))).GetProperty("sessionActive").GetBoolean());
         var locked = new { sessionId = session, revision = 1, contract = Contract(SessionMode.FullGuided) };
-        Assert.Equal(HttpStatusCode.Conflict, (await first.PutAsJsonAsync("/api/ext/aidome/session/contract", locked)).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, (await first.PutAsJsonAsync("/api/ext/aidomme/session/contract", locked)).StatusCode);
         var pause = new SessionControlRequest(Guid.NewGuid(), session, step, "pause");
-        var paused = await JsonAsync(await first.PostAsJsonAsync("/api/ext/aidome/session/control", pause));
+        var paused = await JsonAsync(await first.PostAsJsonAsync("/api/ext/aidomme/session/control", pause));
         Assert.True(paused.GetProperty("session").GetProperty("isPaused").GetBoolean());
         var count = paused.GetProperty("messages").GetArrayLength();
-        var repeated = await JsonAsync(await first.PostAsJsonAsync("/api/ext/aidome/session/control", pause));
+        var repeated = await JsonAsync(await first.PostAsJsonAsync("/api/ext/aidomme/session/control", pause));
         Assert.Equal(count, repeated.GetProperty("messages").GetArrayLength());
         // Asking while paused is refused by her, not applied.
-        await JsonAsync(await first.PostAsJsonAsync("/api/ext/aidome/session/control", new SessionControlRequest(Guid.NewGuid(), session, step, "request-permission")));
+        await JsonAsync(await first.PostAsJsonAsync("/api/ext/aidomme/session/control", new SessionControlRequest(Guid.NewGuid(), session, step, "request-permission")));
         var runtime = await app.Services.GetRequiredService<GuidedRuntimes>().ForUserAsync(1);
         await using (var db = runtime.Factory.Open()) Assert.Empty(await db.CumRequests.ToListAsync());
-        await JsonAsync(await first.PostAsJsonAsync("/api/ext/aidome/session/control", new SessionControlRequest(Guid.NewGuid(), session, step, "resume")));
-        await JsonAsync(await first.PostAsJsonAsync("/api/ext/aidome/session/control", new SessionControlRequest(Guid.NewGuid(), session, step, "request-permission")));
+        await JsonAsync(await first.PostAsJsonAsync("/api/ext/aidomme/session/control", new SessionControlRequest(Guid.NewGuid(), session, step, "resume")));
+        await JsonAsync(await first.PostAsJsonAsync("/api/ext/aidomme/session/control", new SessionControlRequest(Guid.NewGuid(), session, step, "request-permission")));
         await using (var db = runtime.Factory.Open()) Assert.Single(await db.CumRequests.ToListAsync());
 
         // Permission is a decision; the orgasm is a fact recorded by the tracker.
         runtime.Session.State!.FinishDecided = true;
         runtime.Session.State.PermissionGranted = true;
         await using (var db = runtime.Factory.Open()) Assert.Empty(await db.Orgasms.ToListAsync());
-        var tracker = await JsonAsync(await first.PostAsJsonAsync("/api/ext/aidome/tracker/initialize", new { }));
+        var tracker = await JsonAsync(await first.PostAsJsonAsync("/api/ext/aidomme/tracker/initialize", new { }));
         var setting = tracker.GetProperty("settingId").GetGuid();
         var orgasm = new RecordTrackerEvent(Guid.NewGuid(), setting, "orgasm", DateTime.UtcNow, "button");
-        await JsonAsync(await first.PostAsJsonAsync("/api/ext/aidome/tracker/events", orgasm));
+        await JsonAsync(await first.PostAsJsonAsync("/api/ext/aidomme/tracker/events", orgasm));
         Assert.False(runtime.Session.Active);
         await using (var db = runtime.Factory.Open())
         {
@@ -168,18 +168,18 @@ public sealed partial class TrackerPostgresTests
         await using (var app = await CompanionAppAsync())
         {
             using var client = Client(app);
-            var initial = await JsonAsync(await client.PostAsJsonAsync("/api/ext/aidome/session/start", StartBody(Contract(SessionMode.OwnMethods, canChange: true))));
+            var initial = await JsonAsync(await client.PostAsJsonAsync("/api/ext/aidomme/session/start", StartBody(Contract(SessionMode.OwnMethods, canChange: true))));
             session = initial.GetProperty("session").GetProperty("sessionId").GetInt32();
             var edit = new { sessionId = session, revision = 1, contract = Contract(SessionMode.FullGuided, canChange: true) };
-            var changed = await JsonAsync(await client.PutAsJsonAsync("/api/ext/aidome/session/contract", edit));
+            var changed = await JsonAsync(await client.PutAsJsonAsync("/api/ext/aidomme/session/contract", edit));
             Assert.Equal(2, changed.GetProperty("session").GetProperty("contractRevision").GetInt32());
             Assert.Equal("FullGuided", changed.GetProperty("session").GetProperty("mode").GetString());
-            Assert.Equal(HttpStatusCode.Conflict, (await client.PutAsJsonAsync("/api/ext/aidome/session/contract", edit)).StatusCode);
+            Assert.Equal(HttpStatusCode.Conflict, (await client.PutAsJsonAsync("/api/ext/aidomme/session/contract", edit)).StatusCode);
             step = changed.GetProperty("session").GetProperty("stepNumber").GetInt32();
-            Assert.Equal(HttpStatusCode.Conflict, (await client.PostAsJsonAsync("/api/ext/aidome/session/control", new SessionControlRequest(Guid.NewGuid(), session, step - 1, "done"))).StatusCode);
+            Assert.Equal(HttpStatusCode.Conflict, (await client.PostAsJsonAsync("/api/ext/aidomme/session/control", new SessionControlRequest(Guid.NewGuid(), session, step - 1, "done"))).StatusCode);
             var runtime = await app.Services.GetRequiredService<GuidedRuntimes>().ForUserAsync(1);
             generation = runtime.Session.State!.TimerGeneration;
-            var paused = await JsonAsync(await client.PostAsJsonAsync("/api/ext/aidome/session/control", new SessionControlRequest(operation, session, step, "pause")));
+            var paused = await JsonAsync(await client.PostAsJsonAsync("/api/ext/aidomme/session/control", new SessionControlRequest(operation, session, step, "pause")));
             directive = paused.GetProperty("session").GetProperty("currentDirective").GetProperty("text").GetString()!;
             remaining = paused.GetProperty("session").GetProperty("remainingSeconds").GetInt32();
             await using var db = Context();
@@ -189,14 +189,14 @@ public sealed partial class TrackerPostgresTests
         await using (var restored = await CompanionAppAsync())
         {
             using var client = Client(restored);
-            var state = await JsonAsync(await client.GetAsync("/api/ext/aidome/state"));
+            var state = await JsonAsync(await client.GetAsync("/api/ext/aidomme/state"));
             var view = state.GetProperty("session");
             Assert.True(view.GetProperty("isPaused").GetBoolean());
             Assert.Equal(session, view.GetProperty("sessionId").GetInt32());
             Assert.Equal(step, view.GetProperty("stepNumber").GetInt32());
             Assert.Equal(directive, view.GetProperty("currentDirective").GetProperty("text").GetString());
             Assert.Equal(remaining, view.GetProperty("remainingSeconds").GetInt32());
-            var repeated = await JsonAsync(await client.PostAsJsonAsync("/api/ext/aidome/session/control", new SessionControlRequest(operation, session, step, "pause")));
+            var repeated = await JsonAsync(await client.PostAsJsonAsync("/api/ext/aidomme/session/control", new SessionControlRequest(operation, session, step, "pause")));
             Assert.Equal(state.GetProperty("messages").GetArrayLength(), repeated.GetProperty("messages").GetArrayLength());
             // A timer armed before the restart is stale and changes nothing.
             var runtime = await restored.Services.GetRequiredService<GuidedRuntimes>().ForUserAsync(1);
@@ -213,22 +213,22 @@ public sealed partial class TrackerPostgresTests
         await using (var app = await CompanionAppAsync())
         {
             using var client = Client(app);
-            var state = await JsonAsync(await client.PostAsJsonAsync("/api/ext/aidome/session/start", StartBody()));
+            var state = await JsonAsync(await client.PostAsJsonAsync("/api/ext/aidomme/session/start", StartBody()));
             message = state.GetProperty("messages").EnumerateArray().Last(x => x.GetProperty("sender").GetString() == "Domme").GetProperty("id").GetGuid();
-            Assert.True((await JsonAsync(await client.PostAsJsonAsync("/api/ext/aidome/companion/audio/lease", new { clientId }))).GetProperty("granted").GetBoolean());
-            Assert.False((await JsonAsync(await client.PostAsJsonAsync("/api/ext/aidome/companion/audio/lease", new { clientId = competitor }))).GetProperty("granted").GetBoolean());
-            Assert.True((await JsonAsync(await client.PostAsJsonAsync("/api/ext/aidome/companion/audio/claim", new { clientId, messageId = message }))).GetProperty("granted").GetBoolean());
-            Assert.False((await JsonAsync(await client.PostAsJsonAsync("/api/ext/aidome/companion/audio/claim", new { clientId, messageId = message }))).GetProperty("granted").GetBoolean());
+            Assert.True((await JsonAsync(await client.PostAsJsonAsync("/api/ext/aidomme/companion/audio/lease", new { clientId }))).GetProperty("granted").GetBoolean());
+            Assert.False((await JsonAsync(await client.PostAsJsonAsync("/api/ext/aidomme/companion/audio/lease", new { clientId = competitor }))).GetProperty("granted").GetBoolean());
+            Assert.True((await JsonAsync(await client.PostAsJsonAsync("/api/ext/aidomme/companion/audio/claim", new { clientId, messageId = message }))).GetProperty("granted").GetBoolean());
+            Assert.False((await JsonAsync(await client.PostAsJsonAsync("/api/ext/aidomme/companion/audio/claim", new { clientId, messageId = message }))).GetProperty("granted").GetBoolean());
             using var other = Client(app, 2);
-            Assert.False((await JsonAsync(await other.PostAsJsonAsync("/api/ext/aidome/companion/audio/claim", new { clientId = competitor, messageId = message }))).GetProperty("granted").GetBoolean());
+            Assert.False((await JsonAsync(await other.PostAsJsonAsync("/api/ext/aidomme/companion/audio/claim", new { clientId = competitor, messageId = message }))).GetProperty("granted").GetBoolean());
         }
         await using (var app = await CompanionAppAsync())
         {
             using var client = Client(app);
             var runtime = await app.Services.GetRequiredService<GuidedRuntimes>().ForUserAsync(1);
             await runtime.Session.ControlAsync("resume", null, default);
-            Assert.True((await JsonAsync(await client.PostAsJsonAsync("/api/ext/aidome/companion/audio/lease", new { clientId = competitor }))).GetProperty("granted").GetBoolean());
-            Assert.False((await JsonAsync(await client.PostAsJsonAsync("/api/ext/aidome/companion/audio/claim", new { clientId = competitor, messageId = message }))).GetProperty("granted").GetBoolean());
+            Assert.True((await JsonAsync(await client.PostAsJsonAsync("/api/ext/aidomme/companion/audio/lease", new { clientId = competitor }))).GetProperty("granted").GetBoolean());
+            Assert.False((await JsonAsync(await client.PostAsJsonAsync("/api/ext/aidomme/companion/audio/claim", new { clientId = competitor, messageId = message }))).GetProperty("granted").GetBoolean());
         }
     }
 
@@ -241,7 +241,7 @@ public sealed partial class TrackerPostgresTests
         await using (var app = await CompanionAppAsync())
         {
             using var client = Client(app);
-            await JsonAsync(await client.PostAsJsonAsync("/api/ext/aidome/session/start", StartBody(games)));
+            await JsonAsync(await client.PostAsJsonAsync("/api/ext/aidomme/session/start", StartBody(games)));
             var runtime = await app.Services.GetRequiredService<GuidedRuntimes>().ForUserAsync(1);
             await runtime.Session.ControlAsync("pause", null, default);
             await runtime.SaveAsync(default);
@@ -252,7 +252,7 @@ public sealed partial class TrackerPostgresTests
         await using (var app = await CompanionAppAsync())
         {
             using var client = Client(app);
-            var state = await JsonAsync(await client.GetAsync("/api/ext/aidome/state"));
+            var state = await JsonAsync(await client.GetAsync("/api/ext/aidomme/state"));
             // The secret never reaches the client.
             Assert.DoesNotContain("secret", state.GetProperty("session").GetProperty("game").GetRawText(), StringComparison.OrdinalIgnoreCase);
             var runtime = await app.Services.GetRequiredService<GuidedRuntimes>().ForUserAsync(1);
@@ -263,7 +263,7 @@ public sealed partial class TrackerPostgresTests
             Assert.Equal(before.RemainingSeconds, after.RemainingSeconds);
             int record = runtime.Session.State!.Game!.RecordId;
             var free = Contract(SessionMode.FreePlay, debug: true, canChange: true);
-            await JsonAsync(await client.PutAsJsonAsync("/api/ext/aidome/session/contract", new { sessionId = after.SessionId, revision = 1, contract = free }));
+            await JsonAsync(await client.PutAsJsonAsync("/api/ext/aidomme/session/contract", new { sessionId = after.SessionId, revision = 1, contract = free }));
             Assert.Null(runtime.Session.View()!.Game);
             Assert.True(runtime.Session.View()!.IsPaused);
             await using var db = runtime.Factory.Open();
@@ -280,7 +280,7 @@ public sealed partial class TrackerPostgresTests
         await using (var app = await CompanionAppAsync())
         {
             using var client = Client(app);
-            var state = await JsonAsync(await client.PostAsJsonAsync("/api/ext/aidome/session/start", StartBody()));
+            var state = await JsonAsync(await client.PostAsJsonAsync("/api/ext/aidomme/session/start", StartBody()));
             var view = state.GetProperty("session");
             operation = new(Guid.NewGuid(), view.GetProperty("sessionId").GetInt32(), view.GetProperty("stepNumber").GetInt32(), "request-permission");
             var runtime = await app.Services.GetRequiredService<GuidedRuntimes>().ForUserAsync(1);
@@ -293,9 +293,9 @@ public sealed partial class TrackerPostgresTests
         await using (var app = await CompanionAppAsync())
         {
             using var client = Client(app);
-            var state = await JsonAsync(await client.GetAsync("/api/ext/aidome/state"));
+            var state = await JsonAsync(await client.GetAsync("/api/ext/aidomme/state"));
             Assert.False(state.GetProperty("sessionActive").GetBoolean());
-            Assert.Equal(HttpStatusCode.Conflict, (await client.PostAsJsonAsync("/api/ext/aidome/session/control", operation)).StatusCode);
+            Assert.Equal(HttpStatusCode.Conflict, (await client.PostAsJsonAsync("/api/ext/aidomme/session/control", operation)).StatusCode);
             var runtime = await app.Services.GetRequiredService<GuidedRuntimes>().ForUserAsync(1);
             await using var db = runtime.Factory.Open();
             Assert.Single(await db.CumRequests.ToListAsync());
@@ -309,7 +309,7 @@ public sealed partial class TrackerPostgresTests
     {
         await InstallCompanionAsync();
         await using var app = await CompanionAppAsync(); using var client = Client(app);
-        await JsonAsync(await client.PostAsJsonAsync("/api/ext/aidome/session/start", StartBody(Contract(SessionMode.FullGuided, canChange: true))));
+        await JsonAsync(await client.PostAsJsonAsync("/api/ext/aidomme/session/start", StartBody(Contract(SessionMode.FullGuided, canChange: true))));
         var runtime = await app.Services.GetRequiredService<GuidedRuntimes>().ForUserAsync(1);
         var bridge = new GuidedTrackerBridge(app.Services.GetRequiredService<GuidedRuntimes>(), NullLogger<GuidedTrackerBridge>.Instance);
         async Task PersistUndeliveredAsync(TrackerEvent item)

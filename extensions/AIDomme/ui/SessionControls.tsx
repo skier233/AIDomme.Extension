@@ -7,7 +7,7 @@ import {
 } from "./GuidedClient";
 import { FollowUps, Obligations, OfferCard } from "./Ledger";
 
-export const EXTENSION_ID = "cove.community.aidome";
+export const EXTENSION_ID = "cove.community.aidomme";
 
 export function formatRemaining(seconds: number) {
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;

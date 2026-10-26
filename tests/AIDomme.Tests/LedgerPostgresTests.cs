@@ -13,7 +13,7 @@ namespace AIDomme.Tests;
 
 public sealed partial class TrackerPostgresTests
 {
-    private const string Api = "/api/ext/aidome";
+    private const string Api = "/api/ext/aidomme";
 
     private static async Task<JsonElement> RecordOrgasmAsync(HttpClient client, int? sessionId = null)
     {

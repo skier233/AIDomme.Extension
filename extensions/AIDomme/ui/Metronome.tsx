@@ -11,7 +11,7 @@ export function pauseMetronome() {
 
 async function lease(clientId: string, release = false) {
   const response = await extensionFetch(
-    `/api/ext/aidome/tracker/metronome/${release ? "release" : "lease"}`,
+    `/api/ext/aidomme/tracker/metronome/${release ? "release" : "lease"}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },

@@ -32,8 +32,8 @@ page itself was left for the Phase 2 redesign; only the companion was reshaped.
 5. **Fix packaging**: drop the unrestorable `Cove.Data` package fallback, add a
    `Directory.Build.targets` that strips host-provided assemblies (copy EmpPrep's), set
    `extension.json` description and `minCoveVersion` deliberately.
-6. **Settle naming**: namespace `AIDomme2025` → `AIDomme`; one CSS prefix; keep `cove.community.aidome`,
-   `/api/ext/aidome` and `aidomme_*` table names for compatibility.
+6. **Settle naming**: namespace `AIDomme2025` → `AIDomme`; one CSS prefix; keep `cove.community.aidomme`,
+   `/api/ext/aidomme` and `aidomme_*` table names for compatibility.
 7. **Reduce docs**: trim `README.md` to build/run/verify and point at `docs/`; delete
    `INTEGRATION_PLAN.md` or mark it historical.
 

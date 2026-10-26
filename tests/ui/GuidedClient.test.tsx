@@ -142,9 +142,9 @@ beforeEach(() => {
   localStorage.clear();
   vi.stubGlobal("AudioContext", Audio);
   runtime.fetch.mockImplementation(async (path: string) => {
-    if (path === "/api/ext/aidome/state" || path.startsWith("/api/ext/aidome/state?")) return Response.json(snapshot);
-    if (path === "/api/ext/aidome/setup") return Response.json(setup);
-    if (path === "/api/ext/aidome/configuration") return Response.json({ methods: [] });
+    if (path === "/api/ext/aidomme/state" || path.startsWith("/api/ext/aidomme/state?")) return Response.json(snapshot);
+    if (path === "/api/ext/aidomme/setup") return Response.json(setup);
+    if (path === "/api/ext/aidomme/configuration") return Response.json({ methods: [] });
     if (path.endsWith("release")) return new Response(null, { status: 204 });
     if (path.includes("/companion/")) return Response.json({ granted: true });
     if (path.endsWith("/tracker/state"))
@@ -179,7 +179,7 @@ it("shares one polling owner between the full page and floating view and keeps i
   ).toBeGreaterThanOrEqual(2);
   expect(
     runtime.fetch.mock.calls.filter(
-      ([path]) => path === "/api/ext/aidome/state",
+      ([path]) => path === "/api/ext/aidomme/state",
     ),
   ).toHaveLength(1);
   view.rerender(<GuidedPanel />);
@@ -196,7 +196,7 @@ it("shares one polling owner between the full page and floating view and keeps i
   await screen.findByText("Next instruction");
   expect(
     runtime.fetch.mock.calls.filter(
-      ([path]) => path === "/api/ext/aidome/state",
+      ([path]) => path === "/api/ext/aidomme/state",
     ),
   ).toHaveLength(2);
 });
@@ -206,7 +206,7 @@ it("drops a stale poll that finishes after a session mutation", async () => {
   await loaded(value);
   const old = deferred();
   runtime.fetch.mockImplementation((path: string) =>
-    path === "/api/ext/aidome/state"
+    path === "/api/ext/aidomme/state"
       ? old.promise
       : Promise.resolve(
           Response.json({
@@ -371,7 +371,7 @@ it("tells her what is on screen with each poll, but only during a session", asyn
   guidedClient.start(1);
   await loaded(guidedClient);
   await guidedClient.refresh();
-  expect(runtime.fetch.mock.calls.map(([path]) => path)).toContain("/api/ext/aidome/state?media=video:12:345.6");
+  expect(runtime.fetch.mock.calls.map(([path]) => path)).toContain("/api/ext/aidomme/state?media=video:12:345.6");
   runtime.fetch.mockClear();
   snapshot = { ...snapshot, revision: 3, sessionActive: false, session: null };
   await guidedClient.refresh();

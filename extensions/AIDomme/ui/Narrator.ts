@@ -97,7 +97,7 @@ export class CompanionNarrator {
       });
       if (!claim.granted || generation !== this.generation || !this.ownsAudio)
         return;
-      const response = await extensionFetch("/api/ext/aidome/tts", {
+      const response = await extensionFetch("/api/ext/aidomme/tts", {
         method: "POST",
         signal: controller.signal,
         headers: { "Content-Type": "application/json" },

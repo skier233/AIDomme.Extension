@@ -24,8 +24,7 @@ Directory.Build.props / .targets   net10.0; Cove host contracts wired compile-on
 scripts/build-extension-ui.mjs      esbuild + Tailwind bundle, CSS scoped under .aidomme-* roots
 scripts/stage-local-extensions.ps1  builds and copies into %LOCALAPPDATA%\cove\extensions
 extensions/AIDomme/
-  extension.json                    manifest (id cove.community.aidome; that id, the /api/ext/aidome routes,
-                                    the page routes and the aidomme_* tables are kept for compatibility)
+  extension.json                    manifest (id cove.community.aidomme)
   AiDommeExtension.cs                entry point: services, migrations, UI manifest, HTTP API
   Tracking/                         app-wide edge/orgasm tracker (Cove tables, likes, undo)
   Sessions/                         session contract, authorities, engine, planner, games, points,
@@ -117,6 +116,20 @@ teasing, stories, comments on what is on screen). Stock lines don't repeat withi
 are tracked across sessions so they stay rare. A debug session shows her plan and how it changed.
 
 ## Upgrading an existing install
+
+### From a version whose id was `cove.community.aidome` (0.16.1 and earlier)
+
+The extension id, its routes and its page are now `aidomme`. Cove keys applied migrations,
+installation and settings by id, so before starting Cove with the new build, carry them over and
+remove the old folder; the `aidomme_*` tables themselves are unchanged:
+
+```powershell
+& "$env:LOCALAPPDATA\cove\pgsqlin\psql.exe" -h 127.0.0.1 -p 5430 -U postgres -d cove -c "UPDATE extension_migrations SET extension_id = 'cove.community.aidomme' WHERE extension_id = 'cove.community.aidome'; UPDATE extension_installations SET extension_id = 'cove.community.aidomme' WHERE extension_id = 'cove.community.aidome'; UPDATE extension_data SET \"ExtensionId\" = 'cove.community.aidomme' WHERE \"ExtensionId\" = 'cove.community.aidome';"
+Remove-Item -Recurse "$env:LOCALAPPDATA\cove\extensions\cove.community.aidome"
+```
+
+Without the first statement Cove would run every migration again under the new id, and the
+first of them would fail on tables that already exist.
 
 Version 0.16.1 follows the first real session on 0.16.0: hands off after every hold and after an
 edge in timed stroking, edges shorten a timed step, faster beats scaled to the method, an orgasm she
