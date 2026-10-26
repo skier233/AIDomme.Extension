@@ -10,10 +10,10 @@ import {
 import {
   GuidedClient,
   guidedClient,
-} from "../../extensions/AIDome/ui/GuidedClient";
-import { GuidedPanel } from "../../extensions/AIDome/ui/SessionControls";
-import { CommandCenterPage } from "../../extensions/AIDome/ui/AIDome";
-import { CompanionNarrator } from "../../extensions/AIDome/ui/Narrator";
+} from "../../extensions/AIDomme/ui/GuidedClient";
+import { GuidedPanel } from "../../extensions/AIDomme/ui/SessionControls";
+import { CommandCenterPage } from "../../extensions/AIDomme/ui/AIDomme";
+import { CompanionNarrator } from "../../extensions/AIDomme/ui/Narrator";
 
 const runtime = vi.hoisted(() => ({
   fetch: vi.fn(),
@@ -378,7 +378,7 @@ it("tells her what is on screen with each poll, but only during a session", asyn
   await guidedClient.refresh();
   expect(runtime.fetch.mock.calls.map(([path]) => path).filter((path) => path.includes("media="))).toHaveLength(1);
   runtime.media = { kind: "audio", id: 3 };
-  expect((await import("../../extensions/AIDome/ui/GuidedClient")).screenQuery()).toBe("");
+  expect((await import("../../extensions/AIDomme/ui/GuidedClient")).screenQuery()).toBe("");
 });
 
 it("offers pause but not end outside debug sessions", async () => {

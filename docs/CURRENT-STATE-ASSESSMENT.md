@@ -1,7 +1,7 @@
 # AI Domme — Current state assessment
 
 Date: 2026-09-22. Reviewed against [NORTHSTAR.md](NORTHSTAR.md). The ordered work list derived from
-this review is in [NOW.md](NOW.md). Paths are relative to `extensions/AIDome/` unless noted.
+this review is in [NOW.md](NOW.md). Paths are relative to `extensions/AIDomme/` unless noted.
 
 > **Later the same day:** Phases 0 and 1 of [NOW.md](NOW.md) addressed section A (persistence),
 > the "Define offers" and companion items under "What missed the mark", and the packaging and
@@ -11,8 +11,8 @@ this review is in [NOW.md](NOW.md). Paths are relative to `extensions/AIDome/` u
 
 | Check | Result |
 | --- | --- |
-| `dotnet build AIDome.Extension.slnx -c Debug` | 0 errors |
-| `dotnet test tests/AIDome.Tests` | 15 passed, 12 skipped (PostgreSQL tests need `AIDOMME_TEST_POSTGRES`) |
+| `dotnet build AIDomme.Extension.slnx -c Debug` | 0 errors |
+| `dotnet test tests/AIDomme.Tests` | 15 passed, 12 skipped (PostgreSQL tests need `AIDOMME_TEST_POSTGRES`) |
 | `vitest run --config tests/ui/vitest.config.mjs` | 27 passed |
 | `tsc --project tsconfig.json` | clean |
 | Host dependencies (`ActiveMedia`, `navigateToUrl`, `DeleteLikeByIdAsync`, per-user like lock, keyboard hooks) | all committed in the sibling `cove` checkout; none are uncommitted local hacks. `DeleteLikeByIdAsync` and the like-lock namespace are on the frozen `Cove.Core` ABI; `getActiveMedia`, `navigateToUrl` and the keyboard hooks are exported from the runtime barrel but not listed in the documented `v1` surface, so they could change without notice. |
@@ -81,8 +81,8 @@ The code compiles and the automated checks pass. What follows is about whether i
    `RemainingCount`, or forces a punishment session. `PunishmentEnder` definitions are only used by
    the debug homework generator. The confession prompt is unreachable because
    `SuspectedUnauthorizedOrgasm` is never set true.
-6. **Naming drift.** "AI Domme" (product), `AIDome` (paths, IDs), `aidomme_*` (tables), `aidome-*`
-   and `aidomme-*` (CSS), namespace `AIDome2025` (all domain code). This should be settled once.
+6. **Naming drift.** "AI Domme" (product), `AIDomme` (paths, IDs), `aidomme_*` (tables), `aidome-*`
+   and `aidomme-*` (CSS), namespace `AIDomme2025` (all domain code). This should be settled once.
 
 ## What needs fixing (engineering)
 
@@ -111,7 +111,7 @@ The code compiles and the automated checks pass. What follows is about whether i
   its lock. These are deadlock and thread-pool risks on ASP.NET.
 - Recovery state and the whole commitment document are single-row JSON blobs
   (`aidomme_guided_recovery`, `aidomme_commitment_state`). A ledger has to be queryable rows.
-- `AIDome.csproj`'s NuGet fallback references `Cove.Data`, which is deliberately not packaged and
+- `AIDomme.csproj`'s NuGet fallback references `Cove.Data`, which is deliberately not packaged and
   cannot restore. There is no `Directory.Build.targets` stripping host-provided assemblies from
   the publish output (EmpPrep has one).
 - `extension.json` still pins `minCoveVersion` to a dev build and describes the old app.

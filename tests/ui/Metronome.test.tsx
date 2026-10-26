@@ -7,11 +7,11 @@ import {
   screen,
   waitFor,
 } from "../../../cove/ui/node_modules/@testing-library/react";
-import { MetronomeAudio } from "../../extensions/AIDome/ui/MetronomeAudio";
+import { MetronomeAudio } from "../../extensions/AIDomme/ui/MetronomeAudio";
 import {
   useMetronome,
   pauseMetronome,
-} from "../../extensions/AIDome/ui/Metronome";
+} from "../../extensions/AIDomme/ui/Metronome";
 
 const fetcher = vi.hoisted(() => vi.fn());
 vi.mock("@cove/runtime/api", () => ({ extensionFetch: fetcher }));

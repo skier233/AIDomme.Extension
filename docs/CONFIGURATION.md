@@ -5,7 +5,7 @@ them in the UI and they apply from your next session. **The extension's defaults
 account starts with; they live in this repository, and changing them means editing a file, running
 the tests, building and staging (see the README).
 
-Everything below is relative to `extensions/AIDome/`.
+Everything below is relative to `extensions/AIDomme/`.
 
 ## Your settings (the UI)
 
@@ -45,7 +45,7 @@ for the pattern: update only where the row still has its original value, so nobo
 | Deals (10) | `007_ledger.sql`, repriced in `010_offer_values.sql` | `aidomme_offer_definitions` |
 
 Migrations must not contain `{` or `}` (Cove runs them as raw SQL with format placeholders), and are
-registered in `AiDomeExtension.cs` (`DefineMigrations`).
+registered in `AiDommeExtension.cs` (`DefineMigrations`).
 
 ### Rules in code
 
@@ -62,7 +62,7 @@ registered in `AiDomeExtension.cs` (`DefineMigrations`).
 | Deals: how a request is valued, which deal she picks, raising the price after a no | `Sessions/Offers.cs` |
 | Games: which ones, their stakes | `Sessions/Games.cs` (`Choose`, `Start`) |
 | Promises: her counters and stakes | `Sessions/Ledger.cs` (`Respond`) |
-| Session modes (who decides what) | `SessionContract.Preset` in `Sessions/Contract.cs`; names in `ModePresets`, `AiDomeExtension.cs` |
+| Session modes (who decides what) | `SessionContract.Preset` in `Sessions/Contract.cs`; names in `ModePresets`, `AiDommeExtension.cs` |
 | Defaults for a new account's settings (persona 5/3/5/5, lengths 10/35/90 minutes, endings, tolerance "a while") | `Sessions/Knowledge.cs` (`PersonaSettings`, `SessionLengths`, `EndingPreferences`, `ProfileSettings`) |
 | When she talks between orders, stories, bridges | `Speech/Voice.cs` |
 | The exact wording of instructions (method, pace, time) | `Speech/Grammar.cs`, `Speech/GameGrammar.cs` |
@@ -70,8 +70,8 @@ registered in `AiDomeExtension.cs` (`DefineMigrations`).
 ## Checking a change
 
 ```powershell
-dotnet test tests/AIDome.Tests
-$env:AIDOMME_TRANSCRIPTS="$env:TEMP\aidomme-transcripts"; dotnet test tests/AIDome.Tests --filter "FullyQualifiedName~TranscriptTests"
+dotnet test tests/AIDomme.Tests
+$env:AIDOMME_TRANSCRIPTS="$env:TEMP\aidomme-transcripts"; dotnet test tests/AIDomme.Tests --filter "FullyQualifiedName~TranscriptTests"
 ```
 
 Add `$env:AIDOMME_SETTINGS_FROM="Host=127.0.0.1;Port=5430;Username=postgres;Database=cove"` to run the

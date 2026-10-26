@@ -1,0 +1,37 @@
+{
+  "id": "cove.community.aidome",
+  "name": "AI Domme",
+  "version": "0.16.1",
+  "description": "A rule-driven domme for guided edging sessions on your Cove library, with an app-wide edge tracker, orgasm permission, games and persistent commitments.",
+  "author": "skier233",
+  "url": "https://github.com/skier233/AIDomme.Extension",
+  "categories": [
+    "tools",
+    "automation"
+  ],
+  "minCoveVersion": "1.4.2-dev.44",
+  "entryDll": "AIDomme.dll",
+  "jsBundle": "dist/bundle.js",
+  "cssBundle": "dist/bundle.css",
+  "dependencies": {},
+  "permissions": {
+    "network": [
+      "127.0.0.1",
+      "localhost"
+    ]
+  },
+  "settings": [
+    {
+      "name": "ttsBaseUrl",
+      "type": "STRING",
+      "displayName": "TTS server URL",
+      "description": "Base URL of the Orpheus-FastAPI TTS server (e.g. http://localhost:5005). Leave blank to disable voice."
+    },
+    {
+      "name": "ttsVoice",
+      "type": "STRING",
+      "displayName": "TTS voice",
+      "description": "Orpheus voice name (tara, leah, jess, leo, dan, mia, zac, zoe)."
+    }
+  ]
+}

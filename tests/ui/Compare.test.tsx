@@ -1,7 +1,7 @@
 import React from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "../../../cove/ui/node_modules/@testing-library/react";
-import { CompareLab } from "../../extensions/AIDome/ui/Compare";
+import { CompareLab } from "../../extensions/AIDomme/ui/Compare";
 
 const api = vi.hoisted(() => ({ fetch: vi.fn() }));
 vi.mock("@cove/runtime/api", () => ({ extensionFetch: api.fetch }));

@@ -8,7 +8,7 @@ import {
   waitFor,
 } from "../../../cove/ui/node_modules/@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { TrackerCompanion } from "../../extensions/AIDome/ui/Tracker";
+import { TrackerCompanion } from "../../extensions/AIDomme/ui/Tracker";
 
 const runtime = vi.hoisted(() => ({
   fetch: vi.fn(),
@@ -16,8 +16,8 @@ const runtime = vi.hoisted(() => ({
   actions: [] as any[],
 }));
 vi.mock("@cove/runtime/api", () => ({ extensionFetch: runtime.fetch }));
-vi.mock("../../extensions/AIDome/ui/GuidedClient", () => ({ guidedClient: { start: () => () => {}, refresh: () => Promise.resolve(), control: () => Promise.resolve(), getSnapshot: () => ({ snapshot: null }) }, useGuidedSession: () => ({ snapshot: null }) }));
-vi.mock("../../extensions/AIDome/ui/SessionControls", () => ({ GuidedPanel: () => null, GuidedMenu: () => null }));
+vi.mock("../../extensions/AIDomme/ui/GuidedClient", () => ({ guidedClient: { start: () => () => {}, refresh: () => Promise.resolve(), control: () => Promise.resolve(), getSnapshot: () => ({ snapshot: null }) }, useGuidedSession: () => ({ snapshot: null }) }));
+vi.mock("../../extensions/AIDomme/ui/SessionControls", () => ({ GuidedPanel: () => null, GuidedMenu: () => null }));
 vi.mock("@cove/runtime/components", () => ({
   getActiveMedia: () => runtime.media,
   useActiveMedia: () => runtime.media,

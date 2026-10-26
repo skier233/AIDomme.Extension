@@ -1,6 +1,6 @@
 ---
 name: aidomme-lines
-description: Draft, review or extend the AI Domme's spoken lines (line modules in extensions/AIDome/Speech/Lines/*.json) and written segments and aims (extensions/AIDome/Sessions/Plan/segments.json). Use when asked to write new lines, stories, chatter, reactions, or a new written segment or aim for her, or to check that existing ones read well.
+description: Draft, review or extend the AI Domme's spoken lines (line modules in extensions/AIDomme/Speech/Lines/*.json) and written segments and aims (extensions/AIDomme/Sessions/Plan/segments.json). Use when asked to write new lines, stories, chatter, reactions, or a new written segment or aim for her, or to check that existing ones read well.
 ---
 
 # Writing for the AI Domme
@@ -14,17 +14,17 @@ and the voice scheduler if anything below is unclear.
 
 | What | File |
 |---|---|
-| Orders and their wrappers (Instruct, Hold, Cooldown, Finish, Denied...) | `extensions/AIDome/Speech/Lines/commands.json` |
-| Reactions to what he does (edges, begs, deals, challenges) | `extensions/AIDome/Speech/Lines/reactions.json` |
-| Session start/end, segment starts, foreshadowing, bridges | `extensions/AIDome/Speech/Lines/session.json` |
-| Chatter, interjections, stories | `extensions/AIDome/Speech/Lines/chatter.json` |
-| Games | `extensions/AIDome/Speech/Lines/games.json` |
-| Promises and follow-up questions | `extensions/AIDome/Speech/Lines/promises.json` |
-| Written segments and aims, and the names of the shapes she improvises | `extensions/AIDome/Sessions/Plan/segments.json` |
-| Acts | `SpeechAct` in `extensions/AIDome/Speech/Utterance.cs` |
-| Facts a condition can test | `Knowledge.Facts` in `extensions/AIDome/Sessions/Knowledge.cs` |
-| Slots a line can use | `LineLibrary.KnownSlots` in `extensions/AIDome/Speech/Lines.cs` |
-| The exact instruction text (core tier) | `extensions/AIDome/Speech/Grammar.cs` |
+| Orders and their wrappers (Instruct, Hold, Cooldown, Finish, Denied...) | `extensions/AIDomme/Speech/Lines/commands.json` |
+| Reactions to what he does (edges, begs, deals, challenges) | `extensions/AIDomme/Speech/Lines/reactions.json` |
+| Session start/end, segment starts, foreshadowing, bridges | `extensions/AIDomme/Speech/Lines/session.json` |
+| Chatter, interjections, stories | `extensions/AIDomme/Speech/Lines/chatter.json` |
+| Games | `extensions/AIDomme/Speech/Lines/games.json` |
+| Promises and follow-up questions | `extensions/AIDomme/Speech/Lines/promises.json` |
+| Written segments and aims, and the names of the shapes she improvises | `extensions/AIDomme/Sessions/Plan/segments.json` |
+| Acts | `SpeechAct` in `extensions/AIDomme/Speech/Utterance.cs` |
+| Facts a condition can test | `Knowledge.Facts` in `extensions/AIDomme/Sessions/Knowledge.cs` |
+| Slots a line can use | `LineLibrary.KnownSlots` in `extensions/AIDomme/Speech/Lines.cs` |
+| The exact instruction text (core tier) | `extensions/AIDomme/Speech/Grammar.cs` |
 
 ## A module
 
@@ -116,7 +116,7 @@ pleasure that is hard to hold back from, torture is stimulation he wants to stop
 2. Draft. Prefer fewer, better lines with conditions over many generic ones.
 3. Validate and simulate:
    ```bash
-   dotnet test tests/AIDome.Tests --filter "FullyQualifiedName~TranscriptTests"
+   dotnet test tests/AIDomme.Tests --filter "FullyQualifiedName~TranscriptTests"
    ```
    `TheShippedLinesAndSegmentsAreValid` checks ids, acts, conditions, slots, dashes and stories.
 4. Read transcripts. Set `AIDOMME_TRANSCRIPTS` to a folder and rerun the same command; each

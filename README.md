@@ -23,9 +23,10 @@ that can be narrated through an optional local TTS server.
 Directory.Build.props / .targets   net10.0; Cove host contracts wired compile-only from ../cove
 scripts/build-extension-ui.mjs      esbuild + Tailwind bundle, CSS scoped under .aidomme-* roots
 scripts/stage-local-extensions.ps1  builds and copies into %LOCALAPPDATA%\cove\extensions
-extensions/AIDome/
-  extension.json                    manifest (id cove.community.aidome)
-  AiDomeExtension.cs                entry point: services, migrations, UI manifest, HTTP API
+extensions/AIDomme/
+  extension.json                    manifest (id cove.community.aidome; that id, the /api/ext/aidome routes,
+                                    the page routes and the aidomme_* tables are kept for compatibility)
+  AiDommeExtension.cs                entry point: services, migrations, UI manifest, HTTP API
   Tracking/                         app-wide edge/orgasm tracker (Cove tables, likes, undo)
   Sessions/                         session contract, authorities, engine, planner, games, points,
                                     offers, the ledger and promise rules, what she knows, simulation
@@ -37,7 +38,7 @@ extensions/AIDome/
   Services/                         TTS and method point calibration
   ui/                               React page, companion window, settings panel
   dist/                             built bundles (checked in)
-tests/AIDome.Tests                  xUnit; PostgreSQL integration tests use temporary databases
+tests/AIDomme.Tests                  xUnit; PostgreSQL integration tests use temporary databases
 tests/ui                            Vitest component tests
 .claude/skills/aidomme-lines        Claude skill for drafting her lines and segment types
 ```
@@ -50,7 +51,7 @@ Cove does not publish as a package.
 ```powershell
 npm install
 npm run build:ui
-dotnet build AIDome.Extension.slnx -c Debug
+dotnet build AIDomme.Extension.slnx -c Debug
 ./scripts/stage-local-extensions.ps1   # then restart Cove; "AI Domme" appears in the nav
 # (pass -DestinationRoot if your Cove data folder is not %LOCALAPPDATA%\cove)
 ```
@@ -178,7 +179,7 @@ versions shipped but Cove provides itself.
 ## Verify
 
 ```powershell
-dotnet test tests/AIDome.Tests/AIDome.Tests.csproj
+dotnet test tests/AIDomme.Tests/AIDomme.Tests.csproj
 ../cove/ui/node_modules/.bin/tsc.cmd --project tsconfig.json
 $env:NODE_OPTIONS="--no-experimental-webstorage"; ../cove/ui/node_modules/.bin/vitest.cmd run --config tests/ui/vitest.config.mjs
 ```
@@ -197,7 +198,7 @@ Simulated sessions (every mode, with users who obey, beg, fail, slip or only edg
 out as readable transcripts, with her plan and each revision:
 
 ```powershell
-$env:AIDOMME_TRANSCRIPTS="$env:TEMP\aidomme-transcripts"; dotnet test tests/AIDome.Tests --filter "FullyQualifiedName~TranscriptTests"
+$env:AIDOMME_TRANSCRIPTS="$env:TEMP\aidomme-transcripts"; dotnet test tests/AIDomme.Tests --filter "FullyQualifiedName~TranscriptTests"
 ```
 
 Start with `_SUMMARY.md` in that folder: every session in one table (its sliders, outcome, minutes

@@ -17,5 +17,5 @@
       "@tanstack/react-query": ["../cove/ui/node_modules/@tanstack/react-query"]
     }
   },
-  "include": ["extensions/AIDome/ui/*.tsx", "../cove/ui/src/vite-env.d.ts"]
+  "include": ["extensions/AIDomme/ui/*.tsx", "../cove/ui/src/vite-env.d.ts"]
 }

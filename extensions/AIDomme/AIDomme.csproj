@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>AIDomme</AssemblyName>
+    <RootNamespace>AIDomme</RootNamespace>
+  </PropertyGroup>
+
+  <!-- Cove host contracts (Cove.Sdk, Cove.Core, Cove.Data) are wired compile-only by Directory.Build.targets. -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <!-- Literal SQL migrations, loaded by GuidedMigrations.Load. -->
+  <ItemGroup>
+    <EmbeddedResource Include="Persistence\Sql\*.sql" LogicalName="AIDomme.Sql.%(Filename).sql" />
+  </ItemGroup>
+
+  <!-- Her segment catalogue and line files: data, validated when first loaded and by the tests. -->
+  <ItemGroup>
+    <EmbeddedResource Include="Sessions\Plan\segments.json" LogicalName="AIDomme.Plan.segments.json" />
+    <EmbeddedResource Include="Speech\Lines\*.json" LogicalName="AIDomme.Lines.%(Filename).json" />
+  </ItemGroup>
+</Project>

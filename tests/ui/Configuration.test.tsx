@@ -8,7 +8,7 @@ import {
   waitFor,
   within,
 } from "../../../cove/ui/node_modules/@testing-library/react";
-import { DefinitionSettings } from "../../extensions/AIDome/ui/Configuration";
+import { DefinitionSettings } from "../../extensions/AIDomme/ui/Configuration";
 const api = vi.hoisted(() => ({ fetch: vi.fn() }));
 vi.mock("@cove/runtime/api", () => ({ extensionFetch: api.fetch }));
 let data: any;

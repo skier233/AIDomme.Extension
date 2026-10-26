@@ -511,7 +511,7 @@ page again (`/aidome-tuning`) for methods, punishment endings and deals with a p
 
 ## 18. Calibration and pace (0.13.0)
 
-- **Compare** in the tuning lab ports the original app's calibration (AIDome2025 `TuningLab.razor`):
+- **Compare** in the tuning lab ports the original app's calibration (AIDomme2025 `TuningLab.razor`):
   two assignments side by side (a method for 15 to 120 seconds, or 1 to 5 edges on it when its
   Closeness is 3+; or two punishment endings), "which would you rather be told to do", with three
   strengths. The preferred one is recorded as the easier (winner), as the optimizer expects. A

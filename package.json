@@ -1,5 +1,5 @@
 {
-  "name": "aidome-extension",
+  "name": "aidomme-extension",
   "version": "0.16.1",
   "type": "module",
   "private": true,
@@ -7,8 +7,8 @@
     "node": ">=24 <26"
   },
   "scripts": {
-    "build:ui": "npm run build:ui:AIDome",
-    "build:ui:AIDome": "node scripts/build-extension-ui.mjs AIDome"
+    "build:ui": "npm run build:ui:AIDomme",
+    "build:ui:AIDomme": "node scripts/build-extension-ui.mjs AIDomme"
   },
   "devDependencies": {
     "@tailwindcss/cli": "^4.2.2",

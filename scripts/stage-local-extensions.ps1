@@ -10,7 +10,7 @@ $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoRoot = Split-Path -Parent $scriptRoot
 
 $extensions = @(
-    "AIDome"
+    "AIDomme"
 )
 
 Write-Host "Building extension UI bundles..."
@@ -25,8 +25,8 @@ finally {
     Pop-Location
 }
 
-Write-Host "Building AIDome.Extension ($Configuration)..."
-dotnet build (Join-Path $repoRoot "extensions\AIDome\AIDome.csproj") -c $Configuration --nologo
+Write-Host "Building AIDomme.Extension ($Configuration)..."
+dotnet build (Join-Path $repoRoot "extensions\AIDomme\AIDomme.csproj") -c $Configuration --nologo
 if ($LASTEXITCODE -ne 0) {
     throw "dotnet build failed with exit code $LASTEXITCODE"
 }
@@ -74,4 +74,4 @@ foreach ($extension in $extensions) {
     Write-Host ("Staged {0} -> {1}" -f $manifest.id, $targetDir)
 }
 
-Write-Host "Local AIDome extension is ready. Restart Cove to reload it if it is already running."
+Write-Host "Local AIDomme extension is ready. Restart Cove to reload it if it is already running."

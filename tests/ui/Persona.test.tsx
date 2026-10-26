@@ -7,7 +7,7 @@ import {
   screen,
   waitFor,
 } from "../../../cove/ui/node_modules/@testing-library/react";
-import { BodyPanel, EndingsPanel, HerPersonaPanel, LengthsPanel, PlanDebug, ProfileLab, TuningLabLinkPanel, dommeSettings } from "../../extensions/AIDome/ui/Persona";
+import { BodyPanel, EndingsPanel, HerPersonaPanel, LengthsPanel, PlanDebug, ProfileLab, TuningLabLinkPanel, dommeSettings } from "../../extensions/AIDomme/ui/Persona";
 
 const runtime = vi.hoisted(() => ({ fetch: vi.fn(), navigate: vi.fn() }));
 vi.mock("@cove/runtime/api", () => ({ extensionFetch: runtime.fetch }));

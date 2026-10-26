@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="extensions/AIDomme/AIDomme.csproj" />
+  <Project Path="tests/AIDomme.Tests/AIDomme.Tests.csproj" />
+</Solution>

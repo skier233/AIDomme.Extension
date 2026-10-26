@@ -32,7 +32,7 @@ page itself was left for the Phase 2 redesign; only the companion was reshaped.
 5. **Fix packaging**: drop the unrestorable `Cove.Data` package fallback, add a
    `Directory.Build.targets` that strips host-provided assemblies (copy EmpPrep's), set
    `extension.json` description and `minCoveVersion` deliberately.
-6. **Settle naming**: namespace `AIDome2025` → `AIDome`; one CSS prefix; keep `cove.community.aidome`,
+6. **Settle naming**: namespace `AIDomme2025` → `AIDomme`; one CSS prefix; keep `cove.community.aidome`,
    `/api/ext/aidome` and `aidomme_*` table names for compatibility.
 7. **Reduce docs**: trim `README.md` to build/run/verify and point at `docs/`; delete
    `INTEGRATION_PLAN.md` or mark it historical.
@@ -98,7 +98,7 @@ Goal: no extension-owned DbContext, literal migrations, plain user scoping, quer
 
 **Status: done 2026-09-22 (version 0.8.0).** The old engine (`OnlineSessionEngine`, `GameEngine`,
 `InteractionManager`, `SessionPolicy`, `SessionDirective`, the command center) is deleted; the new
-core lives in `extensions/AIDome/Sessions/`. What landed, and where it differs from the plan:
+core lives in `extensions/AIDomme/Sessions/`. What landed, and where it differs from the plan:
 
 - **Contract** (`Contract.cs`): mode, one authority each for content, methods, pacing and edges,
   games on/off, preferences, limits (toys, kinks, allowed-method filter), punishment, debug and
