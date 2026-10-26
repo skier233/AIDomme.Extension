@@ -45,8 +45,8 @@ public sealed class AiDomeExtension : FullExtensionBase
     public override string Name => "AI Domme";
     public override string Version => "0.16.1";
     public override string Description => "A rule-driven domme for guided edging sessions on your Cove library, with an app-wide edge tracker, orgasm permission, games and persistent commitments.";
-    public override string Author => "Cove Community";
-    public override string Url => "https://github.com/yourcove/AIDome.Extension";
+    public override string Author => "skier233";
+    public override string Url => "https://github.com/skier233/AIDome.Extension";
 
     public override IReadOnlyList<string> Categories =>
     [

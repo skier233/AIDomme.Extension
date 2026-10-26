@@ -224,7 +224,8 @@ public sealed partial class TrackerPostgresTests : IAsyncLifetime
             var query = (IQueryable<object>)typeof(DbContext).GetMethod(nameof(DbContext.Set), Type.EmptyTypes)!.MakeGenericMethod(type).Invoke(db, null)!;
             await query.Take(1).ToListAsync();
         }
-        Assert.Equal(40, await db.Set<StimMethod>().CountAsync());
+        // Thirty hand methods ship; toys are each user's own to add.
+        Assert.Equal(30, await db.Set<StimMethod>().CountAsync());
         Assert.Equal(14, await db.Set<PunishmentEnder>().CountAsync());
     }
 

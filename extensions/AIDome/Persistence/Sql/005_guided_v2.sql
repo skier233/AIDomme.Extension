@@ -324,16 +324,6 @@ BEGIN
     INSERT INTO aidomme_methods ("Id", "Closeness", "Description", "Intensity", "Name", "RequiresLube", "Tease", "TortLevel") VALUES (28, 1, 'Make a fist and peek the head of your cock into it.', 10, 'Fist Peek', TRUE, 5, 10);
     INSERT INTO aidomme_methods ("Id", "Closeness", "Description", "Intensity", "Name", "RequiresLube", "Tease", "TortLevel") VALUES (29, 1, 'Tease the head of your cock with fingers in almost a pinching motion.', 9, 'Head Pinch Tease', TRUE, 6, 9);
     INSERT INTO aidomme_methods ("Id", "Description", "Intensity", "Name", "Tease", "TortLevel") VALUES (30, 'Move one finger up and down your cock gently.', 1, 'Single Finger Tease', 9, 1);
-    INSERT INTO aidomme_methods ("Id", "Closeness", "Description", "Intensity", "Name", "RequiresLube", "Tease", "TortLevel", "ToyCategory") VALUES (31, 2, 'Use the penis head vibrator at a slow speed.', 4, 'Head Vibrator (slow)', TRUE, 6, 3, 1);
-    INSERT INTO aidomme_methods ("Id", "Closeness", "Description", "Intensity", "Name", "RequiresLube", "Tease", "TortLevel", "ToyCategory") VALUES (32, 4, 'Use the penis head vibrator at a medium speed.', 6, 'Head Vibrator (medium)', TRUE, 3, 5, 1);
-    INSERT INTO aidomme_methods ("Id", "Closeness", "Description", "Intensity", "Name", "RequiresLube", "Tease", "TortLevel", "ToyCategory") VALUES (33, 8, 'Use the penis head vibrator at max speed.', 8, 'Head Vibrator (max)', TRUE, 2, 7, 1);
-    INSERT INTO aidomme_methods ("Id", "Closeness", "Description", "Intensity", "Name", "RequiresLube", "Tease", "TortLevel", "ToyCategory") VALUES (34, 7, 'Use the fleshlight at slow speed.', 6, 'Fleshlight (slow)', TRUE, 4, 5, 2);
-    INSERT INTO aidomme_methods ("Id", "Closeness", "Description", "Intensity", "Name", "RequiresLube", "Tease", "TortLevel", "ToyCategory") VALUES (35, 6, 'Use the fleshlight at medium speed.', 5, 'Fleshlight (medium)', TRUE, 5, 4, 2);
-    INSERT INTO aidomme_methods ("Id", "Closeness", "Description", "Intensity", "Name", "RequiresLube", "Tease", "TortLevel", "ToyCategory") VALUES (36, 8, 'Use the fleshlight at high speed.', 7, 'Fleshlight (fast)', TRUE, 3, 3, 2);
-    INSERT INTO aidomme_methods ("Id", "Closeness", "Description", "Intensity", "Name", "RequiresLube", "Tease", "TortLevel", "ToyCategory") VALUES (37, 4, 'Use the autoblow at low speed.', 6, 'Autoblow (slow)', TRUE, 6, 7, 3);
-    INSERT INTO aidomme_methods ("Id", "Closeness", "Description", "Intensity", "Name", "RequiresLube", "Tease", "TortLevel", "ToyCategory") VALUES (38, 5, 'Use the autoblow at medium speed.', 6, 'Autoblow (medium)', TRUE, 3, 5, 3);
-    INSERT INTO aidomme_methods ("Id", "Closeness", "Description", "Intensity", "Name", "RequiresLube", "Tease", "TortLevel", "ToyCategory") VALUES (39, 6, 'Use the autoblow at high speed.', 7, 'Autoblow (fast)', TRUE, 2, 3, 3);
-    INSERT INTO aidomme_methods ("Id", "Closeness", "Description", "Intensity", "Name", "RequiresLube", "Tease", "TortLevel", "ToyCategory") VALUES (40, 4, 'Use the prostate massager to intensify stimulation.', 6, 'Prostate Massager', TRUE, 7, 5, 4);
   ELSE
     -- Shared definitions keep their identities so recorded activity still points at them.
     INSERT INTO aidomme_methods ("Id", "Name", "Intensity", "Tease", "TortLevel", "Closeness", "RequiresLube",

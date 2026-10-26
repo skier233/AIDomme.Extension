@@ -40,7 +40,7 @@ for the pattern: update only where the row still has its original value, so nobo
 
 | What | Seeded by | Table |
 |---|---|---|
-| Methods (40) | `Persistence/Sql/005_guided_v2.sql` | `aidomme_methods` |
+| Methods (30, hand methods only; toys are added per user in the tuning lab) | `Persistence/Sql/005_guided_v2.sql` | `aidomme_methods` |
 | Punishment endings (14) | `005_guided_v2.sql`, `007_ledger.sql` (EndsInOrgasm) | `aidomme_enders` |
 | Deals (10) | `007_ledger.sql`, repriced in `010_offer_values.sql` | `aidomme_offer_definitions` |
 
