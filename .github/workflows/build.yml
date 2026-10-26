@@ -99,7 +99,7 @@ jobs:
 
       - name: Publish
         working-directory: AIDomme.Extension
-        run: dotnet publish ${{ env.EXTENSION_PROJECT }} -c Release -o artifacts/extension --no-build
+        run: dotnet publish ${{ env.EXTENSION_PROJECT }} -c Release -o artifacts/extension
 
       - name: Copy manifest
         working-directory: AIDomme.Extension
