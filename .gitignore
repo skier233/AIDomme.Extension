@@ -5,3 +5,6 @@ node_modules/
 .vs/
 .idea/
 # Built UI bundles are checked in (per the AI.Extensions convention) — do NOT ignore dist/
+# Generated session transcripts (AIDOMME_TRANSCRIPTS) and local Claude settings
+transcripts/
+.claude/settings.local.json

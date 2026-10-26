@@ -1,7 +1,7 @@
 param(
     [ValidateSet("Debug", "Release")]
     [string]$Configuration = "Debug",
-    [string]$DestinationRoot = (Join-Path $env:LOCALAPPDATA "cove_personal_live\extensions")
+    [string]$DestinationRoot = (Join-Path $env:LOCALAPPDATA "cove\extensions")
 )
 
 $ErrorActionPreference = "Stop"

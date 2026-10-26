@@ -52,6 +52,7 @@ npm install
 npm run build:ui
 dotnet build AIDome.Extension.slnx -c Debug
 ./scripts/stage-local-extensions.ps1   # then restart Cove; "AI Domme" appears in the nav
+# (pass -DestinationRoot if your Cove data folder is not %LOCALAPPDATA%\cove)
 ```
 
 ## Session modes

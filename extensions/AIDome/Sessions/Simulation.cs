@@ -54,7 +54,7 @@ public sealed record SimulatedUser
 public sealed record TranscriptLine(TimeSpan At, string Who, string Text, SpeechAct? Act = null, string? Segment = null, string? Note = null,
     Directive? Directive = null, int Turn = 0, string? Module = null);
 
-public sealed record SimulationResult(SessionState State, IReadOnlyList<TranscriptLine> Lines, string PlanAtStart, IReadOnlyList<string> Revisions)
+public sealed record SimulationResult(SessionState State, IReadOnlyList<TranscriptLine> Lines, IReadOnlyList<string> Revisions)
 {
     /// <summary>What he was actually told to do, step by step, with how long each took.</summary>
     public IReadOnlyList<StepRecord> Steps { get; init; } = [];
@@ -208,7 +208,6 @@ public static class Simulation
         void Edged() => Body.OnEdge(truth, trueProfile, learn: false, (clock.UtcNow - start).TotalSeconds);
 
         Say(engine.Begin(s));
-        string planAtStart = PlanText(s);
         DateTime? nextBeg = user.BegEvery > 0 ? start.AddSeconds(user.BegEvery) : null;
         DateTime? nextFreeEdge = null;
         int lastStep = -1;
@@ -315,7 +314,7 @@ public static class Simulation
         if (s.Active) lines.Add(new(clock.UtcNow - start, "Note", "the simulation stopped here"));
         if (steps.Count > 0 && steps[^1].End == TimeSpan.MinValue)
             steps[^1] = steps[^1] with { End = clock.UtcNow - start, Edges = s.EdgesThisSession - edgesAtStep, EstimateEnd = BodySnapshot.Of(s.Body), TruthEnd = BodySnapshot.Of(truth) };
-        return new(s, lines, planAtStart, s.Plan?.Revisions.ToList() ?? []) { Steps = steps, Truth = truth, User = user, Seed = seed };
+        return new(s, lines, s.Plan?.Revisions.ToList() ?? []) { Steps = steps, Truth = truth, User = user, Seed = seed };
     }
 
     /// <summary>What he does next in this step, if anything (timers take care of the rest).</summary>
@@ -382,24 +381,6 @@ public static class Simulation
         Facts = Knowledge.Facts(s, screen is null ? null : screen with { SeenAtUtc = now }, now),
         Memory = s.Speech, Recall = s.Recall, Persona = s.Persona, Random = random, Now = now, Chatter = chatter,
     };
-
-    public static string PlanText(SessionState s)
-    {
-        var sb = new StringBuilder();
-        var view = SessionHost.PlanOf(s);
-        sb.AppendLine($"Mode {s.Contract.Mode}; intensity {s.Intensity}, length {s.Length}, denial {s.Denial}, meanness {s.Mean}{(s.Contract.Punishment ? "; punishment session" : "")}");
-        sb.AppendLine($"Length {s.Length} means about {s.BudgetMinutes:0} minutes; she starts from a pace of {s.AssumedPace:0.0} points a minute and follows his pace tonight.");
-        sb.AppendLine($"Persona tonight: harshness {s.Persona.Harshness}, humiliation {s.Persona.Humiliation}, manipulation {s.Persona.Manipulation}, talkativeness {s.Persona.Talkativeness}");
-        sb.AppendLine($"Mood: {view.Mood} ({view.MoodCause}), annoyance {view.Annoyance}");
-        sb.AppendLine($"Ending she leans toward: {view.Ending} ({view.EndingReason}); {view.Presentation switch { "Honest" => "she will be honest about it", "Lie" => "she may lie about it", _ => "she will keep it to herself" }}");
-        sb.AppendLine($"His profile as she starts: pace {s.Profile.Pace:0.00} ({s.Profile.PaceSource}), recovery {s.Profile.Recovery:0}s ({s.Profile.RecoverySource}), tolerance {s.Profile.Tolerance:0}s ({s.Profile.ToleranceSource})");
-        if (view.Aims.Count == 0) sb.AppendLine("No aims: he sets the pace, she decides the ending.");
-        else sb.AppendLine("Her aims (segments are chosen as she goes, from his state):");
-        int n = 0;
-        foreach (var aim in view.Aims)
-            sb.AppendLine($"  {++n}. {aim.Name}{(aim.Written.Length > 0 ? $", as \"{aim.Written}\"" : "")}, {aim.Share:P0} of the session{(aim.Origin == "plan" ? "" : $" [{aim.Origin}]")}. She wants: {aim.Goal}. Why: {aim.Why}.");
-        return sb.ToString();
-    }
 
     /// <summary>A readable transcript: the plan, the session as chat with his actions, and how the plan changed.</summary>
     private static string Clock(TimeSpan t) => $"{(int)t.TotalMinutes:00}:{t.Seconds:00}";
